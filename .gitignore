@@ -1,0 +1,29 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Node and Python tooling
+node_modules/
+.venv/
+__pycache__/
+
+# Local state, keys and secrets: never commit
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+*.token
+credentials/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Build and run outputs
+dist/
+*.redb
