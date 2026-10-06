@@ -7,7 +7,7 @@
 
 ## Context
 
-Hephaestus is designed across conversations, devices and coding agents, next to three Zeus repositories that already use ADRs (`zeus/docs/adr`). Decisions made in conversation get lost, and the next contributor re-argues them.
+Ogun is designed across conversations, devices and coding agents, next to the three Zeus repositories that already use ADRs (`zeus/docs/adr`). Decisions made in conversation get lost, and the next contributor re-argues them.
 
 ## Decision
 
@@ -24,7 +24,7 @@ Newcomers can read the records in order. A `Proposed` record states a recommenda
 | ADR | Title | Status |
 |---|---|---|
 | 0001 | Record architecture decisions | Accepted |
-| 0002 | Hephaestus is a separate process and a client of zeusd | Proposed |
+| 0002 | Ogun is a separate product built on zeus-core | Accepted |
 | 0003 | The workflow IR is data, not code | Proposed |
 | 0004 | Integrate, do not replace | Proposed |
 | 0005 | Benchmark runs are a run profile | Proposed |
