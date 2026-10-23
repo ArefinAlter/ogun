@@ -1,0 +1,41 @@
+{
+  "ir_version": 0,
+  "workflow": "openaq-bangladesh",
+  "version": 1,
+  "description": "Every OpenAQ monitor in Bangladesh, month by month since 2019, from the public OpenAQ S3 archive, reduced to daily PM2.5 per location. A partitioned backfill: a crash resumes only unfinished months.",
+  "triggers": [{ "kind": "cron", "cron": "10 2 4 * *" }],
+  "partitions": { "kind": "time", "granularity": "month", "start": "2019-01" },
+  "budgets": { "bytes": 2147483648, "wall_ms": 7200000 },
+  "nodes": [
+    {
+      "id": "locations",
+      "op": "crawl@1",
+      "config": {
+        "start": "https://api.openaq.org/v3/locations?iso=BD&limit=1000",
+        "headers": { "X-API-Key": { "secret_ref": "openaq" } },
+        "select": { "json_path": "$.results[*].id" },
+        "emit": "https://openaq-data-archive.s3.amazonaws.com/records/csv.gz/locationid={id}/year={partition.year}/month={partition.month}/"
+      }
+    },
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "inputs": ["locations.urls"],
+      "config": { "allowed_domains": ["openaq-data-archive.s3.amazonaws.com"], "listing": "s3_prefix" },
+      "policy": { "retries": 5, "concurrency": 4 }
+    },
+    {
+      "id": "daily",
+      "op": "sql@1",
+      "inputs": ["fetch.artifacts"],
+      "config": { "table": "measurements" },
+      "code": { "blake3": "002b2186983e9114c550d7854c950999f7cc3e781279f7a31f1c5fa9426f8ea3", "path": "examples/smartair/ops/openaq_monthly.sql" }
+    },
+    {
+      "id": "publish",
+      "op": "duckdb@1",
+      "inputs": ["daily.tables"],
+      "config": { "write": "openaq_bd_daily.parquet" }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "ir_version": 0,
+  "workflow": "school-report",
+  "version": 1,
+  "description": "A monthly air-quality report card per school: indoor against outdoor PM2.5 during school hours, hours above the national limit and the WHO guideline. Nothing reaches parents until a person approves it.",
+  "triggers": [{ "kind": "cron", "cron": "0 3 2 * *" }],
+  "partitions": { "kind": "time", "granularity": "month", "start": "2026-01" },
+  "nodes": [
+    {
+      "id": "hourly",
+      "op": "duckdb@1",
+      "config": { "read": "air_quality_hourly.parquet", "table": "hourly", "school_hours": "07:30-14:30 Asia/Dhaka, Sun-Thu" }
+    },
+    {
+      "id": "figures",
+      "op": "sql@1",
+      "inputs": ["hourly.tables"],
+      "code": { "blake3": "8da75ee81b00e877e33d43bb50907b007233b6a487d2c22dad43dedf039a5bbe", "path": "examples/smartair/ops/school_month.sql" }
+    },
+    {
+      "id": "render",
+      "op": "pandoc@1",
+      "inputs": ["figures.tables"],
+      "config": { "template": "templates/school_report.md", "to": "pdf", "languages": ["en", "bn"] }
+    },
+    {
+      "id": "deliver",
+      "op": "file.copy@1",
+      "inputs": ["render.artifacts"],
+      "config": { "to": "outbox/schools/{partition}/" },
+      "policy": { "approval": "always" }
+    }
+  ]
+}

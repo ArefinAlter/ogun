@@ -62,6 +62,11 @@ enum Command {
         /// Workflow IR, JSON.
         file: PathBuf,
     },
+    /// Print the BLAKE3 of a file, for a code operator's `code.blake3` (O-02 section 7).
+    HashFile {
+        /// The code bundle or script.
+        file: PathBuf,
+    },
     /// Serve the read-only Ogun tools to a coding agent over MCP on stdio.
     Mcp,
     /// Show what changed between two versions and whether the new one needs an approval.
@@ -211,6 +216,20 @@ fn run(cli: &Cli) -> Result<bool> {
             {
                 Some(t) => println!("{}", t.to_rfc3339()),
                 None => println!("manual only"),
+            }
+            Ok(true)
+        }
+        Command::HashFile { file } => {
+            let bytes =
+                std::fs::read(file).with_context(|| format!("cannot read {}", file.display()))?;
+            let hex = blake3::hash(&bytes).to_hex();
+            if cli.json {
+                println!(
+                    "{}",
+                    serde_json::json!({ "blake3": hex.as_str(), "size_bytes": bytes.len() })
+                );
+            } else {
+                println!("{hex}");
             }
             Ok(true)
         }

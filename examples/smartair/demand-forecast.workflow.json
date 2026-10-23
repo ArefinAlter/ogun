@@ -1,0 +1,38 @@
+{
+  "ir_version": 0,
+  "workflow": "demand-forecast",
+  "version": 1,
+  "description": "Every Saturday: next week's filter and purifier demand per SKU from last year's sales in the same week, scaled by the CAMS PM2.5 forecast for Dhaka. Explainable on purpose.",
+  "triggers": [{ "kind": "cron", "cron": "20 23 * * 5" }],
+  "budgets": { "wall_ms": 600000 },
+  "nodes": [
+    {
+      "id": "forecast",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["customer-air-quality-api.open-meteo.com"],
+        "sources": [{ "url": "https://customer-air-quality-api.open-meteo.com/v1/air-quality?latitude=23.81&longitude=90.41&hourly=pm2_5&forecast_days=7" }],
+        "query_secrets": { "apikey": { "secret_ref": "open_meteo" } },
+        "attribution": "Copernicus Atmosphere Monitoring Service via Open-Meteo"
+      }
+    },
+    {
+      "id": "sales",
+      "op": "duckdb@1",
+      "config": { "read": "shop_sales_daily.parquet" }
+    },
+    {
+      "id": "model",
+      "op": "python@1",
+      "inputs": ["forecast.artifacts", "sales.tables"],
+      "config": { "as_of": "{run.date}", "last_year_week_pm25": 80 },
+      "code": { "blake3": "10440b13f9af2df45f68df9b6281155877a6073787672d296029d79f31f66d02", "path": "examples/smartair/ops/demand_forecast.py" }
+    },
+    {
+      "id": "publish",
+      "op": "duckdb@1",
+      "inputs": ["model.rows"],
+      "config": { "write": "demand_next_week.parquet" }
+    }
+  ]
+}

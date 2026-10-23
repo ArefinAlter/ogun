@@ -1,0 +1,28 @@
+{
+  "ir_version": 0,
+  "workflow": "filter-life",
+  "version": 2,
+  "description": "Every morning: thirty days of hourly purifier and room PM2.5 rollups, a filter-load estimate per purifier, and the list of filters due within three weeks for the warehouse and the customer team.",
+  "triggers": [{ "kind": "cron", "cron": "45 0 * * *" }],
+  "budgets": { "wall_ms": 600000 },
+  "nodes": [
+    {
+      "id": "rollups",
+      "op": "duckdb@1",
+      "config": { "read": "air_quality_hourly.parquet", "last_days": 30 }
+    },
+    {
+      "id": "estimate",
+      "op": "python@1",
+      "inputs": ["rollups.tables"],
+      "config": { "as_of": "{run.date}" },
+      "code": { "blake3": "bb0d5fff12e03f02aea85813eee668ddbf30610cf2cebfc4c0f9e32381126222", "path": "examples/smartair/ops/filter_life_dhaka.py" }
+    },
+    {
+      "id": "due",
+      "op": "duckdb@1",
+      "inputs": ["estimate.rows"],
+      "config": { "write": "filters_due.parquet", "due_within_days": 21 }
+    }
+  ]
+}
