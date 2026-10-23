@@ -104,17 +104,17 @@ fn example_code_hashes_match_their_files() {
     for rel in &examples() {
         let report = check(&read(rel), &Catalogue::builtin());
         for node in &report.workflow().unwrap().nodes {
-            if let Some(code) = &node.code {
-                if let Some(path) = &code.path {
-                    let bytes = std::fs::read(root().join(path))
-                        .unwrap_or_else(|e| panic!("{rel}: {path}: {e}"));
-                    assert_eq!(
-                        blake3::hash(&bytes).to_hex().as_str(),
-                        code.blake3,
-                        "{rel}: {path}"
-                    );
-                    checked += 1;
-                }
+            if let Some(code) = &node.code
+                && let Some(path) = &code.path
+            {
+                let bytes = std::fs::read(root().join(path))
+                    .unwrap_or_else(|e| panic!("{rel}: {path}: {e}"));
+                assert_eq!(
+                    blake3::hash(&bytes).to_hex().as_str(),
+                    code.blake3,
+                    "{rel}: {path}"
+                );
+                checked += 1;
             }
         }
     }
