@@ -8,6 +8,8 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
+mod mcp;
+
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -60,6 +62,8 @@ enum Command {
         /// Workflow IR, JSON.
         file: PathBuf,
     },
+    /// Serve the read-only Ogun tools to a coding agent over MCP on stdio.
+    Mcp,
     /// Show what changed between two versions and whether the new one needs an approval.
     Diff {
         /// The approved version.
@@ -208,6 +212,13 @@ fn run(cli: &Cli) -> Result<bool> {
                 Some(t) => println!("{}", t.to_rfc3339()),
                 None => println!("manual only"),
             }
+            Ok(true)
+        }
+        Command::Mcp => {
+            let stdin = std::io::stdin();
+            mcp::serve(stdin.lock(), std::io::stdout().lock(), || {
+                zeus_types::Timestamp::now().unix_millis()
+            })?;
             Ok(true)
         }
         Command::Diff { old, new } => {
