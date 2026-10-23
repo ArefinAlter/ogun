@@ -1,0 +1,23 @@
+[package]
+name = "ogun-cli"
+description = "The ogun command-line interface."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "ogun"
+path = "src/main.rs"
+
+[dependencies]
+ogun-ir.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+
+[lints]
+workspace = true
