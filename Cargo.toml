@@ -17,6 +17,9 @@ members = [
     "crates/ogun-ingest",
     "crates/ogun-sync",
     "crates/ogun-lsp",
+    "crates/ogun-lineage",
+    "crates/ogun-bench",
+    "crates/ogun-zeus-bridge",
 ]
 
 [workspace.package]
@@ -55,6 +58,9 @@ ogun-daemon = { path = "crates/ogun-daemon", version = "0.1.0" }
 ogun-llm = { path = "crates/ogun-llm", version = "0.1.0" }
 ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
 ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
+ogun-lineage = { path = "crates/ogun-lineage", version = "0.1.0" }
+ogun-bench = { path = "crates/ogun-bench", version = "0.1.0" }
+ogun-zeus-bridge = { path = "crates/ogun-zeus-bridge", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -103,6 +109,9 @@ rustls-native-certs = "0.8"
 # ---- language server (ogun-lsp): synchronous scaffold and protocol types ----
 lsp-server = "0.10"
 lsp-types = "0.97"
+# ---- benchmark task formats (O-06): Harbor task.toml, ADE-bench task.yaml ----
+toml = "1.1"
+serde_yaml = "0.9"
 
 [profile.dev]
 debug = "line-tables-only"

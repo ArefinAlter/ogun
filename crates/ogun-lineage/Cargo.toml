@@ -1,0 +1,32 @@
+[package]
+name = "ogun-lineage"
+description = "Ogun lineage and run records (O-05): OpenLineage run events from the run store, JSONL and HTTP export, agent-run records, trajectories and the cost ledger."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+ogun-types.workspace = true
+ogun-run.workspace = true
+ogun-store.workspace = true
+ogun-ir.workspace = true
+zeus-types.workspace = true
+zeus-verify.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ulid.workspace = true
+blake3.workspace = true
+tokio.workspace = true
+zeroize.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
