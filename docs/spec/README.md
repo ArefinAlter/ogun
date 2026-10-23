@@ -19,7 +19,7 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | [O-10](O-10-edge-ingestion.md) | Edge ingestion and the ingest log | Draft 1 | `ogun-edge::log` |
 | [O-11](O-11-edge-hub-sync.md) | Edge-to-hub sync | Draft 1 | `ogun-edge::sync` |
 | [O-12](O-12-platform-profiles.md) | Platform profiles: the support matrix | Draft 1 | CI matrix |
-| O-13 | Server mode: users, workspaces, roles, OIDC, WebAuthn approvals | Planned | |
+| [O-13](O-13-server-mode.md) | Server mode: users, workspaces, roles, OIDC, WebAuthn approvals | Draft 1 | `ogun-server`; `deploy/` |
 | [O-14](O-14-extension-and-integration-surfaces.md) | Extension and integration surfaces | Draft 1 | `ogun mcp`, `extensions/vscode` |
 | [O-15](O-15-daemon-api.md) | The `ogund` local API | Draft 1 | `ogun-api` |
 

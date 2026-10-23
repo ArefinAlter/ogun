@@ -241,32 +241,21 @@ impl OidcProviderConfig {
     pub fn client_secret(&self) -> ServerResult<Option<ClientSecret>> {
         if let Some(path) = &self.client_secret_file {
             let text = Zeroizing::new(std::fs::read_to_string(path).map_err(|e| {
-                ServerError::invalid(format!(
-                    "provider {}: cannot read client_secret_file: {}",
-                    self.id,
-                    e.kind()
-                ))
+                ServerError::invalid(format!("cannot read client_secret_file: {}", e.kind()))
             })?);
             let trimmed = text.trim();
             if trimmed.is_empty() {
-                return Err(ServerError::invalid(format!(
-                    "provider {}: client_secret_file is empty",
-                    self.id
-                )));
+                return Err(ServerError::invalid("client_secret_file is empty"));
             }
             return Ok(Some(ClientSecret(Zeroizing::new(trimmed.to_owned()))));
         }
         if let Some(var) = &self.client_secret_env {
             let value = Zeroizing::new(std::env::var(var).map_err(|_| {
-                ServerError::invalid(format!(
-                    "provider {}: environment variable {var} is not set",
-                    self.id
-                ))
+                ServerError::invalid(format!("environment variable {var} is not set"))
             })?);
             if value.trim().is_empty() {
                 return Err(ServerError::invalid(format!(
-                    "provider {}: environment variable {var} is empty",
-                    self.id
+                    "environment variable {var} is empty"
                 )));
             }
             return Ok(Some(ClientSecret(Zeroizing::new(value.trim().to_owned()))));
@@ -734,8 +723,9 @@ impl ServerConfig {
                         out.push(Finding {
                             level: "warning",
                             message: format!(
-                                "daemon {name}: no credential file at {}; create it on the host with `ogun credentials add {} --kind bridge`",
+                                "daemon {name}: no credential file at {}; create it on the host terminal with `ogun{} credentials add {} --kind bridge`",
                                 cred.display(),
+                                d.profile.as_deref().map(|p| format!(" --profile {p}")).unwrap_or_default(),
                                 d.credential
                             ),
                         });

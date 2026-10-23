@@ -33,6 +33,11 @@ enum Command {
         /// Listen address (overrides `listen`).
         #[arg(long)]
         listen: Option<String>,
+        /// When the store has no workspace yet, create one named "Main" and write a one-time owner enrolment link
+        /// to `<state_dir>/owner-enrolment.txt` (mode 0600), for containers where `init` cannot run beforehand.
+        /// The link is never logged.
+        #[arg(long)]
+        init_if_empty: bool,
     },
     /// Check `server.json` and print every finding; exit 1 on errors.
     CheckConfig {
@@ -113,10 +118,74 @@ async fn shutdown_signal() {
     }
 }
 
+/// `serve --init-if-empty`: the first workspace and an owner link in an owner-only file.
+fn bootstrap(state: &ogun_server::routes::AppState) -> anyhow::Result<()> {
+    let dir = state
+        .cfg
+        .state_dir()
+        .map_err(|e| anyhow::anyhow!(e.envelope.message))?;
+    let file = dir.join("owner-enrolment.txt");
+    let workspaces = state
+        .store
+        .workspaces()
+        .map_err(|e| anyhow::anyhow!(e.envelope.message))?;
+    if !workspaces.is_empty() {
+        return Ok(());
+    }
+    let daemon = if state.cfg.daemons.contains_key("default") {
+        "default".to_owned()
+    } else {
+        state
+            .cfg
+            .daemons
+            .keys()
+            .next()
+            .cloned()
+            .context("no daemon configured")?
+    };
+    let w = state
+        .store
+        .create_workspace("Main", &daemon)
+        .map_err(|e| anyhow::anyhow!(e.envelope.message))?;
+    let (url, expires) = ogun_server::routes::admin::create_invite(
+        &state.store,
+        &state.derived.origin,
+        state.cfg.invites.ttl_hours,
+        w.workspace_id,
+        Role::Owner,
+        true,
+        None,
+    )
+    .map_err(|e| anyhow::anyhow!(e.envelope.message))?;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        opts.mode(0o600);
+    }
+    let mut f = opts
+        .open(&file)
+        .context("cannot write the owner enrolment file")?;
+    writeln!(f, "{url}")?;
+    writeln!(
+        f,
+        "# works once, until {}; delete this file after use",
+        expires.to_rfc3339()
+    )?;
+    tracing::warn!(
+        workspace = %w.workspace_id,
+        file = %file.display(),
+        "created the first workspace; the one-time owner enrolment link is in this file (not logged)"
+    );
+    Ok(())
+}
+
 async fn serve(
     mut cfg: ServerConfig,
     behind_proxy: bool,
     listen: Option<String>,
+    init_if_empty: bool,
 ) -> anyhow::Result<()> {
     if behind_proxy {
         cfg.behind_proxy = true;
@@ -141,6 +210,9 @@ async fn serve(
         );
     }
     let state = ogun_server::build_state(cfg).map_err(|e| anyhow::anyhow!(e.envelope.message))?;
+    if init_if_empty {
+        bootstrap(&state)?;
+    }
     for (name, pool) in &state.daemons {
         match pool.probe().await {
             Ok(s) => {
@@ -264,7 +336,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
+            tracing_subscriber::EnvFilter::try_from_env("OGUN_LOG")
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .with_writer(std::io::stderr)
@@ -289,9 +361,10 @@ fn main() -> anyhow::Result<()> {
         Command::Serve {
             behind_proxy,
             listen,
+            init_if_empty,
         } => tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?
-            .block_on(serve(cfg, behind_proxy, listen)),
+            .block_on(serve(cfg, behind_proxy, listen, init_if_empty)),
     }
 }

@@ -161,7 +161,9 @@ impl Oidc {
             map.insert(
                 p.id.clone(),
                 Provider {
-                    secret: p.client_secret()?,
+                    secret: p.client_secret().map_err(|e| {
+                        ServerError::invalid(format!("provider {}: {}", p.id, e.envelope.message))
+                    })?,
                     cfg: p.clone(),
                     algorithms,
                     discovery: RwLock::new(None),
