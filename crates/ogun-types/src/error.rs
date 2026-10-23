@@ -66,6 +66,38 @@ pub const CODES: &[CodeInfo] = &[
     code("edge.not_enrolled", ErrorClass::PolicyDenied, false),
     code("sync.bad_signature", ErrorClass::PolicyDenied, false),
     code("sync.digest_mismatch", ErrorClass::Conflict, false),
+    // Lineage export (O-05).
+    code("lineage.io_failed", ErrorClass::Internal, false),
+    code(
+        "lineage.endpoint_unsupported",
+        ErrorClass::InvalidRequest,
+        false,
+    ),
+    code("lineage.endpoint_failed", ErrorClass::Unavailable, true),
+    code("lineage.trajectory_broken", ErrorClass::Conflict, false),
+    // Benchmark profile (O-06).
+    code("bench.task_invalid", ErrorClass::InvalidRequest, false),
+    code("bench.task_unsupported", ErrorClass::Unsupported, false),
+    code(
+        "bench.isolation_unavailable",
+        ErrorClass::PolicyDenied,
+        false,
+    ),
+    code("bench.environment_failed", ErrorClass::Unavailable, true),
+    code("bench.evaluator_failed", ErrorClass::Internal, false),
+    code("bench.spec_invalid", ErrorClass::InvalidRequest, false),
+    // Zeus session bridge (O-08).
+    code("zeus.not_linked", ErrorClass::PolicyDenied, false),
+    code("zeus.unavailable", ErrorClass::Unavailable, true),
+    code("zeus.server_unverified", ErrorClass::Unauthenticated, false),
+    code("zeus.wrong_kind", ErrorClass::PolicyDenied, false),
+    code("zeus.call_failed", ErrorClass::Unavailable, true),
+    code("zeus.refused", ErrorClass::PolicyDenied, false),
+    code("zeus.protocol_error", ErrorClass::Internal, false),
+    code("zeus.request_invalid", ErrorClass::InvalidRequest, false),
+    code("zeus.path_outside_root", ErrorClass::PolicyDenied, false),
+    code("zeus.job_not_completed", ErrorClass::Conflict, false),
+    code("zeus.import_failed", ErrorClass::Conflict, false),
 ];
 
 /// Looks up a registered code.
@@ -158,7 +190,10 @@ mod tests {
                     "credential",
                     "secret",
                     "edge",
-                    "sync"
+                    "sync",
+                    "lineage",
+                    "bench",
+                    "zeus"
                 ]
                 .contains(&ns),
                 "{}",

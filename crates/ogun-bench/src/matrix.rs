@@ -696,9 +696,8 @@ mod tests {
     use crate::env::NetworkPolicy;
     use std::collections::BTreeMap;
 
-    /// A whole matrix on the local runtime: one Harbor-like task scored by a command evaluator through the
-    /// `spider2_dbt`-style JSON-lines adapter is too heavy for a unit test, so this builds a Spider 2.0-DBT layout
-    /// with a trivial evaluator override.
+    /// A whole matrix on the local runtime: a one-instance Spider 2.0-DBT layout, an agent that writes a file and
+    /// reports usage, and an evaluator override that checks the file.
     #[tokio::test]
     async fn a_local_matrix_runs_records_and_summarises() {
         let dir = tempfile::tempdir().unwrap();

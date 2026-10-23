@@ -11,10 +11,10 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | [O-02](O-02-workflow-ir-v0.md) | Workflow IR v0 | Draft 1 | `ogun-ir`, [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
 | [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; invocation not yet implemented |
 | [O-04](O-04-scheduling.md) | Scheduling: triggers, partitions, backfills, budgets | Draft 1 | `ogun-sched` |
-| O-05 | Lineage and run records | Planned | |
-| O-06 | Benchmark profile | Planned | |
+| [O-05](O-05-lineage-and-run-records.md) | Lineage and run records | Draft 1 | `ogun-lineage`, [`schema/ogun-lineage-facets.v0.schema.json`](schema/ogun-lineage-facets.v0.schema.json) |
+| [O-06](O-06-benchmark-profile.md) | Benchmark profile | Draft 1 | `ogun-bench` (library and the `ogun-bench` binary) |
 | O-07 | Approvals and trust surfaces | Planned | |
-| O-08 | Session bridge | Planned | |
+| [O-08](O-08-session-bridge.md) | Session bridge | Draft 1 | `ogun-zeus-bridge` |
 | [O-09](O-09-streams-and-windowed-partitions.md) | Streams and windowed partitions | Draft 1 | `ogun-stream`; IR rules in `ogun-ir` |
 | [O-10](O-10-edge-ingestion.md) | Edge ingestion and the ingest log | Draft 1 | `ogun-edge::log` |
 | [O-11](O-11-edge-hub-sync.md) | Edge-to-hub sync | Draft 1 | `ogun-edge::sync` |
