@@ -8,6 +8,7 @@ members = [
     "crates/ogun-store",
     "crates/ogun-stream",
     "crates/ogun-edge",
+    "crates/ogun-api",
     "crates/ogun-cli",
 ]
 
@@ -41,6 +42,7 @@ ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
 ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
 ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
+ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -55,6 +57,14 @@ ulid = "3"
 redb = "4.3"
 tempfile = "3.27"
 blake3 = "1.8"
+# ---- runtime: async, IPC, paths (versions as in the zeus app workspace) ----
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "io-std", "fs", "process", "signal"] }
+directories = "6"
+zeroize = { version = "1.9", features = ["derive"] }
+getrandom = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi"] }
+rustix = { version = "1", features = ["process", "fs"] }
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
 clap = { version = "4.6", features = ["derive", "wrap_help"] }

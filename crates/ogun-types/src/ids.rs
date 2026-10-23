@@ -157,6 +157,23 @@ ogun_id!(
     SyncSessionId, "syn", sync_session_id
 );
 
+ogun_id!(
+    /// A local client credential of `ogund` (`ocl_<ULID>`). Zeus's local credentials keep `cli_`.
+    CredentialId, "ocl", credential_id
+);
+ogun_id!(
+    /// A user of a self-hosted Ogun server (`usr_<ULID>`).
+    UserId, "usr", user_id
+);
+ogun_id!(
+    /// A workspace on a self-hosted Ogun server (`wsp_<ULID>`).
+    WorkspaceId, "wsp", workspace_id
+);
+ogun_id!(
+    /// An Ogun server API token (`tok_<ULID>`); always acts as an agent, never as a person.
+    TokenId, "tok", token_id
+);
+
 /// Every Ogun prefix with the entity it names, as in O-00 section 3. Used by tests to prove that
 /// no prefix collides with a Zeus prefix or with another Ogun prefix.
 pub const PREFIXES: &[(&str, &str)] = &[
@@ -170,6 +187,10 @@ pub const PREFIXES: &[(&str, &str)] = &[
     (AgentRunId::PREFIX, "agent run"),
     (EdgeId::PREFIX, "edge"),
     (SyncSessionId::PREFIX, "sync session"),
+    (CredentialId::PREFIX, "local credential"),
+    (UserId::PREFIX, "server user"),
+    (WorkspaceId::PREFIX, "server workspace"),
+    (TokenId::PREFIX, "api token"),
 ];
 
 #[cfg(test)]

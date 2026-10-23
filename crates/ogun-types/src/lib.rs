@@ -12,7 +12,7 @@ pub mod ids;
 
 pub use error::{CodeInfo, OgunError, code_info};
 pub use ids::{
-    AgentRunId, ApprovalId, AssetId, EdgeId, EnvironmentId, EvaluatorId, IdError, IdGenerator,
-    NodeInstanceId, RunId, SyncSessionId, WorkflowId,
+    AgentRunId, ApprovalId, AssetId, CredentialId, EdgeId, EnvironmentId, EvaluatorId, IdError,
+    IdGenerator, NodeInstanceId, RunId, SyncSessionId, TokenId, UserId, WorkflowId, WorkspaceId,
 };
 pub use zeus_types::{ErrorClass, Timestamp, redact_url};

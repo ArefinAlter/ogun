@@ -41,6 +41,31 @@ pub const CODES: &[CodeInfo] = &[
     code("op.crashed", ErrorClass::Internal, false),
     code("op.timeout", ErrorClass::Timeout, true),
     code("internal.bug", ErrorClass::Internal, false),
+    // The local API (O-15).
+    code("api.unauthenticated", ErrorClass::Unauthenticated, false),
+    code("api.permission_denied", ErrorClass::PolicyDenied, false),
+    code("api.method_not_found", ErrorClass::Unsupported, false),
+    code("api.invalid_params", ErrorClass::InvalidRequest, false),
+    code("api.payload_too_large", ErrorClass::InvalidRequest, false),
+    code("api.unavailable", ErrorClass::Unavailable, true),
+    code("api.idempotency_conflict", ErrorClass::Conflict, false),
+    code("workflow.not_found", ErrorClass::NotFound, false),
+    code("workflow.not_approved", ErrorClass::PolicyDenied, false),
+    // Approvals (O-07).
+    code("approval.not_found", ErrorClass::NotFound, false),
+    code("approval.hash_mismatch", ErrorClass::Conflict, false),
+    code("approval.channel_required", ErrorClass::PolicyDenied, false),
+    code("approval.already_decided", ErrorClass::Conflict, false),
+    code("approval.expired", ErrorClass::PolicyDenied, false),
+    code("artifact.not_found", ErrorClass::NotFound, false),
+    code("stream.unknown", ErrorClass::NotFound, false),
+    code("stream.full", ErrorClass::Unavailable, true),
+    code("credential.not_found", ErrorClass::NotFound, false),
+    code("credential.name_taken", ErrorClass::Conflict, false),
+    code("secret.not_found", ErrorClass::NotFound, false),
+    code("edge.not_enrolled", ErrorClass::PolicyDenied, false),
+    code("sync.bad_signature", ErrorClass::PolicyDenied, false),
+    code("sync.digest_mismatch", ErrorClass::Conflict, false),
 ];
 
 /// Looks up a registered code.
@@ -120,7 +145,22 @@ mod tests {
             assert!(seen.insert(info.code), "duplicate code {}", info.code);
             let (ns, reason) = info.code.split_once('.').expect("namespace.reason");
             assert!(
-                ["ir", "run", "op", "internal"].contains(&ns),
+                [
+                    "ir",
+                    "run",
+                    "op",
+                    "internal",
+                    "api",
+                    "workflow",
+                    "approval",
+                    "artifact",
+                    "stream",
+                    "credential",
+                    "secret",
+                    "edge",
+                    "sync"
+                ]
+                .contains(&ns),
                 "{}",
                 info.code
             );
