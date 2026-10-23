@@ -10,6 +10,7 @@ members = [
     "crates/ogun-edge",
     "crates/ogun-api",
     "crates/ogun-ops",
+    "crates/ogun-op-shims",
     "crates/ogun-cli",
 ]
 
@@ -52,6 +53,10 @@ zeus-verify = { path = "../zeus-core/crates/zeus-verify", version = "0.1.0" }
 zeus-artifact = { path = "../zeus-core/crates/zeus-artifact", version = "0.1.0" }
 zeus-engine = { path = "../zeus-core/crates/zeus-engine", version = "0.1.0" }
 zeus-fs = { path = "../zeus-core/crates/zeus-fs", version = "0.1.0" }
+zeus-http = { path = "../zeus-core/crates/zeus-http", version = "0.1.0" }
+zeus-session = { path = "../zeus-core/crates/zeus-session", version = "0.1.0" }
+zeus-journal = { path = "../zeus-core/crates/zeus-journal", version = "0.1.0" }
+zeus-control = { path = "../zeus-core/crates/zeus-control", version = "0.1.0" }
 
 # ---- third party, versions aligned with zeus-core and zeus ----
 serde = { version = "1", features = ["derive"] }
@@ -73,6 +78,18 @@ rustix = { version = "1", features = ["process", "fs"] }
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
 clap = { version = "4.6", features = ["derive", "wrap_help"] }
+# ---- operators (ogun-ops; versions as in zeus-core and the zeus app workspace where they pin one) ----
+async-trait = "0.1"
+futures = "0.3"
+bytes = "1.12"
+http = "1.5"
+url = { version = "2.5", features = ["serde"] }
+scraper = "0.27"
+jsonpath-rust = "1.0"
+regex = "1.13"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+tar = "0.4"
+flate2 = "1.1"
 
 [profile.dev]
 debug = "line-tables-only"
