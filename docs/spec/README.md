@@ -10,7 +10,7 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | [O-01](O-01-domain-model-and-run-state-machine.md) | Domain model and run state machine | Draft 1 | `ogun-run` |
 | [O-02](O-02-workflow-ir-v0.md) | Workflow IR v0 | Draft 1 | `ogun-ir`, [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
 | [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; invocation not yet implemented |
-| O-04 | Scheduling: triggers, partitions, backfills, concurrency, budgets | Planned | |
+| [O-04](O-04-scheduling.md) | Scheduling: triggers, partitions, backfills, budgets | Draft 1 | `ogun-sched` |
 | O-05 | Lineage and run records | Planned | |
 | O-06 | Benchmark profile | Planned (needs ADR 0005) | |
 | O-07 | Approvals and trust surfaces | Planned | |

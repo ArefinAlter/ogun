@@ -826,6 +826,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogun-sched"
+version = "0.1.0"
+dependencies = [
+ "ogun-ir",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zeus-types",
+]
+
+[[package]]
 name = "ogun-types"
 version = "0.1.0"
 dependencies = [

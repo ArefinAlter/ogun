@@ -1,0 +1,22 @@
+[package]
+name = "ogun-sched"
+description = "Ogun scheduling: partitions, cron triggers, backfill plans and budget reservations (Ogun spec O-04)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+ogun-ir.workspace = true
+zeus-types.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true
