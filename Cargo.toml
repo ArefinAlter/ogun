@@ -11,6 +11,8 @@ members = [
     "crates/ogun-api",
     "crates/ogun-ops",
     "crates/ogun-cli",
+    "crates/ogun-ingest",
+    "crates/ogun-sync",
 ]
 
 [workspace.package]
@@ -45,6 +47,7 @@ ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
 ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
 ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
+ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -73,6 +76,13 @@ rustix = { version = "1", features = ["process", "fs"] }
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
 clap = { version = "4.6", features = ["derive", "wrap_help"] }
+# ---- ingest bridge and edge sync (O-10, O-11); versions as in the zeus app workspace where it pins them ----
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "json"] }
+ed25519-dalek = { version = "3.0", features = ["zeroize"] }
+base64 = "0.23"
+rumqttc = { version = "0.25", default-features = false, features = ["use-rustls"] }
+tokio-modbus = { version = "0.17", default-features = false, features = ["tcp", "rtu"] }
 
 [profile.dev]
 debug = "line-tables-only"
