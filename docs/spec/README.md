@@ -16,8 +16,8 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | O-07 | Approvals and trust surfaces | Planned | |
 | O-08 | Session bridge | Planned | |
 | [O-09](O-09-streams-and-windowed-partitions.md) | Streams and windowed partitions | Draft 1 | `ogun-stream`; IR rules in `ogun-ir` |
-| [O-10](O-10-edge-ingestion.md) | Edge ingestion and the ingest log | Draft 1 | `ogun-edge::log` |
-| [O-11](O-11-edge-hub-sync.md) | Edge-to-hub sync | Draft 1 | `ogun-edge::sync` |
+| [O-10](O-10-edge-ingestion.md) | Edge ingestion and the ingest log | Draft 1 | `ogun-edge::log`, `ogun-ingest` |
+| [O-11](O-11-edge-hub-sync.md) | Edge-to-hub sync | Draft 1 | `ogun-edge::sync`, `ogun-sync` |
 | [O-12](O-12-platform-profiles.md) | Platform profiles: the support matrix | Draft 1 | CI matrix |
 | O-13 | Server mode: users, workspaces, roles, OIDC, WebAuthn approvals | Planned | |
 | [O-14](O-14-extension-and-integration-surfaces.md) | Extension and integration surfaces | Draft 1 | `ogun mcp`, `extensions/vscode` |

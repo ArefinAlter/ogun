@@ -179,3 +179,116 @@ pub async fn run(ctx: Ctx) -> Result<(), String> {
     .await
     .map_err(|e| format!("HTTP push stopped: {:?}", e.kind()))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::time::Duration;
+
+    use ogun_ir::model::{StreamBuffer, WhenFull, WindowPartitions};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    use super::*;
+    use crate::applog::{BatchPolicy, LogHandle};
+    use crate::config::SourceOverrides;
+    use crate::decode::Shaper;
+    use crate::spec::{SourceOp, SourceSpec};
+
+    async fn post(port: u16, token: &str, body: &str) -> (u16, String) {
+        let mut s = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .unwrap();
+        let req = format!(
+            "POST /v1/streams/site-a/push/records HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer {token}\r\nContent-Type: application/x-ndjson\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        s.write_all(req.as_bytes()).await.unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).await.unwrap();
+        let status = out[9..12].parse().unwrap();
+        (status, out)
+    }
+
+    #[tokio::test]
+    async fn push_needs_the_token_and_answers_after_commit() {
+        let dir = tempfile::tempdir().unwrap();
+        let token_file = dir.path().join("tokens");
+        std::fs::write(&token_file, "# devices\nZEUS-CANARY-token\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&token_file, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let window = WindowPartitions {
+            source: "push".into(),
+            time_field: "ts_ms".into(),
+            key_field: "device_id".into(),
+            size_ms: 60_000,
+            allowed_lateness_ms: 0,
+            reseal_after_ms: 30_000,
+            max_delay_ms: 0,
+            idle_timeout_ms: 600_000,
+            max_future_ms: 300_000,
+        };
+        let buffer = StreamBuffer {
+            max_buffer_bytes: 1 << 20,
+            when_full: WhenFull::Block,
+            dedupe_key: vec![],
+        };
+        let counters = Arc::new(Counters::default());
+        let (log, _thread) = LogHandle::open(
+            &dir.path().join("push.redb"),
+            &buffer,
+            BatchPolicy {
+                max_records: 1000,
+                max_delay: Duration::from_millis(10),
+            },
+            counters.clone(),
+        )
+        .unwrap();
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let ctx = Ctx {
+            spec: Arc::new(SourceSpec {
+                workflow: "site-a".into(),
+                node: "push".into(),
+                op: SourceOp::Http,
+                config: BTreeMap::new(),
+                buffer,
+                window: window.clone(),
+            }),
+            overrides: SourceOverrides {
+                bind: Some(format!("127.0.0.1:{port}")),
+                token_file: Some(token_file),
+                ..SourceOverrides::default()
+            },
+            secrets: BTreeMap::new(),
+            log: log.clone(),
+            counters,
+            shaper: Shaper::new(window),
+            state_dir: dir.path().to_path_buf(),
+        };
+        let server = tokio::spawn(run(ctx));
+        for _ in 0..100 {
+            if tokio::net::TcpStream::connect(("127.0.0.1", port))
+                .await
+                .is_ok()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let body = "{\"device_id\":\"p1\",\"ts_ms\":5,\"pm25_ugm3_x10\":351}\n{\"device_id\":\"p2\",\"ts_ms\":6}\n{\"ts_ms\":7}\n";
+        let (status, _) = post(port, "wrong", body).await;
+        assert_eq!(status, 401);
+        let (status, text) = post(port, "ZEUS-CANARY-token", body).await;
+        assert_eq!(status, 202, "{text}");
+        assert!(text.contains("\"accepted\":2"), "{text}");
+        assert!(text.contains("\"invalid\":1"), "{text}");
+        assert_eq!(log.read(0, 10).await.unwrap().len(), 2);
+        server.abort();
+    }
+}

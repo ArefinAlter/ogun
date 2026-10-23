@@ -278,6 +278,19 @@ fn transport(e: reqwest::Error) -> EdgeError {
     EdgeError::Transport(e.without_url().to_string())
 }
 
+/// Whether an upload error concerns only that object (its local file, or the hub refusing that
+/// chunk), as opposed to the link, the hub as a whole or the local daemon.
+fn item_local(e: &EdgeError) -> bool {
+    match e {
+        EdgeError::Io { .. } | EdgeError::Config(_) => true,
+        EdgeError::Hub { status, error, .. } => {
+            *status != 429 && *status < 500 && error.code != "edge.not_enrolled"
+        }
+        EdgeError::Daemon(d) => d.code() == "artifact.not_found",
+        _ => false,
+    }
+}
+
 impl EdgeSync {
     /// Builds the client: loads the key, prepares TLS and reads the outbox.
     ///
@@ -663,7 +676,16 @@ impl EdgeSync {
                 let Some(item) = by_digest.get(digest.as_str()) else {
                     continue;
                 };
-                let (chunks, bytes, complete) = self.upload(&mut ogund, item, *offset).await?;
+                let (chunks, bytes, complete) = match self.upload(&mut ogund, item, *offset).await {
+                    Ok(v) => v,
+                    // One object's problem (its local file, a refused or mismatched upload)
+                    // must not block the others; it is retried next round.
+                    Err(e) if item_local(&e) => {
+                        tracing::warn!(blake3 = %item.blake3, partition = %item.partition, error = %e, "upload of one object failed");
+                        continue;
+                    }
+                    Err(e) => return Err(e),
+                };
                 report.chunks += chunks;
                 report.bytes += bytes;
                 if complete {
