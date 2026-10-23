@@ -13,6 +13,7 @@ members = [
     "crates/ogun-daemon",
     "crates/ogun-llm",
     "crates/ogun-op-llm",
+    "crates/ogun-op-shims",
     "crates/ogun-cli",
     "crates/ogun-ingest",
     "crates/ogun-sync",
@@ -69,6 +70,9 @@ zeus-verify = { path = "../zeus-core/crates/zeus-verify", version = "0.1.0" }
 zeus-artifact = { path = "../zeus-core/crates/zeus-artifact", version = "0.1.0" }
 zeus-engine = { path = "../zeus-core/crates/zeus-engine", version = "0.1.0" }
 zeus-fs = { path = "../zeus-core/crates/zeus-fs", version = "0.1.0" }
+zeus-http = { path = "../zeus-core/crates/zeus-http", version = "0.1.0" }
+zeus-session = { path = "../zeus-core/crates/zeus-session", version = "0.1.0" }
+zeus-journal = { path = "../zeus-core/crates/zeus-journal", version = "0.1.0" }
 zeus-control = { path = "../zeus-core/crates/zeus-control", version = "0.1.0" }
 
 # ---- third party, versions aligned with zeus-core and zeus ----
@@ -130,6 +134,15 @@ x509-cert = { version = "0.2", default-features = false }
 der = "0.7"
 futures = { version = "0.3", default-features = false, features = ["std"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
+# ---- operators (ogun-ops; versions as in zeus-core and the zeus app workspace where they pin one) ----
+async-trait = "0.1"
+bytes = "1.12"
+scraper = "0.27"
+jsonpath-rust = "1.0"
+regex = "1.13"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+tar = "0.4"
+flate2 = "1.1"
 
 [profile.dev]
 debug = "line-tables-only"

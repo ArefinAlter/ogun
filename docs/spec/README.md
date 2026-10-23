@@ -9,7 +9,7 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | [O-00](O-00-conventions.md) | Conventions delta | Draft 1 | `ogun-types` |
 | [O-01](O-01-domain-model-and-run-state-machine.md) | Domain model and run state machine | Draft 1 | `ogun-run`, `ogun-store`, executor in `ogun-daemon` |
 | [O-02](O-02-workflow-ir-v0.md) | Workflow IR v0 | Draft 1 | `ogun-ir`, [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
-| [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; model operators (section 8) in `ogun-llm`, `ogun-op-llm`; invocation not yet implemented |
+| [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; registry, core operators, runner and sandbox in `ogun-ops`; tool shims in `ogun-op-shims`; model operators (section 8) in `ogun-llm`, `ogun-op-llm` |
 | [O-04](O-04-scheduling.md) | Scheduling: triggers, partitions, backfills, budgets | Draft 1 | `ogun-sched` |
 | [O-05](O-05-lineage-and-run-records.md) | Lineage and run records | Draft 1 | `ogun-lineage`, [`schema/ogun-lineage-facets.v0.schema.json`](schema/ogun-lineage-facets.v0.schema.json) |
 | [O-06](O-06-benchmark-profile.md) | Benchmark profile | Draft 1 | `ogun-bench` (library and the `ogun-bench` binary) |

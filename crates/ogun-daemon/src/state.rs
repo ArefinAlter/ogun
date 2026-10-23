@@ -274,14 +274,20 @@ impl Daemon {
             None,
         )
         .map_err(|e| DaemonError::Artifacts(e.to_string()))?;
-        let mut operator_dirs = config.operator_dirs.clone();
-        operator_dirs.push(paths.state_dir.join("operators"));
-        let registry = Registry::new(ogun_ops::Environment {
-            state_dir: paths.state_dir.clone(),
-            operator_dirs,
-            model_access: config.model_access,
-            allow_unsandboxed: config.allow_unsandboxed,
-        });
+        let mut env = ogun_ops::Environment::new(paths.state_dir.clone());
+        env.operator_dirs.clone_from(&config.operator_dirs);
+        env.operator_dirs.push(paths.state_dir.join("operators"));
+        // `ogun-op-shim` and `ogun-op-llm` ship next to `ogund`.
+        if let Some(dir) = std::env::current_exe()
+            .ok()
+            .and_then(|e| e.parent().map(Path::to_path_buf))
+        {
+            env.operator_dirs.push(dir);
+        }
+        env.model_access = config.model_access;
+        env.allow_unsandboxed = config.allow_unsandboxed;
+        env.workspace.clone_from(&config.workspace);
+        let registry = Registry::new(env);
         let secrets = Arc::new(SecretStore::open(paths.secrets_dir())?);
         let last = store.last_event_seq()?;
         let trusted = Trusted::discover(&config);

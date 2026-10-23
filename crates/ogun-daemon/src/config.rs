@@ -37,6 +37,8 @@ pub struct Config {
     pub min_free_bytes: u64,
     /// The session bridge to `zeusd` (O-08); absent means session-backed sources wait.
     pub zeus_bridge: Option<ogun_zeus_bridge::BridgeConfig>,
+    /// A read-only directory operators may read named files from (`duckdb` `read`, `pandoc` `template`).
+    pub workspace: Option<PathBuf>,
 }
 
 impl Default for Config {
@@ -55,6 +57,7 @@ impl Default for Config {
             artifact_quota_bytes: None,
             min_free_bytes: 512 << 20,
             zeus_bridge: None,
+            workspace: None,
         }
     }
 }
