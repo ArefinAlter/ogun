@@ -2,7 +2,7 @@
 // The Ogun VS Code extension. Structural checking and completion come from the JSON Schema
 // (contributes.jsonValidation); semantic checking runs the real validator, `ogun validate --json`,
 // so the editor never disagrees with the runtime. Read-only: the extension never runs workflows
-// and is never an approval surface (proposed ADR 0011).
+// and is never an approval surface (ADR 0011).
 
 const vscode = require('vscode');
 const { execFile } = require('child_process');

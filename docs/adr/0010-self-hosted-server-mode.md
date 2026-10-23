@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-23 |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
 | Research | `docs/research/OR5-edge-streams-platforms.md` section 3.5 |
 | Constrained by | Zeus ADR 0007 (human-only approvals), Zeus ADR 0010 (one listener, HTTP bridges) |
 

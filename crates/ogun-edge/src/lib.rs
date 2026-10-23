@@ -1,4 +1,4 @@
-//! Ogun on edge devices (Ogun specs O-10 and O-11; proposed ADR 0008).
+//! Ogun on edge devices (Ogun specs O-10 and O-11; ADR 0008).
 //!
 //! An edge device (a Raspberry Pi, a gateway, a site server) runs `ogund` with the `ogun-ingest`
 //! bridge. Sensors and air purifiers publish over MQTT, HTTP push or LoRaWAN; the bridge appends

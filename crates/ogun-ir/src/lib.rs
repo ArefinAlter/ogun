@@ -1,4 +1,4 @@
-//! The Ogun workflow IR v0 (Ogun spec O-02; proposed ADR 0003).
+//! The Ogun workflow IR v0 (Ogun spec O-02; ADR 0003).
 //!
 //! A workflow is a versioned JSON document: a DAG of operator nodes with their inputs,
 //! configuration, routes and policy. It contains no floating-point numbers and no code, so it can

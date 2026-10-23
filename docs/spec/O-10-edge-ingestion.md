@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-09, Zeus ADR 0010 |
-| Decided by | Proposed ADR 0008 |
+| Decided by | ADR 0008 |
 | Implemented by | `ogun-edge` (`log`, `to_record`). The `ogun-ingest` bridge and its protocol adapters are not implemented yet. |
 
 ## 1. Purpose

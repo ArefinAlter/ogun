@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-23 |
-| Builds on | ADR 0003 (IR is data, proposed), O-01, O-04 |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
+| Builds on | ADR 0003 (IR is data), O-01, O-04 |
 | Research | `docs/research/OR5-edge-streams-platforms.md` section 1 |
 
 ## Context

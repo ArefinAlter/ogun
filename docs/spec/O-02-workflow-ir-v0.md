@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 2 (2026-10-23: streams, section 11) |
 | Depends on | O-00, O-01, O-03 (catalogue), Zeus 00 section 7, Zeus 08 section 12 |
-| Decided by | Proposed ADR 0003 |
+| Decided by | ADR 0003 |
 | Implemented by | `ogun-ir`; schema [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
 | Examples | [`examples/`](../../examples) |
 

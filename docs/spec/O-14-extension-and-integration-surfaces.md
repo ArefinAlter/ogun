@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-02, O-04 |
-| Decided by | Proposed ADRs 0011 and 0012 |
+| Decided by | ADRs 0011 and 0012 |
 | Implemented by | `ogun mcp` and `--json` output in `ogun-cli`; `extensions/vscode` |
 
 ## 1. Purpose
@@ -72,7 +72,7 @@ Exit status 2 means a usage or I/O error.
 
 ## 5. Data platforms
 
-All integrations wrap the CLI contract, or the server's HTTP bridge (proposed ADR 0010).
+All integrations wrap the CLI contract, or the server's HTTP bridge (ADR 0010).
 
 | Platform | Shape |
 |---|---|

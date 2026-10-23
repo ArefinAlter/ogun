@@ -4,7 +4,7 @@ Targets, not promises. Ogun is built on the `zeus-core` engine (ADR 0002). Its r
 
 ## Phase O0: contracts (now; Zeus specs 00 to 14 are in Draft 1)
 
-ADR 0002 (product boundary) is accepted. ADRs 0003 to 0006 are proposed; the maintainer accepts or amends them. O-02 and O-03 are drafted against proposed ADR 0003 and stay Draft until it is accepted.
+ADRs 0001 to 0012 are accepted (0003 to 0012 on 2026-10-23).
 
 Status on 2026-10-23: O-00 to O-03 are Draft 1 in `docs/spec/`, with a JSON Schema for the workflow IR and an example the test suite validates.
 
@@ -28,7 +28,7 @@ Zeus-side work Ogun needs (tracked in Zeus ADR 0011):
 - **Open: register Ogun's id prefixes** (O-00) in Zeus spec 00 section 5.1, through a Zeus pull request.
 - **Open: `zeus-core` public API review:** the engine now has two first-party consumers.
 - **Open: crate moves.** `zeus-llm`, `zeus-a2a` and the pure plan-IR parts of `zeus-workflow` are still in the app repository; they move to `zeus-core` when Ogun first needs them (Zeus spec 08 section 12 describes the shape).
-- **Open: a daemon-API client without app crates.** `zeus-api` depends on app crates, so proposed ADR 0006 has Ogun write its own spec 05 client.
+- **Open: a daemon-API client without app crates.** `zeus-api` depends on app crates, so ADR 0006 has Ogun write its own spec 05 client.
 
 Research goes in `docs/research/`, using the same document structure as Zeus (front matter, TL;DR, "Implications for Ogun", open questions, references). Every document stays `draft` until it is verified.
 
@@ -54,7 +54,7 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
 
 ## Streams, edge, platforms and extensions (added 2026-10-23)
 
-New requirements: continuous sensor and telemetry streams, edge devices, every desktop and mobile platform plus a self-hosted server, and extensions for editors, coding agents and data platforms. Research draft OR5 and proposed ADRs 0007 to 0012 cover them.
+New requirements: continuous sensor and telemetry streams, edge devices, every desktop and mobile platform plus a self-hosted server, and extensions for editors, coding agents and data platforms. Research draft OR5 and ADRs 0007 to 0012 cover them.
 
 - Done (pure logic, tested):
   - `ogun-stream`: event-time windows, per-device watermarks, sealing, revisions and the `late` output.

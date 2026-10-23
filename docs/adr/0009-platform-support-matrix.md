@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-23 |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
 | Research | `docs/research/OR5-edge-streams-platforms.md` section 3 |
 | Zeus counterpart | Zeus ADR 0009 (Tauri GUI), `zeus/docs/design/client-workflows-and-platforms.md` |
 
@@ -35,7 +36,7 @@ Ogun's design runs operators out of process and runs schedules in a daemon, so a
    - **Tier C** (companion only): iOS.
    - CI follows the Zeus layout (`zeus/.github/workflows/ci.yml`).
 4. **Portable operators come later as WASI components.** WASI components are the only operator format that could run on all five systems, including iOS through an interpreter with bundled components only. Native processes remain the default where they are allowed.
-5. **Studio is a Tauri 2 application in its own workspace** (the Zeus ADR 0009 pattern). The same frontend is served as Studio-web by the server (proposed ADR 0010). On mobile, the companion is a Tauri 2 mobile shell. Background work on mobile uses the platform's own mechanisms, not Tauri's.
+5. **Studio is a Tauri 2 application in its own workspace** (the Zeus ADR 0009 pattern). The same frontend is served as Studio-web by the server (ADR 0010). On mobile, the companion is a Tauri 2 mobile shell. Background work on mobile uses the platform's own mechanisms, not Tauri's.
 
 ## Consequences
 

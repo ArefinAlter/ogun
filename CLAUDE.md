@@ -17,7 +17,7 @@ Ogun is a local-first developer platform for data mining, data engineering and a
 | Path | What |
 |---|---|
 | `docs/VISION.md` | Product direction and object model. Not normative. |
-| `docs/adr/` | Decisions. ADR 0002 (the product boundary) is accepted. ADRs 0003 to 0012 are proposed. The maintainer asked for implementation to start on 2026-10-23, so `crates/` follows ADRs 0003, 0006, 0007, 0008, 0009 and 0011 ahead of their acceptance; if either changes, the code changes with it. Do not build on 0004 or 0005 until they are accepted. |
+| `docs/adr/` | Decisions. ADRs 0001 to 0012 are accepted (0003 to 0012 by the maintainer on 2026-10-23). A change to an accepted record needs a new, superseding record. |
 | `docs/spec/` | Normative specs O-00 to O-14. O-00 to O-04, O-09 to O-12 and O-14 are drafted; the rest are planned (see `ROADMAP.md`). Prose wins over schema. |
 | `docs/research/` | Research corpus: OR1 to OR4 planned; OR5 (edge, streams, platforms, extensions) is a draft. Unverified unless the front matter says `verified`. |
 | `crates/` | Rust workspace: `ogun-types` (ids, errors), `ogun-ir` (workflow IR, validator, hash, plan diff), `ogun-run` (run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budget reservations), `ogun-store` (durable run store on redb, crash recovery), `ogun-stream` (event-time windows, watermarks, sealing, revisions), `ogun-edge` (durable ingest log, edge-to-hub sync protocol), `ogun-cli` (the `ogun` binary, including `ogun mcp`). |
@@ -25,7 +25,7 @@ Ogun is a local-first developer platform for data mining, data engineering and a
 
 ## Constraints (do not violate)
 
-1. **Built on `zeus-core`** (ADR 0002). Depend only on `zeus-core` crates, through the sibling path `../zeus-core`. Nothing from the `zeus` app repository, including `zeus-api`, which now pulls in app crates (proposed ADR 0006). The session bridge speaks Zeus spec 05 through Ogun's own client. Shared code moves to `zeus-core` through a Zeus ADR, never by path-depending on app crates.
+1. **Built on `zeus-core`** (ADR 0002). Depend only on `zeus-core` crates, through the sibling path `../zeus-core`. Nothing from the `zeus` app repository, including `zeus-api`, which now pulls in app crates (ADR 0006). The session bridge speaks Zeus spec 05 through Ogun's own client. Shared code moves to `zeus-core` through a Zeus ADR, never by path-depending on app crates.
 2. **No browser session material, ever.** Ogun's embedded engine uses a session provider and proxy-fetch port that always answer "no session". Browser-session sources go through `zeusd` as Zeus jobs on the session bridge (`service` client kind). Never read browser cookie stores or profile files (Zeus ADR 0004).
 3. **Approvals are human-only.** Ogun's approvals are decided only on Ogun's human trust surfaces (CLI on a tty, Studio), with the rules of Zeus ADR 0007: request-hash binding and channel evidence. No path that agents can reach (MCP, A2A, API, scheduler) may decide an approval. Session-release approvals are always Zeus's.
 4. **Secrets** (Ogun's provider keys, S3 and API tokens, URL query strings) never reach logs, events, lineage, errors, fixtures or LLM prompts. Follow Zeus constraint 3: `redact_url`, zeroizing types, no `Serialize` on secret types, `ZEUS-CANARY-` leak markers.

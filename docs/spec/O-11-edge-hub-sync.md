@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-09, O-10, Zeus 13 (artifacts) |
-| Decided by | Proposed ADR 0008 |
+| Decided by | ADR 0008 |
 | Implemented by | `ogun-edge::sync` (messages, want, chunking, verification, outbox). The transport bridge, enrolment and signatures are not implemented yet. |
 
 ## 1. Purpose
@@ -52,7 +52,7 @@ The edge removes an item from its outbox only when the item is acknowledged. Onl
 2. **Single writer.** A hub refuses an item whose asset and partition fall outside the offering edge's namespace.
 3. **Revisions.** A new revision of a window is a new digest and travels as a new item. The hub keeps every revision in lineage.
 4. **Transport.** The edge always dials out:
-   - HTTPS with mutual TLS to the hub's sync bridge, a separate process (proposed ADR 0010); or
+   - HTTPS with mutual TLS to the hub's sync bridge, a separate process (ADR 0010); or
    - an S3-compatible relay, where the edge writes `blobs/blake3/<hex>` plus a signed manifest, and the hub ingests them.
 
 ## 5. Open issues
