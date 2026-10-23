@@ -80,6 +80,9 @@ rustix = { version = "1", features = ["process", "fs"] }
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
 clap = { version = "4.6", features = ["derive", "wrap_help"] }
+# ---- benchmark task formats (O-06): Harbor task.toml, ADE-bench task.yaml ----
+toml = "1.1"
+serde_yaml = "0.9"
 
 [profile.dev]
 debug = "line-tables-only"
