@@ -17,7 +17,7 @@ Operators (`ogun-ops`), the LLM ladder and model operators (`ogun-llm`), the ing
 ## Known gaps
 
 1. Operators: the `ogun-ops` registry in this branch is the contract only; every operator fails with `op.unknown` until the operators branch lands.
-2. `sync.offer` and `sync.chunk` answer `api.unavailable` until `ogun-sync` is linked.
+2. Hub sync is linked (`sync.offer`, `sync.chunk` through `ogun_sync::hub`); the edge learns about acknowledgements from `sync/acked.jsonl`, not yet from a daemon method.
 3. `WaitingForSession` instances wait; the Zeus session bridge is not linked yet.
 4. Peer inspection exists on Linux only. On macOS and Windows no connection is interactive, so terminal approvals and the trust-changing methods (credentials, secrets, approver confirmation, edge enrolment, shutdown) are unavailable there (O-15 section 4.4).
 5. Budgets: only the model-spend budget is enforced (per run, from operator usage events); `bytes`, `files` and `wall_ms` reservations are not yet applied by the executor.

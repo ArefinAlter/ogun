@@ -214,6 +214,8 @@ pub struct Daemon {
     pub trusted: Trusted,
     /// Model spend per run, micro-USD (mirrors `Collection::Spend`).
     pub spend: Mutex<BTreeMap<RunId, u64>>,
+    /// Chunks of objects edges are uploading (O-11), under `sync/incoming`.
+    pub hub: ogun_sync::hub::ChunkAssembler,
 }
 
 impl std::fmt::Debug for Daemon {
@@ -284,6 +286,9 @@ impl Daemon {
         let last = store.last_event_seq()?;
         let trusted = Trusted::discover(&config);
         let streams = Streams::new(paths.state_dir.join("streams"));
+        let hub =
+            ogun_sync::hub::ChunkAssembler::open(&paths.state_dir.join("sync").join("incoming"))
+                .map_err(|e| DaemonError::State(format!("sync store: {e}")))?;
         let daemon = Arc::new(Self {
             paths,
             config,
@@ -305,6 +310,7 @@ impl Daemon {
             shutdown: watch::Sender::new(false),
             trusted,
             spend: Mutex::new(BTreeMap::new()),
+            hub,
         });
         Ok(daemon)
     }

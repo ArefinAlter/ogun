@@ -1718,6 +1718,7 @@ dependencies = [
  "ogun-sched",
  "ogun-store",
  "ogun-stream",
+ "ogun-sync",
  "ogun-types",
  "p256",
  "rustix",
