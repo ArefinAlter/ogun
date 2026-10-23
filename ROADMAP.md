@@ -60,17 +60,18 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   - `ogun-stream`: event-time windows, per-device watermarks, sealing, revisions and the `late` output.
   - `ogun-edge`: the durable ingest log with backpressure, and the have/want sync protocol.
   - IR stream members, `ogun mcp` (read-only tools), and the VS Code extension.
+  - `ogun lsp` (`crates/ogun-lsp`): validator diagnostics, hover, completion, go-to-definition, symbols and the workflow hash; the VS Code extension uses it when found (2026-10-23).
+  - `ogun mcp` daemon-backed tools with an `agent` credential, client configurations in `integrations/mcp`, the Python O-15 client, and the Airflow, Dagster, Prefect and Kestra integrations (2026-10-23; they need `ogund` to do anything beyond the offline tools).
   - The O-12 platform matrix, with the core crates type-checked for Android and iOS.
 - Next, in order:
   1. The CI matrix passing (blocked on the account's Actions billing).
   2. `ogund` and the `ogun-ingest` bridge with MQTT and HTTP push, after the O1 exit test.
   3. Range-compressed partition status.
-  4. `ogun lsp`.
-  5. Server mode without remote approvals.
-  6. Edge-to-hub sync transport and enrolment.
-  7. Remote approvals with WebAuthn, after a security review.
-  8. The Android companion and gateway.
-  9. The iOS companion.
+  4. Server mode without remote approvals.
+  5. Edge-to-hub sync transport and enrolment.
+  6. Remote approvals with WebAuthn, after a security review.
+  7. The Android companion and gateway.
+  8. The iOS companion.
 - The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record.
 
 ## Phase O2: data and model operators
