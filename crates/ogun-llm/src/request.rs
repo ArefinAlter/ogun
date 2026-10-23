@@ -91,7 +91,7 @@ pub struct Usage {
     /// Output tokens, including reasoning tokens.
     pub output_tokens: u64,
     /// Cost in micro-US-dollars.
-    pub cost_microusd: u64,
+    pub cost_usd_micro: u64,
 }
 
 /// The answer to a chat call.

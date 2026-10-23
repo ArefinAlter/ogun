@@ -169,7 +169,7 @@ The ladder and the attempt's budget travel in the node configuration; the API ke
 5. Extends the sandbox's network allowlist with the providers' hosts (`LadderConfig::hosts`).
 6. Starts `ogun-op-llm <operator>`, where `<operator>` is the catalogue name (`llm.extract`). The manifest's `invocation.command` is `["ogun-op-llm", "<operator>"]`. Without an argument the operator reads the start line's optional `op` member.
 
-After the attempt the runner appends one ledger entry per `usage` line (section 8.9) and commits the sum of their `cost_microusd` against the reservation.
+After the attempt the runner appends one ledger entry per `usage` line (section 8.9) and commits the sum of their `cost_usd_micro` against the reservation.
 
 ### 8.3 Lines
 
@@ -177,7 +177,7 @@ Model operators write the lines of section 4 with these shapes, one JSON object 
 
 ```json
 {"type": "progress", "done": 3, "total": 12}
-{"type": "usage", "provider": "anthropic-sonnet", "model": "claude-sonnet-5-5", "input_tokens": 1834, "output_tokens": 212, "cost_microusd": 5788}
+{"type": "usage", "provider": "anthropic-sonnet", "model": "claude-sonnet-5-5", "input_tokens": 1834, "output_tokens": 212, "cost_usd_micro": 5788}
 {"type": "output", "port": "rows", "path": "/scratch/rows.jsonl", "media_type": "application/x-ndjson", "metadata": {"row_count": 41, "llm_calls": 12, "llm_cost_usd_micro": 70210, "models": ["anthropic-sonnet/claude-sonnet-5-5"], "prompt_blake3": ["..."]}}
 {"type": "result", "ok": true}
 {"type": "error", "error": {"code": "llm.output_invalid", "class": "integrity", "message": "...", "retryable": false}}
@@ -251,13 +251,13 @@ Before each request the operator computes its worst-case cost: input bytes plus 
 `ogund` appends one line per `usage` line it receives, and is the only writer: it holds an exclusive lock on the file while the ledger is open, and `fsync`s every line.
 
 ```json
-{"seq":1,"at":"2026-10-23T09:12:44.512Z","run_id":"orun_...","workflow_id":"wf_...","node_instance":"ni_...","op":"llm.extract@1","provider":"anthropic-sonnet","model":"claude-sonnet-5-5","input_tokens":1834,"output_tokens":212,"cost_microusd":5788,"prev_blake3":"0000...0000","blake3":"..."}
+{"seq":1,"at":"2026-10-23T09:12:44.512Z","run_id":"orun_...","workflow_id":"wf_...","node_instance":"ni_...","op":"llm.extract@1","provider":"anthropic-sonnet","model":"claude-sonnet-5-5","input_tokens":1834,"output_tokens":212,"cost_usd_micro":5788,"prev_blake3":"0000...0000","blake3":"..."}
 ```
 
 1. `seq` starts at 1 and has no gaps. `prev_blake3` is the previous entry's `blake3`, or 64 zeros for the first.
 2. `blake3` is BLAKE3 of the JCS form (RFC 8785) of the entry without its `blake3` member. Any edit, removal or reordering breaks the chain.
 3. Opening verifies the whole chain. A final line without a newline that does not parse (a crash during a write) is cut; any other failure refuses the ledger and leaves the file untouched for inspection.
-4. Summaries (calls, tokens and `cost_microusd`) are kept per run, per workflow and per UTC day (`YYYY-MM-DD` of `at`), and in total.
+4. Summaries (calls, tokens and `cost_usd_micro`) are kept per run, per workflow and per UTC day (`YYYY-MM-DD` of `at`), and in total.
 
 ### 8.10 Errors
 
@@ -277,6 +277,5 @@ A refused budget check is `run.budget_exhausted` (O-00 section 5.2). Messages na
 
 ### 8.11 Open issues
 
-1. The usage line and the ledger name money `cost_microusd`, as `ogun_ops::OpEvent::Usage` does, while O-00 section 2 asks for the suffix `_usd_micro`. One of them should change before the ABI is frozen.
-2. Checkpoints: a long `llm.extract` or `embedding.generate` restarts from the beginning after a crash. Checkpointing the completed chunks would save spend.
-3. Calls run one at a time. A `concurrency` member needs per-call budget reservations inside the operator.
+1. Checkpoints: a long `llm.extract` or `embedding.generate` restarts from the beginning after a crash. Checkpointing the completed chunks would save spend.
+2. Calls run one at a time. A `concurrency` member needs per-call budget reservations inside the operator.

@@ -176,7 +176,7 @@ async fn extract_writes_rows_usage_and_one_result() {
     assert_eq!(usage["provider"], "local");
     assert_eq!(usage["input_tokens"], 100);
     // 1 and 2 USD per million tokens are 1 and 2 micro-dollars per token: 100 * 1 + 20 * 2.
-    assert_eq!(usage["cost_microusd"], 140);
+    assert_eq!(usage["cost_usd_micro"], 140);
     assert_eq!(output_cost(&lines), 140);
     let output = lines.iter().find(|l| l["type"] == "output").unwrap();
     assert_eq!(output["port"], "rows");

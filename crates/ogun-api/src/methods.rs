@@ -618,7 +618,7 @@ pub enum Channel {
 /// One fact about an approval, computed by the daemon.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Fact {
-    /// Label, e.g. `code`, `origin`, `budget.max_cost_microusd`.
+    /// Label, e.g. `code`, `origin`, `budget.max_cost_usd_micro`.
     pub label: String,
     /// Value as text. Never a secret; URLs are redacted.
     pub value: String,

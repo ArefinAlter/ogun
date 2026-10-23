@@ -655,6 +655,9 @@ impl LadderConfig {
         Self {
             version: LADDER_VERSION,
             providers: vec![
+                // Claude Opus 5.5 first; the cheaper models catch 429s and outages, and a person can
+                // reorder the ladder for bulk work.
+                anthropic("anthropic-opus", "claude-opus-5-5", 4_000_000, 20_000_000),
                 anthropic(
                     "anthropic-sonnet",
                     "claude-sonnet-5-5",
@@ -662,7 +665,6 @@ impl LadderConfig {
                     10_000_000,
                 ),
                 anthropic("anthropic-haiku", "claude-haiku-5-5", 100_000, 500_000),
-                anthropic("anthropic-opus", "claude-opus-5-5", 4_000_000, 20_000_000),
                 blank("openai", ProviderKind::Openai, Some("openai_api_key")),
                 blank("google", ProviderKind::Google, Some("google_api_key")),
                 blank("ollama", ProviderKind::Ollama, None),
@@ -731,7 +733,7 @@ mod tests {
         assert!(t.validate().is_err());
         t.providers[0].base_url = Some("http://127.0.0.1:9".into());
         t.validate().unwrap();
-        t.providers[1].name = "anthropic-sonnet".into();
+        t.providers[1].name = "anthropic-opus".into();
         assert!(t.validate().is_err());
     }
 

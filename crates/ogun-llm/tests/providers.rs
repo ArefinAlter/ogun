@@ -193,7 +193,7 @@ async fn anthropic_structured_call_sends_key_only_in_its_header() {
     assert_eq!(answer.value, json!({"label": "b"}));
     assert_eq!(usages.len(), 1);
     // 1100 tokens at 2 USD per million tokens.
-    assert_eq!(usages[0].cost_microusd, 2_200);
+    assert_eq!(usages[0].cost_usd_micro, 2_200);
     assert_eq!(budget.spent_usd_micro(), 2_200);
     let seen = m.seen.lock().unwrap().clone();
     assert_eq!(seen.len(), 1);

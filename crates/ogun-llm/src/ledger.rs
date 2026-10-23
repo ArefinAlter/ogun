@@ -44,7 +44,7 @@ pub struct UsageRecord {
     /// Output tokens (including reasoning tokens) as the provider reported them.
     pub output_tokens: u64,
     /// Cost in micro-US-dollars.
-    pub cost_microusd: u64,
+    pub cost_usd_micro: u64,
 }
 
 /// One ledger line. (serde cannot deny unknown members across `flatten`; the digest covers what is read.)
@@ -93,7 +93,7 @@ pub struct Summary {
     /// Output tokens.
     pub output_tokens: u64,
     /// Cost in micro-US-dollars.
-    pub cost_microusd: u64,
+    pub cost_usd_micro: u64,
 }
 
 impl Summary {
@@ -101,7 +101,7 @@ impl Summary {
         self.calls = self.calls.saturating_add(1);
         self.input_tokens = self.input_tokens.saturating_add(u.input_tokens);
         self.output_tokens = self.output_tokens.saturating_add(u.output_tokens);
-        self.cost_microusd = self.cost_microusd.saturating_add(u.cost_microusd);
+        self.cost_usd_micro = self.cost_usd_micro.saturating_add(u.cost_usd_micro);
     }
 }
 
@@ -399,7 +399,7 @@ mod tests {
             model: "claude-sonnet-5-5".into(),
             input_tokens: 1200,
             output_tokens: 300,
-            cost_microusd: cost,
+            cost_usd_micro: cost,
         }
     }
 
@@ -414,14 +414,14 @@ mod tests {
             let mut l = Ledger::open(dir.path()).unwrap();
             l.append_at(usage(run, ni, 10), at).unwrap();
             l.append_at(usage(run, ni, 5), at).unwrap();
-            assert_eq!(l.by_run(&run).cost_microusd, 15);
+            assert_eq!(l.by_run(&run).cost_usd_micro, 15);
         }
         let l = Ledger::open(dir.path()).unwrap();
         assert_eq!(l.len(), 2);
         assert_eq!(l.total().calls, 2);
         assert_eq!(l.days().len(), 1);
         let day = l.days().keys().next().unwrap().clone();
-        assert_eq!(l.by_day(&day).cost_microusd, 15);
+        assert_eq!(l.by_day(&day).cost_usd_micro, 15);
     }
 
     #[test]
@@ -438,7 +438,7 @@ mod tests {
         let text = std::fs::read_to_string(&path).unwrap();
         std::fs::write(
             &path,
-            text.replacen("\"cost_microusd\":10", "\"cost_microusd\":1", 1),
+            text.replacen("\"cost_usd_micro\":10", "\"cost_usd_micro\":1", 1),
         )
         .unwrap();
         assert!(Ledger::open(dir.path()).is_err());

@@ -142,7 +142,7 @@ impl Emitter {
         self.line(&json!({"type": "progress", "done": done, "total": total}));
     }
 
-    /// `{"type":"usage","provider","model","input_tokens","output_tokens","cost_microusd"}`.
+    /// `{"type":"usage","provider","model","input_tokens","output_tokens","cost_usd_micro"}`.
     pub fn usage(self, u: &Usage) {
         self.line(&json!({
             "type": "usage",
@@ -150,7 +150,7 @@ impl Emitter {
             "model": u.model,
             "input_tokens": u.input_tokens,
             "output_tokens": u.output_tokens,
-            "cost_microusd": u.cost_microusd,
+            "cost_usd_micro": u.cost_usd_micro,
         }));
     }
 

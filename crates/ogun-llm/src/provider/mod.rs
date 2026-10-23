@@ -201,7 +201,7 @@ impl Provider {
             model: self.cfg.model.clone(),
             input_tokens: input,
             output_tokens: output,
-            cost_microusd: cost_usd_micro(
+            cost_usd_micro: cost_usd_micro(
                 input,
                 output,
                 self.cfg.input_per_mtok_usd_micro,

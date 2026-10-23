@@ -139,7 +139,7 @@ pub enum OpEvent {
         /// Output tokens.
         output_tokens: u64,
         /// Cost in micro-US-dollars.
-        cost_microusd: u64,
+        cost_usd_micro: u64,
     },
     /// A diagnostic line (already redacted), for the run log.
     Log(String),

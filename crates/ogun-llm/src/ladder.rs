@@ -112,7 +112,7 @@ impl Ladder {
     ) -> Result<ChatResponse, LlmError> {
         budget.admit(p.worst_case_chat(req))?;
         let resp = p.chat(req).await?;
-        budget.record(resp.usage.cost_microusd);
+        budget.record(resp.usage.cost_usd_micro);
         on_usage(&resp.usage);
         Ok(resp)
     }
@@ -224,7 +224,7 @@ impl Ladder {
             budget.admit(p.worst_case_embed(req))?;
             match p.embed(req).await {
                 Ok(resp) => {
-                    budget.record(resp.usage.cost_microusd);
+                    budget.record(resp.usage.cost_usd_micro);
                     on_usage(&resp.usage);
                     *pinned = Some(i);
                     return Ok(resp);
