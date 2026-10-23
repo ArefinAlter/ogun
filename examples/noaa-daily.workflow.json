@@ -1,0 +1,22 @@
+{
+  "ir_version": 0,
+  "workflow": "noaa-daily",
+  "version": 1,
+  "description": "Daily NOAA CSV files since 2020, one partition per day, hashed and listed in a manifest. No model access.",
+  "triggers": [{ "kind": "cron", "cron": "30 4 * * *" }],
+  "partitions": { "kind": "time", "granularity": "day", "start": "2020-01-01" },
+  "budgets": { "bytes": 2147483648, "wall_ms": 3600000 },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["www.ncei.noaa.gov"],
+        "sources": [{ "url": "https://www.ncei.noaa.gov/data/daily-summaries/access/{partition}.csv" }]
+      },
+      "policy": { "retries": 5, "concurrency": 2 }
+    },
+    { "id": "hash", "op": "hash@1", "inputs": ["fetch.artifacts"] },
+    { "id": "manifest", "op": "manifest@1", "inputs": ["hash.artifacts"] }
+  ]
+}

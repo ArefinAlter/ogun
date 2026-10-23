@@ -1,0 +1,21 @@
+# Ogun specifications
+
+Normative contracts for Ogun. The key words MUST, SHOULD and MAY are used as in RFC 2119. Prose wins over schema; a schema that disagrees with its spec is a bug in the schema.
+
+Ogun adopts the Zeus specifications by reference where it says so, in particular Zeus spec 00 (conventions). A Zeus spec is cited as "Zeus 00 section 7"; an Ogun spec as "O-02 section 8".
+
+| Spec | Title | Status | Implemented by |
+|---|---|---|---|
+| [O-00](O-00-conventions.md) | Conventions delta | Draft 1 | `ogun-types` |
+| [O-01](O-01-domain-model-and-run-state-machine.md) | Domain model and run state machine | Draft 1 | `ogun-run` |
+| [O-02](O-02-workflow-ir-v0.md) | Workflow IR v0 | Draft 1 | `ogun-ir`, [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
+| [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; invocation not yet implemented |
+| O-04 | Scheduling: triggers, partitions, backfills, concurrency, budgets | Planned | |
+| O-05 | Lineage and run records | Planned | |
+| O-06 | Benchmark profile | Planned (needs ADR 0005) | |
+| O-07 | Approvals and trust surfaces | Planned | |
+| O-08 | Session bridge | Planned | |
+
+Draft 1 means: complete enough to implement against, not yet reviewed by the maintainer. O-02 and O-03 rest on ADR 0003, which is still proposed; if it changes, they change.
+
+Conformance: `cargo test --workspace` validates every example in `examples/` against the JSON Schema and the validator, and checks that the O-01 transition table in prose matches the table in code.
