@@ -62,13 +62,15 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   - `ogun-edge`: the durable ingest log with backpressure, and the have/want sync protocol.
   - IR stream members, `ogun mcp` (read-only tools), and the VS Code extension.
   - The O-12 platform matrix, with the core crates type-checked for Android and iOS.
+  - `ogun-ingest`, the ingest bridge: MQTT (TLS, QoS 1, persistent session, PUBACK after commit), HTTP push, LoRaWAN (ChirpStack v4, The Things Stack v3), Modbus TCP and RTU-over-TCP, and file tail, each with its own durable log and a `streams.push` forwarder. Unit-tested; not yet run against `ogund`.
+  - `ogun-sync`: edge keys, signed offers, the edge client (`ogun-sync keygen`, `once`, `run`), and the hub-side offer verification and chunk assembly. Unit-tested; the hub handlers and relay routes are not wired yet.
 - Next, in order:
   1. The CI matrix passing (blocked on the account's Actions billing).
-  2. `ogund` and the `ogun-ingest` bridge with MQTT and HTTP push, after the O1 exit test.
+  2. An acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy), after the O1 exit test.
   3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
   4. `ogun lsp`.
   5. Server mode without remote approvals.
-  6. Edge-to-hub sync transport and enrolment.
+  6. Edge-to-hub sync on a hub: the `sync.offer` and `sync.chunk` handlers in `ogund`, the relay routes in `ogun-server`, and a soak test over a link that drops.
   7. Remote approvals with WebAuthn, after a security review.
   8. The Android companion and gateway.
   9. The iOS companion.
