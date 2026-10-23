@@ -91,9 +91,10 @@ fn run_inner(inv: &Invocation, job: &Job) -> CoreResult<Outcome> {
         (Some(p @ Value::Object(_)), None) => ("zeus_plan", ("plan", p.clone())),
         (None, Some(j @ Value::Object(_))) => ("zeus_job", ("job", j.clone())),
         _ => {
-            return Err(
-                config("zeus.session_acquire needs exactly one of plan or job (an object)").into(),
-            );
+            return Err(config(
+                "zeus.session_acquire needs exactly one of plan or job (an object)",
+            )
+            .into());
         }
     };
     let mut request = json!({

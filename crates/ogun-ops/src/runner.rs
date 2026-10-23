@@ -4,7 +4,7 @@
 //!    directory set to the attempt's fresh scratch directory, and only stdin, stdout and stderr.
 //! 2. The runner writes one `start` line to stdin and closes it:
 //!    `{"type": "start", "protocol": "jsonl-stdio/0", "op", "run_id", "node_instance", "node_id",
-//!    "partition", "window", "attempt", "deadline_ms", "scratch", "workspace", "config", "inputs": [{"port",
+//!    "partition", "window", "attempt", "deadline_ms", "run_start_ms", "scratch", "workspace", "config", "inputs": [{"port",
 //!    "ref", "path", "blake3", "media_type", "size_bytes", "metadata"}], "code": {"path", "dir", "blake3"},
 //!    "checkpoint", "secrets": {...}}`. `config` keeps its `{"secret_ref": ...}` objects; `secrets` maps
 //!    exactly the names the node uses to their values, and appears nowhere else. An input's `port` is the
@@ -351,6 +351,7 @@ fn start_line(
         "partition": inv.partition,
         "attempt": inv.attempt,
         "deadline_ms": inv.timeout_ms,
+        "run_start_ms": crate::context::RunContext::of(inv).run_ms,
         "scratch": inv.scratch,
         "config": run.config,
         "inputs": inputs,

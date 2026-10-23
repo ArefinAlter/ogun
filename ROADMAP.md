@@ -49,6 +49,8 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
   - Done: `ogun-types`, `ogun-ir` (types, validator, workflow hash, plan diff), `ogun-run` (table-driven run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budgets), `ogun-store` (durable run store with a kill-and-recover test), and `ogun validate`, `hash`, `diff`, `partitions` and `next`.
   - Next: `ogund` with the embedded engine and its scheduling loop, and the core operators.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
+  - Done (`ogun-ops`, `ogun-op-shims`): the operator registry; every core operator of O-03 section 7 (with `acquire` on the zeus-core engine and a no-session provider, and a robots-aware same-origin `crawl`); the `jsonl-stdio/0` runner with manifests, `config_schema` checks, secrets on stdin only and redacted stderr; the bubblewrap and `sandbox-exec` sandboxes; shims for DuckDB, SQL, dbt, shell, Poppler, Tesseract, PaddleOCR, ffmpeg, pandoc, yt-dlp, rclone, git and Hugging Face. The Smart Air Python operators run unchanged.
+  - Next: wiring into `ogund`; a loopback test hook for `acquire` and `crawl`; Windows sandboxing.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
 

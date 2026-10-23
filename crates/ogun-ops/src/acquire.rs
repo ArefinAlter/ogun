@@ -917,3 +917,35 @@ async fn run_jobs(
     }
     Ok(outputs)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_engine_starts_with_no_session_and_scoped_transports() {
+        let dir = tempfile::tempdir().unwrap();
+        let env = Environment::new(dir.path().to_path_buf());
+        let engines = AcquireEngine::default();
+        let built = engines.get(&env).await.unwrap();
+        assert!(built.downloads.starts_with(dir.path()));
+        // A job whose node instance has no active scope gets no transport (fails closed).
+        let spec = JobSpec::new(
+            HttpUrl::parse("https://data.example.org/a.csv").unwrap(),
+            Source::new(SourceKind::Workflow),
+        );
+        assert!(zeus_engine::JobTransportFactory::for_job(built.scopes.as_ref(), &spec).is_err());
+        assert!(!NoSession.extension_connected(None));
+        assert!(!NoSession.available(None));
+    }
+
+    #[test]
+    fn s3_listing_xml() {
+        let body = "<ListBucketResult><Contents><Key>records/a&amp;b.csv.gz</Key></Contents><IsTruncated>false</IsTruncated></ListBucketResult>";
+        assert_eq!(
+            xml_values(body, "Key"),
+            vec!["records/a&b.csv.gz".to_owned()]
+        );
+        assert_eq!(percent_decode("a%3Db/c"), "a=b/c");
+    }
+}
