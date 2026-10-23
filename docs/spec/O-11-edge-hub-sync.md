@@ -102,7 +102,7 @@ The sync bridge (`ogun-server`) serves two routes and relays each body unchanged
 
 ### 6.3 Chunks
 
-1. Every chunk except the last is exactly 512 KiB (524 288 bytes) of the object. The last holds the rest. `total` is `ceil(size_bytes / 524 288)`, and 1 for an empty object, which travels as one empty chunk. Base64 (standard alphabet, padded) makes a chunk 699 052 characters, so one request stays under the daemon's 1 MiB line. This is within O-15's limit of 768 KiB per chunk on this transport.
+1. Every chunk except the last is exactly 512 KiB (524 288 bytes) of the object. The last holds the rest. `total` is `ceil(size_bytes / 524 288)`, and 1 for an empty object, which travels as one empty chunk. Base64 (standard alphabet, padded) makes a chunk 699 052 characters, so one request stays under the daemon's 1 MiB line.
 2. The edge sends the wanted object from `floor(offset / 524 288)` to `total − 1`. Sending a chunk again is harmless; a chunk for an object that is already complete answers `complete: true` again.
 3. The hub accepts a chunk only when a verified offer from the same edge wanted that digest, its `partition` equals the offered one, `total` matches the offered size, `index < total`, and its length is exactly right for its index. Anything else is `api.invalid_params`.
 4. When the last missing chunk arrives, the hub assembles the object, checks size and BLAKE3 against the offer, and answers `complete: true`. On a mismatch it discards the chunks, answers `sync.digest_mismatch`, and the next offer wants the object from 0.

@@ -307,8 +307,7 @@ Server mode without remote approvals (people read, author and run; approvals are
 ## 15. Open issues
 
 1. The daemon sees every relayed call as the bridge credential. An `acting_for` member on bridge calls (the `usr_` id) would put the person in the daemon's audit log; today only the server's log has it, except for decisions, whose evidence names the user.
-2. O-15 section 5 limits a sync chunk to "768 KiB on this transport", but 768 KiB of bytes is 1 MiB of base64, which with the JSON envelope exceeds the daemon's 1 MiB request line. Either the chunk size or the line limit for `sync.chunk` needs to change.
-3. Workspaces bound to one daemon share everything in it; per-workspace credential stores and artifact namespaces inside one daemon (OR5 section 3.5) are not specified.
-4. Attestation trust: authenticator certificates are not chained to the FIDO Metadata Service. An installation that wants to restrict approvers to certain authenticator models needs that.
-5. TLS certificates are read at start; a renewal needs a restart (or a reverse proxy that handles renewal).
-6. Disabling a user is a store flag with no route yet; today an owner removes the membership.
+2. Workspaces bound to one daemon share everything in it; per-workspace credential stores and artifact namespaces inside one daemon (OR5 section 3.5) are not specified.
+3. Attestation trust: authenticator certificates are not chained to the FIDO Metadata Service. An installation that wants to restrict approvers to certain authenticator models needs that.
+4. TLS certificates are read at start; a renewal needs a restart (or a reverse proxy that handles renewal).
+5. Disabling a user is a store flag with no route yet; today an owner removes the membership.
