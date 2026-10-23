@@ -237,7 +237,8 @@ async fn api_tokens_act_as_agents_and_never_reach_approval_routes() {
     .await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{v}");
     // A wrong secret is refused.
-    let forged = format!("Bearer {}0", &token[..token.len() - 1]);
+    let flipped = if token.ends_with('0') { '1' } else { '0' };
+    let forged = format!("Bearer {}{flipped}", &token[..token.len() - 1]);
     let (status, _, _) = send(
         &f,
         get("/api/v1/me")
