@@ -44,7 +44,10 @@ pub async fn run(ctx: &mut Ctx, own: Map<String, Value>, inputs: &[Input]) -> Re
         texts.push(read_text(input, ctx.common.max_input_bytes)?);
     }
     let chunk = ctx.common.chunk_bytes as usize;
-    let plan: Vec<Vec<&str>> = texts.iter().map(|t| common::chunks(t, chunk)).collect();
+    let plan: Vec<Vec<&str>> = texts
+        .iter()
+        .map(|t| common::nonempty_chunks(t, chunk))
+        .collect();
     ctx.plan(plan.iter().map(|c| c.len() as u64).sum())?;
 
     let mut out = Lines::create(ctx.path("rows.jsonl")?)?;

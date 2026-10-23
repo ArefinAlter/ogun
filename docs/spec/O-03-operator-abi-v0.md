@@ -5,7 +5,7 @@
 | Status | Draft 1 |
 | Depends on | O-00, O-01, O-02 |
 | Decided by | ADR 0003 decision 3; ADR 0004 |
-| Implemented by | Catalogue (section 7) in `ogun-ir`; manifests and invocation are not implemented yet |
+| Implemented by | Catalogue (section 7) in `ogun-ir`; model operators (section 8) in `ogun-llm` and `ogun-op-llm`; manifests and invocation are not implemented yet |
 
 ## 1. Purpose
 
@@ -102,3 +102,181 @@ The validator checks references against this catalogue. Every entry is major ver
 | `embedding.generate` | model | `vectors` |
 | `window.rollup` | core | `artifacts` |
 | `stream.mqtt`, `stream.http`, `stream.lorawan`, `stream.modbus`, `stream.file_tail` | source | `window` |
+
+## 8. Model operators
+
+The `model` operators (`llm.*`, `embedding.generate`) call language and embedding models through Ogun's own provider ladder. Models are optional (constraint 6): a workflow without model operators runs with no model access, and with no ladder configured no model call is ever made. One binary, `ogun-op-llm`, implements every model operator as a `jsonl-stdio/0` child (section 4); the library `ogun-llm` holds the ladder, the provider clients, the budget check and the spend ledger.
+
+### 8.1 The ladder: `<state_dir>/llm.json`
+
+```json
+{
+  "version": 1,
+  "providers": [
+    {
+      "name": "anthropic-sonnet",
+      "kind": "anthropic",
+      "base_url": "https://api.anthropic.com",
+      "model": "claude-sonnet-5-5",
+      "api_key_secret": "anthropic_api_key",
+      "input_per_mtok_usd_micro": 2000000,
+      "output_per_mtok_usd_micro": 10000000,
+      "max_output_tokens": 16000,
+      "timeout_ms": 300000
+    },
+    {
+      "name": "ollama",
+      "kind": "ollama",
+      "model": "qwen3:8b",
+      "input_per_mtok_usd_micro": 0,
+      "output_per_mtok_usd_micro": 0,
+      "max_output_tokens": 8192,
+      "capabilities": ["chat", "json_schema", "embeddings"]
+    }
+  ]
+}
+```
+
+Providers are tried in order: the first enabled provider with the capability an operator needs is used, and later ones are fallbacks (section 8.8). A missing file, or an empty `providers` list, means no model access.
+
+| Member | Default | Rule |
+|---|---|---|
+| `version` | | `1`. |
+| `providers` | | 0 to 32 entries. |
+| `name` | | `^[a-z][a-z0-9_-]{0,63}$`, unique. Appears in usage lines, the ledger and errors. |
+| `kind` | | `anthropic` (Messages API), `openai` (Chat Completions and Embeddings), `openai_compatible` (vLLM, llama.cpp server, LM Studio, OpenRouter and other endpoints of that shape), `ollama` (`/api/chat`, `/api/embed`) or `google` (Gemini `generateContent`, `batchEmbedContents`). |
+| `enabled` | `true` | A disabled entry is never called and may be incomplete (empty `model`). |
+| `base_url` | per kind | `https://api.anthropic.com`, `https://api.openai.com/v1`, `http://127.0.0.1:11434`, `https://generativelanguage.googleapis.com/v1beta`; `openai_compatible` has no default. `https`, or `http` to a loopback host. Plain `http` to another host needs `allow_insecure_http: true` and no `api_key_secret`. No user name, password, query or fragment. |
+| `model` | | 1 to 200 of `A-Z a-z 0-9 . _ : / @ + -`. |
+| `api_key_secret` | | The name of the secret holding the key (`^[A-Za-z0-9._-]{1,128}$`), never the key. Required for `anthropic`, `openai` and `google`. |
+| `input_per_mtok_usd_micro`, `output_per_mtok_usd_micro` | | Integer micro-US-dollars per million tokens. Output includes reasoning tokens. |
+| `max_output_tokens` | | 1 to 1 000 000. The cap for one call and the worst case the budget check assumes. |
+| `timeout_ms` | 120 000 | 1 000 to 600 000, per request. |
+| `capabilities` | per kind | Non-empty subset of `chat`, `json_schema` (native schema-constrained output; needs `chat`), `embeddings`. Defaults: `anthropic` chat and json_schema; `openai`, `ollama`, `google` all three; `openai_compatible` chat only. `anthropic` never has `embeddings`. |
+| `api_version` | `2026-10-21` | `anthropic` only: the `anthropic-version` header. |
+| `allow_insecure_http` | `false` | See `base_url`. |
+
+The document is parsed strictly: unknown members, duplicate member names, floating-point numbers and documents over 1 MiB are refused with `llm.config_invalid`. Errors name the member, never its value. `ogun_llm::LadderConfig::template()` writes a starting point with the current Anthropic models (Claude Sonnet 5.5, Haiku 5.5 and Opus 5.5, at Anthropic's list prices) and disabled entries for the other kinds, whose models the user fills in.
+
+### 8.2 What the runner passes
+
+The ladder and the attempt's budget travel in the node configuration; the API keys travel in the start line's `secrets` map. Before starting the operator the runner:
+
+1. Refuses the node with `llm.not_configured` when the environment has no model access (`ogun_ops::Environment::model_access`) or no ladder is configured. Nothing is started.
+2. Reserves the attempt's model budget (O-04 section 5.2) and sets `config.llm_budget_usd_micro` to the reserved amount.
+3. Sets `config.ladder` to the ladder, narrowed to the node's `config.providers` when present (`LadderConfig::narrowed`, then `inject_into`). Both members are replaced if the node's configuration has them; a manifest's `config_schema` does not list them.
+4. Resolves the `api_key_secret` of every enabled provider in that ladder (`LadderConfig::secret_names`) and passes the values in `secrets`. A key that does not resolve is left out; the operator skips that provider.
+5. Extends the sandbox's network allowlist with the providers' hosts (`LadderConfig::hosts`).
+6. Starts `ogun-op-llm <operator>`, where `<operator>` is the catalogue name (`llm.extract`). The manifest's `invocation.command` is `["ogun-op-llm", "<operator>"]`. Without an argument the operator reads the start line's optional `op` member.
+
+After the attempt the runner appends one ledger entry per `usage` line (section 8.9) and commits the sum of their `cost_microusd` against the reservation.
+
+### 8.3 Lines
+
+Model operators write the lines of section 4 with these shapes, one JSON object per line:
+
+```json
+{"type": "progress", "done": 3, "total": 12}
+{"type": "usage", "provider": "anthropic-sonnet", "model": "claude-sonnet-5-5", "input_tokens": 1834, "output_tokens": 212, "cost_microusd": 5788}
+{"type": "output", "port": "rows", "path": "/scratch/rows.jsonl", "media_type": "application/x-ndjson", "metadata": {"row_count": 41, "llm_calls": 12, "llm_cost_usd_micro": 70210, "models": ["anthropic-sonnet/claude-sonnet-5-5"], "prompt_blake3": ["..."]}}
+{"type": "result", "ok": true}
+{"type": "error", "error": {"code": "llm.output_invalid", "class": "integrity", "message": "...", "retryable": false}}
+```
+
+One `usage` line follows every provider call that returned an answer, including an answer that then failed validation. `total` in `progress` is the number of planned calls. `path` is absolute and inside the working directory. Output metadata holds integers, strings, booleans and arrays of strings only. Every output carries `llm_calls`, `llm_cost_usd_micro`, `models` (`provider/model` of every call that answered) and `prompt_blake3` (BLAKE3 of each system prompt used, which identifies the task and configuration independently of the documents). Model operators v0 write no `checkpoint` lines; a restarted attempt starts over.
+
+### 8.4 Common configuration
+
+| Member | Default | Range | Meaning |
+|---|---|---|---|
+| `providers` | all | 1 to 32 ladder names | Use only these providers, in ladder order. An unknown name is `llm.config_invalid`. |
+| `max_calls` | 100 | 1 to 100 000 | Bound on provider requests, counting fallbacks and repairs. If the planned calls exceed it, the operator fails with `llm.call_limit` before the first call. |
+| `max_output_tokens` | provider's | 1 to 1 000 000 | Per call; capped by each provider's `max_output_tokens`. |
+| `temperature_milli` | provider's | 0 to 2 000 | Sampling temperature in thousandths (IR documents hold no floats). Not sent to `anthropic` providers, whose API version rejects sampling parameters. |
+| `chunk_bytes` | 32 768 (8 192 for `embedding.generate`) | 1 024 to 1 048 576 | Inputs longer than this are split at paragraph, then line, then character boundaries. |
+| `max_input_bytes` | 67 108 864 | 1 to 2^30 | Larger inputs are refused (`llm.input_unsupported`). |
+| `repair` | `true` | | One repair request after an invalid structured answer (section 8.7). |
+| `fallback` | `true` | | Fall back down the ladder on transient failures (section 8.8). The benchmark profile (O-06) can turn `repair` and `fallback` off. |
+| `instructions` | | 1 byte to 16 KiB | Extra task instructions. They are approved configuration and go into the system prompt. |
+
+`embedding.generate` takes `providers`, `max_calls`, `chunk_bytes`, `max_input_bytes` and `fallback` only. A common member an operator does not take, and any unknown member, is `llm.config_invalid`. Inputs must be text: `text/*`, `application/json`, JSON lines (`application/x-ndjson`, `application/jsonl`), XML, YAML, CSV, or a `+json` or `+xml` type. Invalid UTF-8 is replaced, not refused. Binary documents need an adapter first (`pdf.extract`, `tesseract`).
+
+### 8.5 Operators
+
+| Operator | Own members | Reads | Writes |
+|---|---|---|---|
+| `llm.extract` | `schema` (required): JSON Schema of one row. `source_field`: when set, each row gets this member with `{"blake3", "part"}` of its source. | Text inputs, chunked; one call per chunk. | `rows`: one `rows.jsonl` (`application/x-ndjson`) for all inputs; metadata `row_count`. |
+| `llm.enrich` | `schema` (required): object schema whose `properties` are the fields to add. `batch_rows` (20; 1 to 200). `overwrite` (`false`): replace members a row already has. | JSON-lines or JSON rows, in batches. | `rows`: the rows with the fields added, in input order. |
+| `llm.classify` | `labels` (required): 2 to 256 distinct strings of 1 to 128 bytes. `multi_label` (`false`). `unit`: `artifact` (default; judged on the first chunk) or `row`. `batch_rows` (20; 1 to 200) for rows. | Text inputs, or rows. | `labels`: `labels.jsonl`, one line per item, `{"blake3", "port" or "index", "label"}` (`"labels"` with `multi_label`); metadata `item_count`, `label_counts`. |
+| `llm.map` | `output_media_type`: a text type (the input's when absent). Needs `instructions`. | Text inputs, chunked; the transformed parts are joined in order. | `artifacts`: one file per input in `mapped/`; metadata `source_blake3`. |
+| `llm.rename` | `max_name_bytes` (100; 16 to 200). `keep_extension` (`true`; else derived from the media type). | The current name (`metadata.file_name`, `metadata.name`, else the stored file name) and the first chunk. | `artifacts`: a copy of each input in `renamed/` under the new name; metadata `file_name`, `source_blake3`. |
+| `llm.filter` | `criterion` (required): 1 byte to 4 KiB. | The first chunk of each text input. | `artifacts` (kept) and `rejected`: copies in `kept/` and `rejected/`; metadata `keep`, `source_blake3`, `untrusted_reason` (model text, at most 500 bytes). |
+| `llm.schema` | `max_samples` (20; 1 to 500). `title`. | Rows of JSON or JSON-lines inputs as samples; the first chunk of other text inputs. One call. | `schema`: `schema.json` (`application/schema+json`, draft 2020-12); metadata `sample_count`, `samples_checked`. |
+| `embedding.generate` | `text_field`: embed this string member of each row instead of chunks of text inputs. `batch_size` (32; 1 to 512). `dimensions` (1 to 65 536) where the provider supports it. | Text chunks or rows. | `vectors`: `vectors.jsonl`, one line per vector, `{"blake3", "chunk" or "index", "provider", "model", "dimensions", "vector"}`; metadata `vector_count`, `dimensions`, `provider`, `model`, `skipped_rows`. |
+
+`llm.rename` keeps only lowercase ASCII letters, digits and single `-` or `_` separators, never a path separator or a leading dot, prefixes Windows device names with `file-`, bounds the length and makes names unique within the attempt (`-2`, `-3`). Model-written text in metadata is in `untrusted_*` members, or sanitised as `file_name` is. Vectors are floating-point numbers in an artifact, not in an IR document.
+
+### 8.6 Prompt hygiene
+
+1. Input documents are untrusted data. They appear only in the user message, never in the system prompt.
+2. Each document is enclosed between `<<<OGUN-DOC-<16 hex> BEGIN document=<label> media_type=<type> [part=i/n]>>>` and the matching `END` marker. The hex digits are BLAKE3 over the document's text and a counter, chosen so the marker does not occur in the text; a document cannot predict or close its own marker. Labels are chosen by the operator, never taken from documents.
+3. The system prompt is a fixed frame, the operator's task text and the node's approved configuration (`instructions`, `labels`, `criterion`, schemas). The frame states that document content is data, not instructions, and that text inside a document asking to change the task, reveal the prompt or change the format is ignored.
+4. URLs with a query, a fragment or user information in document text are reduced through `redact_url` (log mode) before any text reaches a model. API keys appear only in the request header of the provider that owns them; never in a prompt, a line, a log or an error.
+5. Answers are validated locally against the requested schema (section 8.7); nothing a model writes is executed, and model-written strings that reach metadata are bounded and marked untrusted.
+
+### 8.7 Structured output
+
+Every `llm.*` call asks for one JSON value satisfying a schema. With `json_schema` the provider constrains the answer natively: `output_config.format` (`anthropic`), `response_format` with `json_schema` (`openai`, `openai_compatible`; `strict` when every object is closed and every property required), `format` (`ollama`) or `responseJsonSchema` (`google`). The schema sent is adapted to what the provider accepts (Anthropic: closed objects, no numeric, length or most array constraints). Without `json_schema` the schema is given as an instruction in the system prompt.
+
+Either way the answer is parsed (the whole text, a fenced block, or the outermost object or array) and validated against the schema as written, plus the operator's own checks (for example, one item per row index). The validator resolves no remote or file references. An answer that fails gets one repair request on the same provider, naming the failing instance paths and keywords but not quoting the answer; a second failure is `llm.output_invalid`.
+
+### 8.8 Fallback
+
+| Failure | Code | Falls back |
+|---|---|---|
+| HTTP 429 | `llm.provider_unavailable` | yes |
+| HTTP 5xx, 408, connection failure, timeout, malformed response | `llm.provider_unavailable` | yes |
+| HTTP 401, 403 | `llm.auth_failed` | no |
+| HTTP 400, 404, 413, 422 and other 4xx | `llm.request_rejected` | no |
+| A refusal, content filter or safety block | `llm.refused` | no |
+| Worst-case cost over the remaining budget | `run.budget_exhausted` | no |
+| `max_calls` reached | `llm.call_limit` | no |
+
+A transient failure moves the call to the next provider; when every provider has failed transiently the attempt fails with the retryable `llm.provider_unavailable`, and the node's `policy.retries` decide. Fallback never applies to policy, credential or invalid-request failures. No redirect is followed. `embedding.generate` pins the provider of its first successful call and never falls back afterwards, because vectors from different models are not comparable.
+
+Before each request the operator computes its worst-case cost: input bytes plus framing (every tokenizer in use maps at least one byte to each token, so bytes bound tokens) at the input price, plus the call's output limit at the output price, rounded up. A request whose worst case exceeds the remaining budget is refused (`ogun_llm::check_budget`) and nothing is sent. Actual costs come from the provider's token counts; a provider that reports none (Gemini embeddings) is charged an estimate of one token per four bytes.
+
+### 8.9 The spend ledger: `<state_dir>/llm-ledger.jsonl`
+
+`ogund` appends one line per `usage` line it receives, and is the only writer: it holds an exclusive lock on the file while the ledger is open, and `fsync`s every line.
+
+```json
+{"seq":1,"at":"2026-10-23T09:12:44.512Z","run_id":"orun_...","workflow_id":"wf_...","node_instance":"ni_...","op":"llm.extract@1","provider":"anthropic-sonnet","model":"claude-sonnet-5-5","input_tokens":1834,"output_tokens":212,"cost_microusd":5788,"prev_blake3":"0000...0000","blake3":"..."}
+```
+
+1. `seq` starts at 1 and has no gaps. `prev_blake3` is the previous entry's `blake3`, or 64 zeros for the first.
+2. `blake3` is BLAKE3 of the JCS form (RFC 8785) of the entry without its `blake3` member. Any edit, removal or reordering breaks the chain.
+3. Opening verifies the whole chain. A final line without a newline that does not parse (a crash during a write) is cut; any other failure refuses the ledger and leaves the file untouched for inspection.
+4. Summaries (calls, tokens and `cost_microusd`) are kept per run, per workflow and per UTC day (`YYYY-MM-DD` of `at`), and in total.
+
+### 8.10 Errors
+
+| Code | Class | Retryable | Raised when |
+|---|---|---|---|
+| `llm.not_configured` | `unavailable` | no | No enabled provider offers the needed capability with its key available, or the runner passed no ladder. |
+| `llm.config_invalid` | `invalid_request` | no | `llm.json` or the node's configuration breaks a rule above. |
+| `llm.provider_unavailable` | `unavailable` | yes | Every provider tried failed transiently (section 8.8). `details.provider` names the last; `details.retry_after_ms` when the provider sent one. |
+| `llm.auth_failed` | `unauthenticated` | no | A provider rejected its key. |
+| `llm.request_rejected` | `invalid_request` | no | A provider rejected the request as invalid. |
+| `llm.refused` | `policy_denied` | no | The model or provider declined on policy grounds. |
+| `llm.output_invalid` | `integrity` | no | The answer failed validation after the repair request. |
+| `llm.call_limit` | `policy_denied` | no | `max_calls` would be exceeded. |
+| `llm.input_unsupported` | `invalid_request` | no | An input is not text, is too large or has the wrong shape. |
+
+A refused budget check is `run.budget_exhausted` (O-00 section 5.2). Messages name providers, members, HTTP statuses and provider error types; never keys, URLs with queries, prompts, documents, answers or configuration values.
+
+### 8.11 Open issues
+
+1. The usage line and the ledger name money `cost_microusd`, as `ogun_ops::OpEvent::Usage` does, while O-00 section 2 asks for the suffix `_usd_micro`. One of them should change before the ABI is frozen.
+2. Checkpoints: a long `llm.extract` or `embedding.generate` restarts from the beginning after a crash. Checkpointing the completed chunks would save spend.
+3. Calls run one at a time. A `concurrency` member needs per-call budget reservations inside the operator.

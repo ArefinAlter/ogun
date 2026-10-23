@@ -495,6 +495,15 @@ pub fn chunks(text: &str, max: usize) -> Vec<&str> {
     out
 }
 
+/// [`chunks`] without whitespace-only chunks (an empty input needs no model call).
+#[must_use]
+pub fn nonempty_chunks(text: &str, max: usize) -> Vec<&str> {
+    chunks(text, max)
+        .into_iter()
+        .filter(|c| !c.trim().is_empty())
+        .collect()
+}
+
 /// The first chunk of a text, cut at a boundary.
 #[must_use]
 pub fn head(text: &str, max: usize) -> &str {

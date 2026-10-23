@@ -76,7 +76,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
 ## Phase O2: data and model operators
 
 - Python, SQL and dbt adapters with sandbox profiles; code-operator approvals on Ogun's trust surfaces (O-07).
-- Ogun's own LLM provider ladder; LLM operators (`llm.extract`, `llm.classify`, `embedding.generate`).
+- Ogun's own LLM provider ladder; LLM operators (`llm.extract`, `llm.classify`, `embedding.generate`). Built: `ogun-llm` (ladder, Anthropic, OpenAI, OpenAI-compatible, Ollama and Gemini clients, spend ledger) and `ogun-op-llm` (all eight model operators, O-03 section 8); the `ogund` runner side (injection, ledger writes) is next.
 - Assets, partitions and schedules with time, event and data triggers. The Python SDK and YAML authoring compile to IR.
 - Session bridge (O-08), once Zeus phase 1 has shipped the extension handoff.
 
