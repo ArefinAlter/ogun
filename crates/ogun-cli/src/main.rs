@@ -78,6 +78,8 @@ enum Command {
     },
     /// Serve the read-only Ogun tools to a coding agent over MCP on stdio.
     Mcp,
+    /// Serve the Ogun language server (diagnostics, hover, completion) on stdio, for editors.
+    Lsp,
     /// Show what changed between two versions and whether the new one needs an approval.
     Diff {
         /// The approved version.
@@ -429,6 +431,10 @@ fn run(cli: &Cli) -> Result<bool> {
             } else {
                 println!("{hex}");
             }
+            Ok(true)
+        }
+        Command::Lsp => {
+            ogun_lsp::serve_stdio().map_err(|e| anyhow::anyhow!("language server: {e}"))?;
             Ok(true)
         }
         Command::Mcp => {

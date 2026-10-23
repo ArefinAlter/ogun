@@ -61,6 +61,8 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   - `ogun-stream`: event-time windows, per-device watermarks, sealing, revisions and the `late` output.
   - `ogun-edge`: the durable ingest log with backpressure, and the have/want sync protocol.
   - IR stream members, `ogun mcp` (read-only tools), and the VS Code extension.
+  - `ogun lsp` (`crates/ogun-lsp`): validator diagnostics, hover, completion, go-to-definition, symbols and the workflow hash; the VS Code extension uses it when found (2026-10-23).
+  - `ogun mcp` daemon-backed tools with an `agent` credential, client configurations in `integrations/mcp`, the Python O-15 client, and the Airflow, Dagster, Prefect and Kestra integrations (2026-10-23; they need `ogund` to do anything beyond the offline tools).
   - The O-12 platform matrix, with the core crates type-checked for Android and iOS.
   - `ogun-ingest`, the ingest bridge: MQTT (TLS, QoS 1, persistent session, PUBACK after commit), HTTP push, LoRaWAN (ChirpStack v4, The Things Stack v3), Modbus TCP and RTU-over-TCP, and file tail, each with its own durable log and a `streams.push` forwarder. Unit-tested; not yet run against `ogund`.
   - `ogun-sync`: edge keys, signed offers, the edge client (`ogun-sync keygen`, `once`, `run`), and the hub-side offer verification and chunk assembly. Unit-tested; the hub handlers and relay routes are not wired yet.
@@ -68,7 +70,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   1. The CI matrix passing (blocked on the account's Actions billing).
   2. An acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy), after the O1 exit test.
   3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
-  4. `ogun lsp`.
+  4. Done: `ogun lsp` (`ogun-lsp`), with the VS Code client.
   5. Server mode without remote approvals.
   6. Edge-to-hub sync on a hub: the `sync.offer` and `sync.chunk` handlers in `ogund`, the relay routes in `ogun-server`, and a soak test over a link that drops.
   7. Remote approvals with WebAuthn, after a security review.

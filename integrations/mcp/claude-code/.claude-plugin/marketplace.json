@@ -1,0 +1,11 @@
+{
+  "name": "ogun",
+  "owner": { "name": "Verne Ltd." },
+  "plugins": [
+    {
+      "name": "ogun",
+      "source": "./plugin",
+      "description": "Ogun workflow tools over MCP (ogun mcp)."
+    }
+  ]
+}

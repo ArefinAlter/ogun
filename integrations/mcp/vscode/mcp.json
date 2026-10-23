@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "ogun": {
+      "type": "stdio",
+      "command": "ogun",
+      "args": ["mcp"]
+    }
+  }
+}

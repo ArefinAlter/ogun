@@ -1,0 +1,4 @@
+# Add to ~/.codex/config.toml (or run: codex mcp add ogun -- ogun mcp)
+[mcp_servers.ogun]
+command = "ogun"
+args = ["mcp"]

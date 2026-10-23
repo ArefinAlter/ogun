@@ -16,6 +16,7 @@ members = [
     "crates/ogun-cli",
     "crates/ogun-ingest",
     "crates/ogun-sync",
+    "crates/ogun-lsp",
 ]
 
 [workspace.package]
@@ -53,6 +54,7 @@ ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
 ogun-daemon = { path = "crates/ogun-daemon", version = "0.1.0" }
 ogun-llm = { path = "crates/ogun-llm", version = "0.1.0" }
 ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
+ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -98,6 +100,9 @@ rumqttc = { version = "0.25", default-features = false, features = ["use-rustls"
 tokio-modbus = { version = "0.17", default-features = false, features = ["tcp", "rtu"] }
 # Platform trust roots for MQTT over TLS; already in the tree through rumqttc.
 rustls-native-certs = "0.8"
+# ---- language server (ogun-lsp): synchronous scaffold and protocol types ----
+lsp-server = "0.10"
+lsp-types = "0.97"
 
 [profile.dev]
 debug = "line-tables-only"

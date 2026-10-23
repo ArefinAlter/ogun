@@ -1,0 +1,111 @@
+id: ogun_run
+namespace: company.data
+description: |
+  Start a run of an Ogun workflow version that is stored in ogund and approved, wait for it, and
+  expose the run id, state and artifact digests as outputs.
+
+  It authenticates with the agent credential `kestra`, which a person created once on a terminal
+  with `ogun credentials add kestra --kind agent`. An agent credential can never decide an
+  approval: if the version needs one, the run waits until a person approves on the Ogun CLI or in
+  Ogun Studio.
+
+  Both tasks use the Process task runner, so they run on the Kestra worker host where ogund
+  listens; the daemon has no network listener.
+
+inputs:
+  - id: workflow
+    type: STRING
+    defaults: noaa-daily
+    description: Name of the stored Ogun workflow.
+  - id: workflow_hash
+    type: STRING
+    required: false
+    description: The hash a person reviewed and approved. The run binds to it.
+  - id: partition
+    type: STRING
+    required: false
+    description: One partition key (for example a day, 2026-01-31). Empty runs the latest partition.
+
+tasks:
+  # Optional pre-flight with the ogun CLI JSON contract (O-14 section 4): when the namespace holds
+  # workflows/<name>.workflow.json, it must be valid and hash to the pinned hash.
+  - id: preflight
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    namespaceFiles:
+      enabled: true
+    env:
+      WORKFLOW: "{{ inputs.workflow }}"
+      PINNED_HASH: "{{ inputs.workflow_hash ?? '' }}"
+    commands:
+      - |
+        set -eu
+        file="workflows/${WORKFLOW}.workflow.json"
+        if [ ! -f "$file" ]; then
+          echo "no $file in the namespace; skipping the pre-flight"
+          exit 0
+        fi
+        ogun validate --json "$file" > validate.json || { echo "the workflow file is not valid"; cat validate.json; exit 1; }
+        hash=$(ogun hash --json "$file" | python3 -c 'import json, sys; print(json.load(sys.stdin)["workflow_hash"])')
+        echo "::{\"outputs\":{\"file_hash\":\"$hash\"}}::"
+        if [ -n "$PINNED_HASH" ] && [ "$hash" != "$PINNED_HASH" ]; then
+          echo "the namespace file hashes to $hash, not the pinned $PINNED_HASH" >&2
+          exit 1
+        fi
+
+  - id: run
+    type: io.kestra.plugin.scripts.python.Script
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    env:
+      WORKFLOW: "{{ inputs.workflow }}"
+      PINNED_HASH: "{{ inputs.workflow_hash ?? '' }}"
+      PARTITION: "{{ inputs.partition ?? '' }}"
+      # Same key on every attempt of this task in this execution: a retry re-attaches to its run.
+      IDEMPOTENCY_KEY: "kestra:{{ flow.namespace }}:{{ flow.id }}:{{ execution.id }}:{{ task.id }}"
+    script: |
+      import json
+      import os
+
+      from ogun_client import Client, idempotency_key, keys, latest
+
+      workflow = os.environ["WORKFLOW"]
+      pinned = os.environ.get("PINNED_HASH") or None
+      partition = os.environ.get("PARTITION") or None
+      selector = keys([partition]) if partition else latest()
+
+      with Client.connect("kestra") as ogun:
+          run = ogun.start_run(
+              workflow,
+              selector,
+              idempotency_key=idempotency_key(os.environ["IDEMPOTENCY_KEY"]),
+              workflow_hash=pinned,
+          )
+          print(f"Ogun run {run['run_id']} of {workflow} is {run['state']}")
+
+          def update(r):
+              print(f"Ogun run {r['run_id']} is {r['state']}")
+              if r["state"] == "waiting":
+                  print("Waiting, possibly for an approval: a person approves on the Ogun CLI or in Ogun Studio.")
+
+          final = ogun.wait_for_run(run["run_id"], on_update=update)
+          artifacts = ogun.list_artifacts(run["run_id"]) if final["state"] == "succeeded" else []
+
+      outputs = {
+          "run_id": run["run_id"],
+          "state": final["state"],
+          "workflow_hash": final.get("workflow_hash"),
+          "artifacts": [{k: a.get(k) for k in ("blake3", "node", "output", "partition", "size_bytes")} for a in artifacts],
+      }
+      print("::" + json.dumps({"outputs": outputs}) + "::")
+      if final["state"] != "succeeded":
+          raise SystemExit(f"Ogun run {run['run_id']} ended {final['state']}")
+
+triggers:
+  - id: daily
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "15 4 * * *"
+    inputs:
+      workflow: noaa-daily
+      partition: "{{ trigger.date | dateAdd(-1, 'DAYS') | date('yyyy-MM-dd') }}"
