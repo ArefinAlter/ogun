@@ -1,0 +1,29 @@
+[package]
+name = "ogun-lsp"
+description = "The Ogun language server for workflow IR files: diagnostics from ogun-ir, hover, completion, go-to-definition, symbols and the workflow hash (Ogun spec O-14)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ogun-lsp"
+path = "src/main.rs"
+
+[dependencies]
+ogun-ir.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+lsp-server.workspace = true
+lsp-types.workspace = true
+
+[lints]
+workspace = true
