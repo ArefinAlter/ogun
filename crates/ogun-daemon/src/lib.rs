@@ -17,6 +17,7 @@ pub mod lineage;
 pub mod sched;
 pub mod secrets;
 pub mod server;
+pub mod session;
 pub mod state;
 pub mod streams;
 pub mod sync;
@@ -75,6 +76,7 @@ pub async fn start(paths: OgunPaths) -> DaemonResult<Running> {
         tokio::spawn(server::serve(daemon.clone(), listener)),
         tokio::spawn(exec::run(daemon.clone())),
         tokio::spawn(sched::run(daemon.clone())),
+        tokio::spawn(session::run(daemon.clone())),
     ];
     daemon.changed();
     Ok(Running { daemon, tasks })

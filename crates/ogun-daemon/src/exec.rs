@@ -562,8 +562,12 @@ async fn finish(
         }
         Outcome::Failed { error, retryable } => fail(d, node, ni, error, retryable, now),
         Outcome::SessionRequired { request } => {
-            let w =
-                DocWrite::put(Collection::Sessions, id.to_string(), &request).map_err(store_err)?;
+            let doc = crate::session::SessionDoc {
+                request,
+                job_id: None,
+                zeus_approval_id: None,
+            };
+            let w = DocWrite::put(Collection::Sessions, id.to_string(), &doc).map_err(store_err)?;
             d.store
                 .transition_with(id, Cause::SessionRequired, Actor::Runtime, now, None, &[w])
                 .map(|_| ())

@@ -1,66 +1,81 @@
-//! Lineage of a run as OpenLineage-shaped run events (O-05). The full builder lives in
-//! `ogun-lineage`; this is the daemon's view until it is wired in.
+//! `lineage.get` (O-05): OpenLineage run events built by `ogun-lineage` from the run store, the
+//! workflow, the committed outputs and the last error of each failed node instance.
 
 use std::collections::BTreeMap;
 
-use ogun_run::NodeState;
-use ogun_store::{NodeInstance, RunRecord};
-use ogun_types::NodeInstanceId;
-use serde_json::{Value, json};
+use ogun_lineage::{LineageConfig, OutputArtifact, RunLineage};
+use ogun_store::{Collection, Event, NodeInstance, RunRecord};
+use ogun_types::{NodeInstanceId, OgunError};
+use serde_json::Value;
 
-use crate::state::OutputRecord;
+use crate::state::{Daemon, OutputRecord};
 
-/// One event per finished node instance: job `<workflow>.<node>`, inputs and outputs by digest.
+/// Events of one run, scanning at most this many store events.
+const MAX_SCAN: usize = 200_000;
+
+fn run_events_of(d: &Daemon, run: &RunRecord) -> Vec<Event> {
+    let mut out = Vec::new();
+    let mut after = 0;
+    let mut scanned = 0;
+    while scanned < MAX_SCAN {
+        let Ok(page) = d.store.events_after(after, 10_000) else {
+            break;
+        };
+        if page.is_empty() {
+            break;
+        }
+        scanned += page.len();
+        for e in page {
+            after = e.seq;
+            if e.run == run.id {
+                out.push(e);
+            }
+        }
+    }
+    out
+}
+
+/// OpenLineage events for a run.
 #[must_use]
 pub fn run_events(
+    d: &Daemon,
     run: &RunRecord,
     instances: &[NodeInstance],
     outputs: &BTreeMap<NodeInstanceId, Vec<OutputRecord>>,
 ) -> Vec<Value> {
-    let dataset = |o: &OutputRecord| {
-        json!({
-            "namespace": "ogun",
-            "name": format!("blake3:{}", o.blake3),
-            "facets": {
-                "ogun_artifact": {
-                    "blake3": o.blake3,
-                    "size_bytes": o.size_bytes,
-                    "media_type": o.media_type,
-                    "port": o.port,
-                }
-            }
+    let arts = outputs.iter().flat_map(|(id, outs)| {
+        outs.iter().map(move |o| OutputArtifact {
+            node_instance: *id,
+            output: o.port.clone(),
+            artifact_id: Some(o.artifact_id.clone()),
+            blake3: o.blake3.clone(),
+            sha256: None,
+            size_bytes: o.size_bytes,
+            media_type: o.media_type.clone(),
+            committed_at: o.committed_at,
         })
-    };
-    instances
-        .iter()
-        .filter(|i| i.state.is_terminal())
-        .map(|i| {
-            let event_type = match i.state {
-                NodeState::Succeeded | NodeState::Skipped => "COMPLETE",
-                NodeState::Cancelled => "ABORT",
-                _ => "FAIL",
-            };
-            let outs: Vec<Value> = outputs.get(&i.id).map(|v| v.iter().map(dataset).collect()).unwrap_or_default();
-            json!({
-                "eventType": event_type,
-                "eventTime": i.updated_at.to_rfc3339(),
-                "producer": concat!("https://github.com/ArefinAlter/ogun/tree/v", env!("CARGO_PKG_VERSION")),
-                "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent",
-                "run": {
-                    "runId": i.id.to_string(),
-                    "facets": {
-                        "ogun_run": {
-                            "run_id": run.id.to_string(),
-                            "workflow_hash": run.workflow_hash,
-                            "partition": i.partition,
-                            "attempt": i.attempt,
-                        }
-                    }
-                },
-                "job": { "namespace": "ogun", "name": format!("{}.{}", run.workflow, i.node) },
-                "inputs": [],
-                "outputs": outs,
-            })
-        })
-        .collect()
+    });
+    let mut lineage =
+        RunLineage::new(run.clone(), instances.to_vec(), run_events_of(d, run)).with_outputs(arts);
+    if let Ok(wf) = d.workflow(&run.workflow_hash) {
+        lineage = lineage.with_workflow(&wf);
+    }
+    for i in instances {
+        if let Ok(Some(e)) = d
+            .store
+            .get_doc::<OgunError>(Collection::Errors, &i.id.to_string())
+        {
+            lineage = lineage.with_error(i.id, e);
+        }
+    }
+    match lineage.run_events(&LineageConfig::default()) {
+        Ok(events) => events
+            .iter()
+            .filter_map(|e| serde_json::to_value(e).ok())
+            .collect(),
+        Err(e) => {
+            tracing::warn!(run = %run.id, error = %e, "lineage could not be built");
+            Vec::new()
+        }
+    }
 }
