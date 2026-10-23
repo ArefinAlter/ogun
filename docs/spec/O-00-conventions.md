@@ -35,6 +35,8 @@ Ogun identifiers are prefixed ULIDs with exactly the syntax of Zeus 00 section 5
 | `env_` | Environment | yes | The isolated place a run executes. |
 | `evl_` | Evaluator | yes | Something that scores a run. |
 | `agr_` | Agent run | yes | A recorded agent run. |
+| `edg_` | Edge | yes | An edge installation; the namespace of the partitions it writes (O-11). |
+| `syn_` | Sync session | yes | One edge-to-hub sync session (O-11). |
 
 Artifacts use `art_` from the `zeus-artifact` store (Zeus 13): Ogun runs its own store instance through that crate, and the id is local to the store, while the BLAKE3 digest is the identity across stores.
 

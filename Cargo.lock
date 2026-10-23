@@ -813,6 +813,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogun-edge"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "ogun-ir",
+ "ogun-stream",
+ "redb",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "ogun-ir"
 version = "0.1.0"
 dependencies = [

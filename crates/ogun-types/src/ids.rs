@@ -148,6 +148,15 @@ ogun_id!(
     AgentRunId, "agr", agent_run_id
 );
 
+ogun_id!(
+    /// An edge installation's identity (`edg_<ULID>`); the namespace of the partitions it writes.
+    EdgeId, "edg", edge_id
+);
+ogun_id!(
+    /// One edge-to-hub sync session (`syn_<ULID>`).
+    SyncSessionId, "syn", sync_session_id
+);
+
 /// Every Ogun prefix with the entity it names, as in O-00 section 3. Used by tests to prove that
 /// no prefix collides with a Zeus prefix or with another Ogun prefix.
 pub const PREFIXES: &[(&str, &str)] = &[
@@ -159,6 +168,8 @@ pub const PREFIXES: &[(&str, &str)] = &[
     (EnvironmentId::PREFIX, "environment"),
     (EvaluatorId::PREFIX, "evaluator"),
     (AgentRunId::PREFIX, "agent run"),
+    (EdgeId::PREFIX, "edge"),
+    (SyncSessionId::PREFIX, "sync session"),
 ];
 
 #[cfg(test)]
