@@ -1,0 +1,99 @@
+# Values for the Ogun chart. One replica only: ogund's run store is single-writer redb (ADR 0010 point 5).
+
+image:
+  repository: ghcr.io/arefinalter/ogun
+  # Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# The origin people and agents use. Cookies, OIDC redirects, WebAuthn and the Host check derive from it.
+publicUrl: https://ogun.example.com
+
+persistence:
+  # One volume holds the daemon state (profiles/server) and the bridge's store (ogun-server).
+  size: 20Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+
+oidc:
+  # Each provider's client secret is read from the Secret below, key `clientSecretKey`.
+  providers:
+    - id: sso
+      displayName: Company sign-in
+      issuer: https://login.example.com/realms/main
+      clientId: ogun
+      clientSecretKey: sso-client-secret
+      scopes: [openid, email, profile]
+  # Name of an existing Secret holding the client secrets. When empty and clientSecrets is set, the chart
+  # creates one.
+  existingSecret: ""
+  # key -> secret value; only used when existingSecret is empty. Prefer existingSecret.
+  clientSecrets: {}
+
+server:
+  # The ingress controller's pod addresses. ogun-server closes connections from anything else.
+  trustedProxies:
+    - 10.0.0.0/8
+  # ADR 0010: remote approvals need an external security review before release. Leave off.
+  remoteApprovals: false
+  sessions:
+    idleTimeoutMinutes: 120
+    absoluteTimeoutHours: 12
+  mcp:
+    enabled: true
+  sync:
+    enabled: false
+  webauthn:
+    attestation: none
+  # Extra members merged into server.json as is (see O-13 section 10).
+  extraConfig: {}
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+daemon:
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { memory: 2Gi }
+
+ingest:
+  # The stream ingest bridge as a third container; it reads profiles/server/ingest.json.
+  enabled: false
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  # Event streams are long-lived; raise proxy timeouts for your controller, for example with ingress-nginx:
+  #   nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  #   nginx.ingress.kubernetes.io/proxy-buffering: "off"
+  tls:
+    - secretName: ogun-tls
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}

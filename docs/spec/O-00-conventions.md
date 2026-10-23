@@ -124,5 +124,11 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `zeus.path_outside_root` | `policy_denied` | no | No Zeus root is registered, or a job's file is outside it (O-08). |
 | `zeus.job_not_completed` | `conflict` | no | Import of a Zeus job that has not completed (O-08). |
 | `zeus.import_failed` | `conflict` | no | Ogun's artifact store refused an import from Zeus (O-08). |
+| `server.rate_limited` | `throttled` | yes | `ogun-server` refused a request over a per-address or per-token rate limit; retry after `Retry-After` (O-13). |
+| `server.not_found` | `not_found` | no | No such server user, workspace, membership, invitation, API token or passkey (O-13). |
+| `server.sign_in_failed` | `unauthenticated` | no | An OIDC sign-in did not verify, or the identity has no account and no valid invitation (O-13). |
+| `server.csrf_failed` | `policy_denied` | no | A cookie-authenticated request that changes state lacked the CSRF header or a same-origin `Origin` (O-13). |
+| `server.webauthn_invalid` | `invalid_request` | no | A passkey registration or assertion did not verify (O-13 section 8). |
+| `server.remote_approvals_disabled` | `policy_denied` | no | A remote approval decision while `remote_approvals` is off (ADR 0010, O-13 section 8). |
 
 A code keeps its meaning and class forever; a replaced code is deprecated, never reused. Diagnostics (O-02 section 10) use the same lexical form in the `ir` namespace but are not errors.

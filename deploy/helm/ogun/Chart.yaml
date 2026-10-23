@@ -1,0 +1,12 @@
+apiVersion: v2
+name: ogun
+description: Ogun server profile - ogund and the ogun-server HTTPS bridge in one single-replica pod (ADR 0010, O-13).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [ogun, workflows, data-engineering]
+home: https://github.com/ArefinAlter/ogun
+sources:
+  - https://github.com/ArefinAlter/ogun
+maintainers:
+  - name: Verne Ltd.

@@ -1,0 +1,27 @@
+# User unit for a personal ogund (desktop or a developer's server account).
+#
+#   install -Dm0644 ogund.service ~/.config/systemd/user/ogund.service
+#   systemctl --user daemon-reload && systemctl --user enable --now ogund
+#   loginctl enable-linger "$USER"     # keep it running while you are logged out
+#
+# The daemon listens only on its local socket under $XDG_RUNTIME_DIR/ogun (O-15 section 2).
+
+[Unit]
+Description=Ogun daemon (ogund)
+Documentation=https://github.com/ArefinAlter/ogun/blob/main/docs/self-hosting.md
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ogund
+Environment=OGUN_LOG=info
+Restart=on-failure
+RestartSec=2s
+UMask=0077
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=default.target
