@@ -908,6 +908,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogun-ops"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "ogun-ir",
+ "ogun-types",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "ogun-run"
 version = "0.1.0"
 dependencies = [

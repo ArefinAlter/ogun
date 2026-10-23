@@ -9,6 +9,7 @@ members = [
     "crates/ogun-stream",
     "crates/ogun-edge",
     "crates/ogun-api",
+    "crates/ogun-ops",
     "crates/ogun-cli",
 ]
 
@@ -43,10 +44,14 @@ ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
 ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
 ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
+ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
 zeus-verify = { path = "../zeus-core/crates/zeus-verify", version = "0.1.0" }
+zeus-artifact = { path = "../zeus-core/crates/zeus-artifact", version = "0.1.0" }
+zeus-engine = { path = "../zeus-core/crates/zeus-engine", version = "0.1.0" }
+zeus-fs = { path = "../zeus-core/crates/zeus-fs", version = "0.1.0" }
 
 # ---- third party, versions aligned with zeus-core and zeus ----
 serde = { version = "1", features = ["derive"] }
