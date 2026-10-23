@@ -1,0 +1,112 @@
+# Ogun Studio: the Tauri 2 shell for desktop (Windows, macOS, Linux) and mobile (Android, iOS).
+#
+# This is its own Cargo workspace (ADR 0009): the system webview and mobile dependencies never enter the daemon
+# workspace at the repository root, which excludes `apps/studio`. Every dependency is declared once here and used
+# with `workspace = true`; the Ogun crates come in by relative path.
+[workspace]
+resolver = "3"
+members = [".", "../plugins/gateway"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "Apache-2.0"
+repository = "https://github.com/ArefinAlter/ogun"
+authors = ["Ogun contributors"]
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "deny"
+unimplemented = "deny"
+print_stdout = "warn"
+print_stderr = "warn"
+
+[workspace.dependencies]
+# ---- Ogun and zeus-core, by relative path (never the zeus app repository) ----
+ogun-api = { path = "../../../crates/ogun-api" }
+ogun-types = { path = "../../../crates/ogun-types" }
+ogun-ir = { path = "../../../crates/ogun-ir" }
+ogun-edge = { path = "../../../crates/ogun-edge" }
+zeus-verify = { path = "../../../../zeus-core/crates/zeus-verify" }
+tauri-plugin-ogun-gateway = { path = "../plugins/gateway" }
+
+# ---- Tauri (the version line of the Zeus desktop client, Zeus ADR 0009) ----
+tauri = { version = "~2.11", default-features = false, features = ["wry", "compression", "common-controls-v6", "x11", "dbus"] }
+tauri-build = { version = "~2.6", default-features = false, features = ["config-json"] }
+tauri-plugin = { version = "~2.6", features = ["build"] }
+
+# ---- third party, versions aligned with the Ogun and Zeus workspaces ----
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1.53", features = ["sync", "time", "rt-multi-thread", "macros"] }
+tracing = "0.1"
+zeroize = { version = "1.9", features = ["derive"] }
+getrandom = "0.3"
+blake3 = "1.8"
+base64 = "0.23"
+ed25519-dalek = { version = "3.0", features = ["zeroize"] }
+# The hub client: rustls with ring and the Mozilla roots (or a CA the person pins), so a self-hosted hub with a
+# private CA works and no platform verifier needs JNI initialisation on Android.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls-pki-types = "1.12"
+webpki-roots = "1"
+jni = "0.21"
+tempfile = "3.27"
+
+[package]
+name = "ogun-studio"
+description = "Ogun Studio: the desktop and mobile shell around the shared Studio frontend (O-12, ADR 0009)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+default-run = "ogun-studio"
+
+[lib]
+# The mobile shells load the library; the desktop binary links it.
+name = "ogun_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "ogun-studio"
+path = "src/main.rs"
+
+[features]
+default = ["custom-protocol"]
+# Production mode: the bundled frontend (`../web/dist`) is embedded; no development server.
+custom-protocol = ["tauri/custom-protocol"]
+
+[dependencies]
+ogun-api.workspace = true
+ogun-types.workspace = true
+tauri.workspace = true
+tauri-plugin-ogun-gateway.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zeroize.workspace = true
+getrandom.workspace = true
+base64.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+rustls-pki-types.workspace = true
+webpki-roots.workspace = true
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[lints]
+workspace = true

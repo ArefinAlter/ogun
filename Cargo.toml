@@ -12,6 +12,8 @@ members = [
     "crates/ogun-ops",
     "crates/ogun-cli",
 ]
+# Ogun Studio (Tauri) is its own workspace (ADR 0009), so webview and mobile dependencies stay out of daemon builds.
+exclude = ["apps/studio"]
 
 [workspace.package]
 version = "0.1.0"

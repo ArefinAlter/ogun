@@ -1,0 +1,42 @@
+[package]
+name = "tauri-plugin-ogun-gateway"
+description = "The Ogun Studio Android field gateway: LAN sensor ingest into a durable log and edge-to-hub sync (O-10, O-11, O-12)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+# Tauri plugins name their native link so the generated permissions reach the app.
+links = "tauri-plugin-ogun-gateway"
+# A member of the Studio workspace, which lives beside it.
+workspace = "../../src-tauri"
+
+[dependencies]
+ogun-edge.workspace = true
+ogun-ir.workspace = true
+ogun-types.workspace = true
+zeus-verify.workspace = true
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+blake3.workspace = true
+base64.workspace = true
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni.workspace = true
+
+[build-dependencies]
+tauri-plugin.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
