@@ -935,10 +935,15 @@ dependencies = [
  "anyhow",
  "blake3",
  "clap",
+ "ogun-api",
  "ogun-ir",
  "ogun-sched",
  "ogun-store",
+ "ogun-types",
+ "serde",
  "serde_json",
+ "tempfile",
+ "tokio",
  "zeus-types",
 ]
 

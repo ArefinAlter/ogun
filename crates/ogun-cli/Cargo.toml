@@ -14,14 +14,21 @@ name = "ogun"
 path = "src/main.rs"
 
 [dependencies]
+ogun-api.workspace = true
 ogun-ir.workspace = true
 ogun-sched.workspace = true
 ogun-store.workspace = true
 zeus-types.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+tokio.workspace = true
 anyhow.workspace = true
 blake3.workspace = true
 clap.workspace = true
+
+[dev-dependencies]
+ogun-types.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true
