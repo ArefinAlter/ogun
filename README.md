@@ -2,7 +2,7 @@
 
 Ogun is a local-first developer platform for data mining, data engineering and agent benchmarking, built on the Zeus download engine (`zeus-core`). It is for AI, LLM and data engineers who need to turn messy web and filesystem sources into verified, reproducible datasets on a schedule, and to let agents plan and operate that work.
 
-> **Status: pre-alpha, contracts phase.** No code yet. This repository holds the vision, the architecture decisions and, soon, the normative specs. Runtime work starts when the `zeus-core` engine passes its crash-and-resume test ([`ROADMAP.md`](ROADMAP.md)).
+> **Status: pre-alpha.** The contracts O-00 to O-03 are in draft (`docs/spec/`) and the first crates are in `crates/`: the workflow IR with its validator, hash and plan diff, and the run state machine. Nothing runs workflows yet. The Zeus engine's kill-and-restart test passes, so runtime work has started (proposed [ADR 0006](docs/adr/0006-zeus-boundary-update.md), [`ROADMAP.md`](ROADMAP.md)).
 
 ## Ogun and Zeus
 
@@ -24,9 +24,10 @@ Lifecycle: **acquire → materialize → verify → transform → organize → e
 | Repository | Role |
 |---|---|
 | `ogun` (this one) | Developer platform: workflows, operators, lineage, Studio, benchmark profile |
-| `zeus-core` | Shared engine library (transfer, journal, verification, control, filesystem) |
+| `zeus-core` | Shared engine library: types, control, filesystem, verification, journal, session protocol, HTTP, engine, artifact store (`zeus-artifact`) |
 | `zeus` | Zeus consumer app (`zeusd`, CLI and TUI, MCP, native host) and the normative Zeus specs |
 | `zeus-extension` | Zeus MV3 browser extension |
+| `ogun-site`, `zeus-site` | The product websites |
 
 ## Read next
 
@@ -34,6 +35,18 @@ Lifecycle: **acquire → materialize → verify → transform → organize → e
 2. [`docs/adr/`](docs/adr/): the decisions.
 3. [`ROADMAP.md`](ROADMAP.md): contracts first, then the runtime.
 
+## Building
+
+The workspace path-depends on `zeus-core` as a sibling checkout:
+
+```sh
+git clone https://github.com/ArefinAlter/zeus-core ../zeus-core
+cargo test --workspace
+cargo run -p ogun-cli -- validate examples/climate-papers.workflow.json
+```
+
+Rust 1.90 or newer.
+
 ## Licence
 
-Apache-2.0, like Zeus (Zeus ADR 0006). See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Apache-2.0, like Zeus (Zeus ADR 0006). Ogun is a product of Verne Ltd. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

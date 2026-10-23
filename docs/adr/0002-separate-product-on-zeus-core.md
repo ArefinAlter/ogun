@@ -6,6 +6,7 @@
 | Date | 2026-10-06 |
 | Decided by | Maintainer, 2026-10-06 (product split, name, two GUIs, LLM ladder and A2A in both products). Q5 was delegated; the answer here follows from the other answers. |
 | Zeus counterpart | `zeus/docs/adr/0011-ogun-built-on-zeus-core.md` |
+| Amendment proposed | [ADR 0006](0006-zeus-boundary-update.md), 2026-10-23: decision 8 (no `zeus-api` dependency), decision 9 (spec 13 is written) and the runtime gate |
 
 ## Context
 
