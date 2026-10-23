@@ -1,0 +1,7 @@
+web/node_modules/
+web/dist/
+src-tauri/target/
+src-tauri/gen/
+plugins/gateway/target/
+plugins/gateway/android/build/
+plugins/gateway/android/.gradle/

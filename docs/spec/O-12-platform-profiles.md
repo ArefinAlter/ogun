@@ -5,6 +5,7 @@
 | Status | Draft 1 |
 | Depends on | O-03, O-09, O-10 |
 | Decided by | ADRs 0009 and 0010 |
+| Implemented by | CI matrix (`.github/workflows/ci.yml`); Studio shells in `apps/studio`: the desktop and mobile Tauri shell (`ogun-studio`), the shared frontend served as Studio-web, the Android field gateway (`tauri-plugin-ogun-gateway`) |
 
 ## 1. Purpose
 
@@ -53,6 +54,9 @@ The mobile role is a **companion**: browse runs, artifacts and lineage from a de
 | 2026-10-23 | x86_64-unknown-linux-gnu | Every crate builds and every test passes; MSRV 1.90 build. |
 | 2026-10-23 | aarch64-linux-android, aarch64-apple-ios, aarch64-unknown-linux-gnu | `cargo check` of `ogun-types`, `ogun-ir`, `ogun-run`, `ogun-sched`, `ogun-stream`, `ogun-store` and `ogun-edge`, with BLAKE3's pure-Rust backend (no cross C toolchain was available). Not linked, not run on a device. |
 
+| 2026-10-23 | x86_64-unknown-linux-gnu | Studio: `cargo check`, `clippy` and `cargo test` of the Studio workspace (`ogun-studio`, `tauri-plugin-ogun-gateway`); the frontend built and its Studio-web pages rendered in headless Chromium against a mock of the REST routes. The desktop shell was not launched against a daemon. |
+| 2026-10-23 | aarch64-linux-android | `cargo check` and `clippy` of `tauri-plugin-ogun-gateway` (the gateway core, its JNI exports and Tauri for Android), with BLAKE3's pure-Rust backend. Not linked; the Kotlin service is not compiled; not run on a device. |
+
 A row in section 2 is a target until it has a line in this table showing it ran. The CI jobs in `.github/workflows/ci.yml` add lines here as they pass.
 
 ## 5. CI tiers
@@ -66,3 +70,4 @@ A row in section 2 is a target until it has a line in this table showing it ran.
 1. Sandbox backend per OS: Landlock and seccomp on Linux, AppContainer and job objects on Windows, and macOS, whose `sandbox-exec` is deprecated. This feeds O-03.
 2. The WebAssembly target (`wasm32-unknown-unknown`, for Studio-web validation in the browser) needs the `getrandom` `wasm_js` backend for ULID generation, or an id-free build of `ogun-ir`.
 3. Battery and data budgets for the Android gateway.
+4. The Android gateway's ingest: the matrix lists the MQTT client and a BLE relay. `apps/studio/plugins/gateway` implements the MQTT client and also HTTP push from devices on the local network, which the matrix does not list yet; the BLE relay is not implemented. The matrix should either list LAN HTTP push or the gateway should drop it before release.

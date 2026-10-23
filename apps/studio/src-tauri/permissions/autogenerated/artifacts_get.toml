@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-artifacts-get"
+description = "Enables the artifacts_get command without any pre-configured scope."
+commands.allow = ["artifacts_get"]
+
+[[permission]]
+identifier = "deny-artifacts-get"
+description = "Denies the artifacts_get command without any pre-configured scope."
+commands.deny = ["artifacts_get"]
