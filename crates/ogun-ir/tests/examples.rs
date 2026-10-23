@@ -23,6 +23,7 @@ const EXAMPLES: &[&str] = &[
     "examples/climate-papers.workflow.json",
     "examples/climate-papers.v18.workflow.json",
     "examples/noaa-daily.workflow.json",
+    "examples/air-quality-stream.workflow.json",
 ];
 
 #[test]

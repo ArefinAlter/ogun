@@ -17,10 +17,10 @@ Ogun is a local-first developer platform for data mining, data engineering and a
 | Path | What |
 |---|---|
 | `docs/VISION.md` | Product direction and object model. Not normative. |
-| `docs/adr/` | Decisions. ADR 0002 (the product boundary) is accepted. ADRs 0003 to 0006 are proposed. The maintainer asked for implementation to start on 2026-10-23, so `crates/` follows ADR 0003 and 0006 ahead of their acceptance; if either changes, the code changes with it. Do not build on 0004 or 0005 until they are accepted. |
-| `docs/spec/` | Normative specs O-00 to O-08. O-00 to O-03 are Draft 1; the rest are planned (see `ROADMAP.md`). Prose wins over schema. |
-| `docs/research/` | Research corpus OR1 to OR4 (planned). Unverified unless the front matter says `verified`. |
-| `crates/` | Rust workspace: `ogun-types` (ids, errors), `ogun-ir` (workflow IR, validator, hash, plan diff), `ogun-run` (run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budget reservations), `ogun-store` (durable run store on redb, crash recovery), `ogun-cli` (the `ogun` binary). |
+| `docs/adr/` | Decisions. ADR 0002 (the product boundary) is accepted. ADRs 0003 to 0007 are proposed. The maintainer asked for implementation to start on 2026-10-23, so `crates/` follows ADRs 0003, 0006 and 0007 ahead of their acceptance; if either changes, the code changes with it. Do not build on 0004 or 0005 until they are accepted. |
+| `docs/spec/` | Normative specs O-00 to O-14. O-00 to O-04 and O-09 are drafted; the rest are planned (see `ROADMAP.md`). Prose wins over schema. |
+| `docs/research/` | Research corpus: OR1 to OR4 planned; OR5 (edge, streams, platforms, extensions) is a draft. Unverified unless the front matter says `verified`. |
+| `crates/` | Rust workspace: `ogun-types` (ids, errors), `ogun-ir` (workflow IR, validator, hash, plan diff), `ogun-run` (run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budget reservations), `ogun-store` (durable run store on redb, crash recovery), `ogun-stream` (event-time windows, watermarks, sealing, revisions), `ogun-cli` (the `ogun` binary). |
 
 ## Constraints (do not violate)
 

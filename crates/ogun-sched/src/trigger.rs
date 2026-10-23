@@ -12,7 +12,9 @@ pub fn next_fire(triggers: &[Trigger], after_ms: i64, last_start_ms: Option<i64>
     triggers
         .iter()
         .filter_map(|t| match t {
-            Trigger::Manual => None,
+            // A manual trigger never fires on its own; a stream trigger keeps a continuous run
+            // going instead of starting runs at times (O-09 section 7).
+            Trigger::Manual | Trigger::Stream { .. } => None,
             Trigger::Cron { cron } => Cron::parse(cron).ok()?.next_after(after_ms),
             Trigger::Interval { interval_ms } => {
                 let step = i64::try_from(*interval_ms).ok()?;

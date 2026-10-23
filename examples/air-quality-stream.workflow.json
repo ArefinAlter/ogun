@@ -1,0 +1,56 @@
+{
+  "ir_version": 0,
+  "workflow": "air-quality-stream",
+  "version": 1,
+  "description": "Indoor and outdoor PM2.5, CO2 and filter telemetry from MQTT sensors at one site, sealed into one-minute windows and rolled up hourly. No model access.",
+  "triggers": [{ "kind": "stream", "source": "sensors" }],
+  "partitions": {
+    "kind": "window",
+    "source": "sensors",
+    "time_field": "ts_ms",
+    "key_field": "device_id",
+    "size_ms": 60000,
+    "allowed_lateness_ms": 3600000,
+    "max_delay_ms": 120000
+  },
+  "streams": {
+    "sensors": {
+      "max_buffer_bytes": 2147483648,
+      "when_full": "block",
+      "dedupe_key": ["device_id", "seq"]
+    }
+  },
+  "budgets": { "bytes": 10737418240 },
+  "nodes": [
+    {
+      "id": "sensors",
+      "op": "stream.mqtt@1",
+      "config": {
+        "broker": "mqtts://gateway.local:8883",
+        "topics": ["site-a/+/telemetry"],
+        "qos": 1,
+        "username": "ogun-site-a",
+        "password": { "secret_ref": "site_a_mqtt" },
+        "payload": "json"
+      }
+    },
+    {
+      "id": "clean",
+      "op": "filter@1",
+      "inputs": ["sensors.window"],
+      "config": { "drop_if_missing": ["pm25_ugm3_x10"] }
+    },
+    {
+      "id": "hourly",
+      "op": "window.rollup@1",
+      "inputs": ["clean.artifacts"],
+      "config": { "to_ms": 3600000, "group_by": ["device_id"], "aggregates": ["min", "max", "mean", "count", "p95"] }
+    },
+    {
+      "id": "publish",
+      "op": "duckdb@1",
+      "inputs": ["hourly.artifacts"],
+      "config": { "write": "air_quality_hourly.parquet" }
+    }
+  ]
+}

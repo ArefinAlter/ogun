@@ -862,6 +862,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogun-stream"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "ogun-sched",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zeus-verify",
+]
+
+[[package]]
 name = "ogun-types"
 version = "0.1.0"
 dependencies = [

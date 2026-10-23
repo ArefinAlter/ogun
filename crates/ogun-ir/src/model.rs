@@ -35,6 +35,9 @@ pub struct Workflow {
     /// Limits for one run (per partition when partitioned).
     #[serde(default)]
     pub budgets: Budgets,
+    /// Buffering for each stream source node, keyed by node id (O-09).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub streams: BTreeMap<String, StreamBuffer>,
     /// The DAG. At least one node.
     pub nodes: Vec<Node>,
 }
@@ -54,6 +57,12 @@ pub enum Trigger {
     Interval {
         /// At least 60 000.
         interval_ms: u64,
+    },
+    /// A continuous run fed by a stream source node (O-09). The run never finishes while the
+    /// source is enabled; it seals windows as partitions.
+    Stream {
+        /// The id of the source node.
+        source: String,
     },
 }
 
@@ -76,6 +85,77 @@ pub enum Partitions {
         /// 1 to 10 000 distinct keys matching `^[A-Za-z0-9._-]{1,64}$`.
         keys: Vec<String>,
     },
+    /// Tumbling event-time windows over a stream source (O-09 section 2). Keys are
+    /// `wYYYYMMDDTHHMMSSZ` of the window start.
+    Window(WindowPartitions),
+}
+
+/// Window settings. Every member with a default is present in the normal form.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WindowPartitions {
+    /// The id of the stream source node.
+    pub source: String,
+    /// Record field holding the event time in Unix milliseconds.
+    pub time_field: String,
+    /// Record field holding the watermark key (usually the device id).
+    pub key_field: String,
+    /// Window size: at least 1 000 and divides 86 400 000.
+    pub size_ms: u64,
+    /// How long after a window's end late records still revise it; at most 7 days.
+    #[serde(default)]
+    pub allowed_lateness_ms: u64,
+    /// Debounce before a late record causes a re-seal.
+    #[serde(default = "WindowPartitions::default_reseal_after_ms")]
+    pub reseal_after_ms: u64,
+    /// Bounded out-of-orderness per key.
+    #[serde(default)]
+    pub max_delay_ms: u64,
+    /// A key silent this long stops holding the watermark back.
+    #[serde(default = "WindowPartitions::default_idle_timeout_ms")]
+    pub idle_timeout_ms: u64,
+    /// Event times further than this ahead of ingest time are clamped.
+    #[serde(default = "WindowPartitions::default_max_future_ms")]
+    pub max_future_ms: u64,
+}
+
+impl WindowPartitions {
+    const fn default_reseal_after_ms() -> u64 {
+        30_000
+    }
+    const fn default_idle_timeout_ms() -> u64 {
+        600_000
+    }
+    const fn default_max_future_ms() -> u64 {
+        300_000
+    }
+}
+
+/// Buffering of one stream source (the `streams` member, O-09 section 4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StreamBuffer {
+    /// Largest ingest log, in bytes; at least 1 MiB.
+    pub max_buffer_bytes: u64,
+    /// What happens when the log is full.
+    #[serde(default)]
+    pub when_full: WhenFull,
+    /// Record fields whose values together identify a record; duplicates are dropped.
+    #[serde(default)]
+    pub dedupe_key: Vec<String>,
+}
+
+/// Behaviour of a full ingest log. Every drop is counted and emitted as an event.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WhenFull {
+    /// Stop acknowledging the source; brokers queue, HTTP push gets 503.
+    #[default]
+    Block,
+    /// Evict the oldest records already sealed and synced, then the oldest unsynced.
+    DropOldest,
+    /// Refuse new records.
+    DropNewest,
 }
 
 /// Size of a time partition.
