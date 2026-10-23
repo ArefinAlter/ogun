@@ -53,7 +53,7 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
   - Done (`ogun-ops`, `ogun-op-shims`): the operator registry; every core operator of O-03 section 7 (with `acquire` on the zeus-core engine and a no-session provider, and a robots-aware same-origin `crawl`); the `jsonl-stdio/0` runner with manifests, `config_schema` checks, secrets on stdin only and redacted stderr; the bubblewrap and `sandbox-exec` sandboxes; shims for DuckDB, SQL, dbt, shell, Poppler, Tesseract, PaddleOCR, ffmpeg, pandoc, yt-dlp, rclone, git and Hugging Face. The Smart Air Python operators run unchanged.
   - Next: wiring into `ogund`; a loopback test hook for `acquire` and `crawl`; Windows sandboxing.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
-- Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
+- Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions. **Met on 2026-10-23** for a 121-partition backfill of core operators (`crates/ogun-daemon/tests/exit.rs`); the same run with `acquire` over a real source is the next check.
 
 ## Streams, edge, platforms and extensions (added 2026-10-23)
 
@@ -78,7 +78,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   7. Remote approvals with WebAuthn, after a security review. The passkey registration and decision relay are implemented behind `remote_approvals` (off by default); the external review (O-13 section 12) is open.
   8. The Android companion and gateway. Code in `apps/studio` (companion over a hub's REST routes; gateway with MQTT, LAN HTTP push, the ingest log and signed O-11 sync); not yet built for Android or run on a device.
   9. The iOS companion. Code in `apps/studio` (read-only hub link); not yet built with Xcode.
-- The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record.
+- The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record. **Met on 2026-10-23** (`crates/ogun-daemon/tests/exit.rs`).
 
 ## Phase O2: data and model operators
 
