@@ -476,11 +476,11 @@ async fn attempt(
                             tracing::warn!(instance = %id, error = %e, "checkpoint refused");
                         }
                     }
-                    OpEvent::Usage { cost_microusd, .. } => {
+                    OpEvent::Usage { cost_usd_micro, .. } => {
                         let total = {
                             let mut spend = lock(&d.spend);
                             let t = spend.entry(run_id).or_default();
-                            *t = t.saturating_add(cost_microusd);
+                            *t = t.saturating_add(cost_usd_micro);
                             *t
                         };
                         let _ = d
