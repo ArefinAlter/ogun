@@ -81,6 +81,7 @@ People sign in only with OpenID Connect, authorization code flow with PKCE (`S25
 An invitation is a one-time code (32 random bytes, base64url) in a link `https://<host>/enroll/<code>`, stored only as a digest, valid for `invites.ttl_hours` (default 72). Opening it shows the workspace, the role and the providers; signing in through it creates the user if needed, adds the membership and consumes the invitation in one transaction.
 
 - `ogun-server init [--name <workspace>] [--daemon <name>]`, run on the host while the server is stopped, creates the first workspace and prints a one-time **owner** enrolment link with the approver flag. It refuses when a workspace exists.
+- `ogun-server serve --init-if-empty` does the same on the first start of an empty store, for containers where `init` cannot run beforehand: it writes the link to `<state_dir>/owner-enrolment.txt` (mode `0600`) and logs only the file's path. The link MUST NOT be logged. The person deletes the file after use.
 - `ogun-server invite --workspace <wsp_> --role <role> [--approver]` prints another link from the host (recovery when no owner can sign in).
 - Owners and admins create invitations in Studio-web (`POST /api/v1/workspaces/{id}/invites`) within the rules of section 3.3.
 
@@ -264,7 +265,7 @@ The server's own verification is defence in depth and gives a person a clear err
 
 Studio-web is looked up, first match with an `index.html` wins: `studio_dir`; `apps/studio/web/dist` and `share/ogun/studio-web` in the executable's directory and up to three parents; `apps/studio/web/dist` under the working directory; `/usr/share/ogun/studio-web`. Every path the API does not own is served from it, with `index.html` as the single-page fallback; hashed files under `/assets/` are cached as immutable. Without a build the server shows a minimal page with the sign-in links.
 
-Commands: `ogun-server serve [--behind-proxy] [--listen <addr>]`, `ogun-server check-config [--json]` (exit 1 on errors; `serve` refuses to start on the same errors), `ogun-server init`, `ogun-server invite`. The configuration path is `--config`, else `$OGUN_SERVER_CONFIG`, else `/etc/ogun/server.json`. `init` and `invite` open the server store, which only one process may hold, so they run while the server is stopped.
+Commands: `ogun-server serve [--behind-proxy] [--listen <addr>] [--init-if-empty]`, `ogun-server check-config [--json]` (exit 1 on errors; `serve` refuses to start on the same errors), `ogun-server init`, `ogun-server invite`. The configuration path is `--config`, else `$OGUN_SERVER_CONFIG`, else `/etc/ogun/server.json`. `init` and `invite` open the server store, which only one process may hold, so they run while the server is stopped.
 
 ## 11. Threat model
 
