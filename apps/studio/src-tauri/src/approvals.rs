@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use ogun_api::methods::{
-    ApprovalRef, ApprovalState, ApprovalView, Decision, DecideParams, Evidence, name,
+    ApprovalRef, ApprovalState, ApprovalView, DecideParams, Decision, Evidence, name,
 };
 use ogun_types::ApprovalId;
 use serde::Serialize;
@@ -160,13 +160,19 @@ impl Confirmations {
     /// `api.invalid_params` for an unknown, early or expired confirmation; `approval.hash_mismatch` when the
     /// approval changed since the review; the daemon's error otherwise (for example `approval.channel_required`
     /// when the peer is not the pinned binary).
-    pub async fn confirm(&self, studio: &Studio, confirmation_id: &str) -> StudioResult<ApprovalView> {
+    pub async fn confirm(
+        &self,
+        studio: &Studio,
+        confirmation_id: &str,
+    ) -> StudioResult<ApprovalView> {
         let p = self
             .pending
             .lock()
             .await
             .remove(confirmation_id)
-            .ok_or_else(|| StudioError::invalid("no such decision under review; review the approval again"))?;
+            .ok_or_else(|| {
+                StudioError::invalid("no such decision under review; review the approval again")
+            })?;
         let elapsed = p.prepared_at.elapsed();
         if elapsed < Duration::from_millis(ARM_MS) {
             return Err(StudioError::invalid(
@@ -204,7 +210,8 @@ impl Confirmations {
                 serde_json::to_value(params).map_err(|e| StudioError::invalid(e.to_string()))?,
             )
             .await?;
-        serde_json::from_value(v)
-            .map_err(|_| StudioError::new("internal.bug", "unexpected approval view from the daemon"))
+        serde_json::from_value(v).map_err(|_| {
+            StudioError::new("internal.bug", "unexpected approval view from the daemon")
+        })
     }
 }

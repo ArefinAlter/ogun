@@ -20,7 +20,9 @@ use crate::error::{GatewayError, GatewayResult};
 static GATEWAY: Mutex<Option<Gateway>> = Mutex::new(None);
 
 fn lock() -> MutexGuard<'static, Option<Gateway>> {
-    GATEWAY.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    GATEWAY
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 fn respond<T: Serialize>(result: GatewayResult<T>) -> String {
@@ -32,7 +34,13 @@ fn respond<T: Serialize>(result: GatewayResult<T>) -> String {
 }
 
 fn parse<T: DeserializeOwned>(text: &str) -> GatewayResult<T> {
-    serde_json::from_str(text).map_err(|e| GatewayError::Invalid(format!("bad JSON at line {} column {}", e.line(), e.column())))
+    serde_json::from_str(text).map_err(|e| {
+        GatewayError::Invalid(format!(
+            "bad JSON at line {} column {}",
+            e.line(),
+            e.column()
+        ))
+    })
 }
 
 fn with<T>(f: impl FnOnce(&mut Gateway) -> GatewayResult<T>) -> GatewayResult<T> {

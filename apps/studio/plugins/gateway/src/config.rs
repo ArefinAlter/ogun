@@ -84,7 +84,9 @@ impl CoreConfig {
                 .bytes()
                 .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_' || b == b'-');
         if !name_ok {
-            return Err(GatewayError::Config("name must match [a-z0-9_-]{1,64}".into()));
+            return Err(GatewayError::Config(
+                "name must match [a-z0-9_-]{1,64}".into(),
+            ));
         }
         if let Some(id) = &self.edge_id {
             id.parse::<EdgeId>()
@@ -96,7 +98,9 @@ impl CoreConfig {
             )));
         }
         if self.grace_ms > self.segment_ms {
-            return Err(GatewayError::Config("grace_ms must not exceed segment_ms".into()));
+            return Err(GatewayError::Config(
+                "grace_ms must not exceed segment_ms".into(),
+            ));
         }
         if !(1..=1_000_000).contains(&self.segment_max_records) {
             return Err(GatewayError::Config(
@@ -104,7 +108,9 @@ impl CoreConfig {
             ));
         }
         if self.max_log_bytes < MIN_LOG_BYTES {
-            return Err(GatewayError::Config("max_log_bytes must be at least 1 MiB".into()));
+            return Err(GatewayError::Config(
+                "max_log_bytes must be at least 1 MiB".into(),
+            ));
         }
         Ok(())
     }

@@ -200,7 +200,9 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> GatewayResult<()> {
 }
 
 fn is_digest(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    s.len() == 64
+        && s.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Parses one payload into JSON objects: an object, or an array of 1 to 10 000 objects.
@@ -241,7 +243,11 @@ impl Gateway {
     pub fn open(dir: &Path, config: CoreConfig) -> GatewayResult<Self> {
         config.validate()?;
         fs::create_dir_all(dir.join("blobs"))?;
-        let log = IngestLog::open(&dir.join("ingest.redb"), config.max_log_bytes, config.when_full)?;
+        let log = IngestLog::open(
+            &dir.join("ingest.redb"),
+            config.max_log_bytes,
+            config.when_full,
+        )?;
         let key = EdgeKey::load_or_create(&dir.join("edge.key"))?;
         let state: State = match fs::read(dir.join("state.json")) {
             Ok(bytes) => serde_json::from_slice(&bytes)
@@ -270,8 +276,8 @@ impl Gateway {
     }
 
     fn save(&self) -> GatewayResult<()> {
-        let bytes = serde_json::to_vec(&self.state)
-            .map_err(|e| GatewayError::Storage(e.to_string()))?;
+        let bytes =
+            serde_json::to_vec(&self.state).map_err(|e| GatewayError::Storage(e.to_string()))?;
         write_atomic(&self.dir.join("state.json"), &bytes)
     }
 
@@ -414,7 +420,8 @@ impl Gateway {
         let (first_seq, last_seq) = (first.seq, last.seq);
         let mut bytes = Vec::new();
         for r in &recs {
-            serde_json::to_writer(&mut bytes, r).map_err(|e| GatewayError::Storage(e.to_string()))?;
+            serde_json::to_writer(&mut bytes, r)
+                .map_err(|e| GatewayError::Storage(e.to_string()))?;
             bytes.push(b'\n');
         }
         let digest = blake3::hash(&bytes).to_hex().to_string();
@@ -448,7 +455,11 @@ impl Gateway {
     ///
     /// [`GatewayError::NotEnrolled`] before the hub's `edg_` id is set.
     pub fn offer(&self) -> GatewayResult<Option<Value>> {
-        let edge_id = self.config.edge_id.clone().ok_or(GatewayError::NotEnrolled)?;
+        let edge_id = self
+            .config
+            .edge_id
+            .clone()
+            .ok_or(GatewayError::NotEnrolled)?;
         let mut segments: Vec<&Segment> = self.state.pending.values().collect();
         if segments.is_empty() {
             return Ok(None);
@@ -480,7 +491,12 @@ impl Gateway {
     /// Storage errors.
     pub fn apply_want(&mut self, want: &Want) -> GatewayResult<WantPlan> {
         let mut plan = WantPlan::default();
-        let acked: BTreeSet<String> = want.acked.iter().filter(|d| is_digest(d)).cloned().collect();
+        let acked: BTreeSet<String> = want
+            .acked
+            .iter()
+            .filter(|d| is_digest(d))
+            .cloned()
+            .collect();
         for item in self.outbox.ack(&acked) {
             if let Some(seg) = self.state.pending.remove(&item.blake3) {
                 self.state.acked_segments += 1;
@@ -509,7 +525,9 @@ impl Gateway {
             .filter_map(|(digest, offset)| {
                 let seg = self.state.pending.get(digest)?;
                 let total = chunk_count(seg.item.size_bytes);
-                let from = u32::try_from(offset / CHUNK_BYTES).unwrap_or(u32::MAX).min(total);
+                let from = u32::try_from(offset / CHUNK_BYTES)
+                    .unwrap_or(u32::MAX)
+                    .min(total);
                 (from < total).then(|| {
                     (
                         seg.first_seq,
@@ -536,12 +554,15 @@ impl Gateway {
     /// [`GatewayError::NotFound`] for a digest not pending, [`GatewayError::Invalid`] for an index past the end,
     /// [`GatewayError::NotEnrolled`] before enrolment, or storage errors.
     pub fn chunk(&self, digest: &str, index: u32) -> GatewayResult<Value> {
-        let edge_id = self.config.edge_id.clone().ok_or(GatewayError::NotEnrolled)?;
-        let seg = self
-            .state
-            .pending
-            .get(digest)
-            .ok_or_else(|| GatewayError::NotFound("no pending segment with that digest".into()))?;
+        let edge_id = self
+            .config
+            .edge_id
+            .clone()
+            .ok_or(GatewayError::NotEnrolled)?;
+        let seg =
+            self.state.pending.get(digest).ok_or_else(|| {
+                GatewayError::NotFound("no pending segment with that digest".into())
+            })?;
         let total = chunk_count(seg.item.size_bytes);
         if index >= total {
             return Err(GatewayError::Invalid("chunk index past the end".into()));
@@ -708,7 +729,12 @@ mod tests {
         };
         assert!(g.append(vec![bad]).is_err());
         let r = g
-            .append_body("http:192.168.1.20", 5, "{\"a\":1}\n\nnope\n{\"b\":2}\n", true)
+            .append_body(
+                "http:192.168.1.20",
+                5,
+                "{\"a\":1}\n\nnope\n{\"b\":2}\n",
+                true,
+            )
             .unwrap();
         assert_eq!((r.written, r.invalid), (2, 1));
     }

@@ -21,6 +21,7 @@ Ogun is a local-first developer platform for data mining, data engineering and a
 | `docs/spec/` | Normative specs O-00 to O-15. O-00 to O-04, O-09 to O-12, O-14 and O-15 are drafted; the rest are planned (see `ROADMAP.md`). Prose wins over schema. |
 | `docs/research/` | Research corpus: OR1 to OR4 planned; OR5 (edge, streams, platforms, extensions) is a draft. Unverified unless the front matter says `verified`. |
 | `crates/` | Rust workspace: `ogun-types` (ids, errors), `ogun-ir` (workflow IR, validator, hash, plan diff), `ogun-run` (run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budget reservations), `ogun-store` (durable run store on redb, crash recovery), `ogun-stream` (event-time windows, watermarks, sealing, revisions), `ogun-edge` (durable ingest log, edge-to-hub sync protocol), `ogun-api` (the `ogund` local API: endpoint, handshake, methods, policy table, client; O-15), `ogun-cli` (the `ogun` binary, including `ogun mcp`). |
+| `apps/studio/` | Ogun Studio (O-12, ADR 0009): `web/` the shared Preact frontend (also Studio-web), `src-tauri/` the `ogun-studio` Tauri 2 shell (its own Cargo workspace, excluded from the root), `plugins/gateway/` the Android field gateway. See its README. |
 | `extensions/vscode/` | VS Code extension (plain JavaScript, no dependencies; `node --test`). Its bundled schema must equal `docs/spec/schema/`. |
 
 ## Constraints (do not violate)

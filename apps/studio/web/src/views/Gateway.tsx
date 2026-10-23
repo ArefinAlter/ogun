@@ -170,7 +170,7 @@ function GatewayForm({ current, onSaved }: { current: GatewayStatus; onSaved: ()
         {input('hub_url', 'Hub URL', 'https://hub.example.org')}
       </div>
       <label class="field" style={{ marginBottom: '12px' }}>
-        Hub CA certificate (PEM), only for a private CA
+        Private CA (PEM), for the hub and the broker; leave empty for public certificates
         <textarea value={f.hub_ca_pem ?? ''} style={{ minHeight: '80px' }} onInput={(e) => set('hub_ca_pem', (e.target as HTMLTextAreaElement).value)} />
       </label>
       <h3>MQTT subscription</h3>

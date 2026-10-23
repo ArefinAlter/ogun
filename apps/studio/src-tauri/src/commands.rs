@@ -3,9 +3,10 @@
 //! pass through as the daemon's JSON. There is no command that takes a method name.
 
 use ogun_api::methods::{
-    ApprovalRef, CancelRunParams, Decision, EventsSinceParams, GetArtifactParams, GetWorkflowParams,
-    LineageParams, ListApprovalsParams, ListArtifactsParams, ListRunsParams, PartitionStatusParams,
-    PlanBackfillParams, PutWorkflowParams, RunRef, StartRunParams, StreamRef, WorkflowDocument, name,
+    ApprovalRef, CancelRunParams, Decision, EventsSinceParams, GetArtifactParams,
+    GetWorkflowParams, LineageParams, ListApprovalsParams, ListArtifactsParams, ListRunsParams,
+    PartitionStatusParams, PlanBackfillParams, PutWorkflowParams, RunRef, StartRunParams,
+    StreamRef, WorkflowDocument, name,
 };
 use ogun_types::ApprovalId;
 use serde::Serialize;
@@ -48,7 +49,12 @@ pub async fn link_hub(
 ) -> StudioResult<StudioInfo> {
     let token = Zeroizing::new(token);
     state
-        .use_hub(&url, Zeroizing::new(token.trim().to_owned()), ca_pem, remember)
+        .use_hub(
+            &url,
+            Zeroizing::new(token.trim().to_owned()),
+            ca_pem,
+            remember,
+        )
         .await?;
     Ok(state.info().await)
 }
@@ -63,13 +69,13 @@ pub async fn link_forget(state: State<'_, Studio>) -> StudioResult<StudioInfo> {
 /// `daemon.status`.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn daemon_status(state: State<'_, Studio>) -> Out {
-    state.call(name::DAEMON_STATUS, Value::Null).await
+    state.call(name::DAEMON_STATUS, json!({})).await
 }
 
 /// `workflows.list`.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn workflows_list(state: State<'_, Studio>) -> Out {
-    state.call(name::WORKFLOWS_LIST, Value::Null).await
+    state.call(name::WORKFLOWS_LIST, json!({})).await
 }
 
 /// `workflows.get`.
@@ -81,7 +87,9 @@ pub async fn workflows_get(state: State<'_, Studio>, params: GetWorkflowParams) 
 /// `workflows.validate`.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn workflows_validate(state: State<'_, Studio>, params: WorkflowDocument) -> Out {
-    state.call(name::WORKFLOWS_VALIDATE, to_value(&params)?).await
+    state
+        .call(name::WORKFLOWS_VALIDATE, to_value(&params)?)
+        .await
 }
 
 /// `workflows.put` (local link only).
@@ -117,7 +125,9 @@ pub async fn runs_cancel(state: State<'_, Studio>, params: CancelRunParams) -> O
 /// `partitions.status`.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn partitions_status(state: State<'_, Studio>, params: PartitionStatusParams) -> Out {
-    state.call(name::PARTITIONS_STATUS, to_value(&params)?).await
+    state
+        .call(name::PARTITIONS_STATUS, to_value(&params)?)
+        .await
 }
 
 /// `backfills.plan`.
@@ -162,13 +172,19 @@ pub async fn approvals_prepare(
 /// Send a reviewed decision with `studio` evidence.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn approvals_confirm(state: State<'_, Studio>, confirmation_id: String) -> Out {
-    let view = state.confirmations.confirm(&state, &confirmation_id).await?;
+    let view = state
+        .confirmations
+        .confirm(&state, &confirmation_id)
+        .await?;
     to_value(&view)
 }
 
 /// Drop a decision under review.
 #[tauri::command(rename_all = "snake_case")]
-pub async fn approvals_discard(state: State<'_, Studio>, confirmation_id: String) -> StudioResult<()> {
+pub async fn approvals_discard(
+    state: State<'_, Studio>,
+    confirmation_id: String,
+) -> StudioResult<()> {
     state.confirmations.discard(&confirmation_id).await;
     Ok(())
 }
@@ -200,7 +216,7 @@ pub async fn lineage_get(state: State<'_, Studio>, params: LineageParams) -> Out
 /// `streams.list`.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn streams_list(state: State<'_, Studio>) -> Out {
-    state.call(name::STREAMS_LIST, Value::Null).await
+    state.call(name::STREAMS_LIST, json!({})).await
 }
 
 /// `streams.status`.
@@ -212,19 +228,19 @@ pub async fn streams_status(state: State<'_, Studio>, params: StreamRef) -> Out 
 /// `edges.list`.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn edges_list(state: State<'_, Studio>) -> Out {
-    state.call(name::EDGES_LIST, Value::Null).await
+    state.call(name::EDGES_LIST, json!({})).await
 }
 
 /// `credentials.list` (names, kinds and dates; never tokens).
 #[tauri::command(rename_all = "snake_case")]
 pub async fn credentials_list(state: State<'_, Studio>) -> Out {
-    state.call(name::CREDENTIALS_LIST, Value::Null).await
+    state.call(name::CREDENTIALS_LIST, json!({})).await
 }
 
 /// `secrets.list` (names only).
 #[tauri::command(rename_all = "snake_case")]
 pub async fn secrets_list(state: State<'_, Studio>) -> Out {
-    state.call(name::SECRETS_LIST, Value::Null).await
+    state.call(name::SECRETS_LIST, json!({})).await
 }
 
 /// The daemon's LLM provider ladder, read-only, when the daemon offers `llm.ladder`; otherwise

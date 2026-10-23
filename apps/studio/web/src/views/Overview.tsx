@@ -21,7 +21,9 @@ export function Overview() {
             ? 'Not connected. Connect to a hub in Settings.'
             : info.link === 'local'
               ? 'ogund is not reachable on this machine. Start ogund, then reload.'
-              : 'The server is not reachable with this session.'}
+              : info.link === 'server' && info.error?.code === 'api.unauthenticated'
+                ? 'Not signed in. Sign in to this server, then reload.'
+                : `Cannot reach the ${info.link === 'hub' ? 'hub' : 'server'}${info.error ? `: ${info.error.message}` : '.'}`}
         </Notice>
       ) : null}
       <ErrorBox error={status.error} title="Daemon status" />

@@ -125,7 +125,9 @@ impl Studio {
             data_dir,
             confirmations: Confirmations::default(),
         };
-        let initial = me.saved_hub().map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h)));
+        let initial = me
+            .saved_hub()
+            .map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h)));
         Self {
             link: RwLock::new(initial),
             ..me
@@ -143,14 +145,22 @@ impl Studio {
     }
 
     fn hub_files(&self) -> (PathBuf, PathBuf) {
-        (self.data_dir.join("hub.json"), self.data_dir.join("hub.token"))
+        (
+            self.data_dir.join("hub.json"),
+            self.data_dir.join("hub.token"),
+        )
     }
 
     fn saved_hub(&self) -> Option<HubLink> {
         let (settings, token) = self.hub_files();
         let s: HubSettings = serde_json::from_slice(&std::fs::read(settings).ok()?).ok()?;
         let t = Zeroizing::new(std::fs::read_to_string(token).ok()?);
-        HubLink::new(&s.url, Zeroizing::new(t.trim().to_owned()), s.ca_pem.as_deref()).ok()
+        HubLink::new(
+            &s.url,
+            Zeroizing::new(t.trim().to_owned()),
+            s.ca_pem.as_deref(),
+        )
+        .ok()
     }
 
     /// The current link.
@@ -201,7 +211,9 @@ impl Studio {
             let bytes = serde_json::to_vec(&s).map_err(|e| StudioError::invalid(e.to_string()))?;
             write_private(&settings, &bytes)
                 .and_then(|()| write_private(&token_file, token.as_bytes()))
-                .map_err(|e| StudioError::unavailable(format!("cannot save the hub settings: {}", e.kind())))?;
+                .map_err(|e| {
+                    StudioError::unavailable(format!("cannot save the hub settings: {}", e.kind()))
+                })?;
         }
         *self.link.write().await = Link::Hub(Arc::new(hub));
         Ok(())
@@ -245,7 +257,11 @@ impl Studio {
     /// # Errors
     ///
     /// As [`Studio::call`].
-    pub async fn call_if_offered(&self, method: &str, params: Value) -> StudioResult<Option<Value>> {
+    pub async fn call_if_offered(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> StudioResult<Option<Value>> {
         match self.link().await {
             #[cfg(desktop)]
             Link::Local(local) => {
@@ -294,7 +310,8 @@ impl Studio {
                             .methods
                             .iter()
                             .any(|m| m == name::RUNS_START || m == name::WORKFLOWS_PUT);
-                        info.can_decide = human && s.methods.iter().any(|m| m == name::APPROVALS_DECIDE);
+                        info.can_decide =
+                            human && s.methods.iter().any(|m| m == name::APPROVALS_DECIDE);
                         info.can_read_settings = human;
                     }
                     Err(e) => info.error = Some(e.0),

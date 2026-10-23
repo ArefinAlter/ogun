@@ -106,9 +106,9 @@ fn tls_config(ca_pem: Option<&str>) -> StudioResult<rustls::ClientConfig> {
             let mut added = 0;
             for cert in CertificateDer::pem_slice_iter(pem.as_bytes()) {
                 let cert = cert.map_err(|_| StudioError::invalid("the pinned CA is not PEM"))?;
-                roots
-                    .add(cert)
-                    .map_err(|_| StudioError::invalid("the pinned CA is not a usable certificate"))?;
+                roots.add(cert).map_err(|_| {
+                    StudioError::invalid("the pinned CA is not a usable certificate")
+                })?;
                 added += 1;
             }
             if added == 0 {
@@ -206,7 +206,8 @@ impl HubLink {
             path.pop_if_empty().extend(["api", "v1"]).extend(segments);
         }
         if !query.is_empty() {
-            url.query_pairs_mut().extend_pairs(query.iter().map(|(k, v)| (*k, v.as_str())));
+            url.query_pairs_mut()
+                .extend_pairs(query.iter().map(|(k, v)| (*k, v.as_str())));
         }
         Ok(url)
     }
@@ -220,7 +221,10 @@ impl HubLink {
 
     async fn read_json(&self, resp: reqwest::Response) -> StudioResult<Value> {
         let status = resp.status();
-        if resp.content_length().is_some_and(|n| n > MAX_RESPONSE_BYTES as u64) {
+        if resp
+            .content_length()
+            .is_some_and(|n| n > MAX_RESPONSE_BYTES as u64)
+        {
             return Err(StudioError::unavailable("the hub's answer is too large"));
         }
         let bytes = resp.bytes().await.map_err(|e| transport(&e))?;
@@ -272,14 +276,20 @@ impl HubLink {
             name::WORKFLOWS_LIST => self.get(&["workflows"], &[]).await,
             name::WORKFLOWS_GET => {
                 let p: GetWorkflowParams = typed(params)?;
-                let q: Vec<(&str, String)> =
-                    p.version.map(|v| ("version", v.to_string())).into_iter().collect();
+                let q: Vec<(&str, String)> = p
+                    .version
+                    .map(|v| ("version", v.to_string()))
+                    .into_iter()
+                    .collect();
                 self.get(&["workflows", &p.name], &q).await
             }
             name::WORKFLOWS_VALIDATE => {
                 let p: WorkflowDocument = typed(params)?;
-                self.post(&["workflows", "validate"], &json!({ "workflow": p.workflow }))
-                    .await
+                self.post(
+                    &["workflows", "validate"],
+                    &json!({ "workflow": p.workflow }),
+                )
+                .await
             }
             name::RUNS_LIST => {
                 let p: ListRunsParams = typed(params)?;
@@ -311,7 +321,8 @@ impl HubLink {
                 if let Some(t) = p.to {
                     q.push(("to", t));
                 }
-                self.get(&["workflows", &p.workflow, "partitions"], &q).await
+                self.get(&["workflows", &p.workflow, "partitions"], &q)
+                    .await
             }
             name::BACKFILLS_PLAN => {
                 let p: PlanBackfillParams = typed(params)?;
@@ -334,7 +345,8 @@ impl HubLink {
             }
             name::APPROVALS_GET => {
                 let p: ApprovalRef = typed(params)?;
-                self.get(&["approvals", &p.approval_id.to_string()], &[]).await
+                self.get(&["approvals", &p.approval_id.to_string()], &[])
+                    .await
             }
             name::ARTIFACTS_LIST => {
                 let p: ListArtifactsParams = typed(params)?;
@@ -373,7 +385,9 @@ impl HubLink {
         } else {
             json!({ "artifact": meta, "path": "" })
         };
-        let size = result["artifact"]["size_bytes"].as_u64().unwrap_or(u64::MAX);
+        let size = result["artifact"]["size_bytes"]
+            .as_u64()
+            .unwrap_or(u64::MAX);
         let max = p.inline_max_bytes.min(MAX_INLINE_BYTES);
         if max > 0 && size <= max && result.get("content_base64").is_none() {
             let resp = self
@@ -440,7 +454,9 @@ impl HubLink {
             };
             pending.push_str(&String::from_utf8_lossy(&chunk));
             if pending.len() > MAX_RESPONSE_BYTES {
-                return Err(StudioError::unavailable("the hub's event frame is too large"));
+                return Err(StudioError::unavailable(
+                    "the hub's event frame is too large",
+                ));
             }
             while let Some(nl) = pending.find('\n') {
                 let line: String = pending.drain(..=nl).collect();
@@ -485,7 +501,9 @@ mod tests {
     fn hub_urls_are_https_without_credentials() {
         assert!(parse_hub_url("https://hub.example.org").is_ok());
         assert_eq!(
-            parse_hub_url("https://hub.example.org/ogun").unwrap().as_str(),
+            parse_hub_url("https://hub.example.org/ogun")
+                .unwrap()
+                .as_str(),
             "https://hub.example.org/ogun/"
         );
         assert!(parse_hub_url("http://127.0.0.1:8443").is_ok());
@@ -504,7 +522,10 @@ mod tests {
         )
         .unwrap();
         let url = link
-            .url(&["workflows", "a b", "partitions"], &[("from", "w1".into())])
+            .url(
+                &["workflows", "a b", "partitions"],
+                &[("from", "w1".into())],
+            )
             .unwrap();
         assert_eq!(
             url.as_str(),

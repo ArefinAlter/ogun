@@ -888,6 +888,15 @@ label.field {
   color: var(--text);
 }
 
+/* Touch shells (Android, iOS): larger targets. */
+.mobile .btn {
+  min-height: 42px;
+}
+.mobile input,
+.mobile select {
+  min-height: 42px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

@@ -94,7 +94,11 @@ mod tests {
         assert!(local_navigation("tauri", Some("localhost"), None));
         assert!(local_navigation("http", Some("tauri.localhost"), None));
         assert!(!local_navigation("https", Some("example.org"), None));
-        assert!(!local_navigation("https", Some("tauri.localhost.example.org"), None));
+        assert!(!local_navigation(
+            "https",
+            Some("tauri.localhost.example.org"),
+            None
+        ));
         assert!(!local_navigation("http", Some("localhost"), Some(8080)));
         assert!(!local_navigation("file", None, None));
     }

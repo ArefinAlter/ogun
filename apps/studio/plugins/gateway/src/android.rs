@@ -13,8 +13,7 @@ use jni::sys::{jboolean, jint, jlong, jstring};
 
 use crate::ffi;
 
-const BAD_STRING: &str =
-    r#"{"error":{"code":"api.invalid_params","class":"invalid_request","message":"unreadable string from Java","retryable":false}}"#;
+const BAD_STRING: &str = r#"{"error":{"code":"api.invalid_params","class":"invalid_request","message":"unreadable string from Java","retryable":false}}"#;
 
 fn read(env: &mut JNIEnv<'_>, s: &JString<'_>) -> Option<String> {
     env.get_string(s).ok().map(Into::into)
@@ -104,7 +103,8 @@ pub extern "system" fn Java_dev_verne_ogun_gateway_NativeGateway_applyWant<'l>(
     _class: JClass<'l>,
     want: JString<'l>,
 ) -> jstring {
-    let result = read(&mut env, &want).map_or_else(|| BAD_STRING.to_owned(), |w| ffi::apply_want(&w));
+    let result =
+        read(&mut env, &want).map_or_else(|| BAD_STRING.to_owned(), |w| ffi::apply_want(&w));
     out(&env, &result)
 }
 
