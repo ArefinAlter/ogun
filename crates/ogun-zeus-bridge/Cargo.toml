@@ -1,0 +1,36 @@
+[package]
+name = "ogun-zeus-bridge"
+description = "The Zeus session bridge (O-08): Ogun's own Zeus spec 05 client as a `service` of zeusd, root registration, session-backed job submission, status and import with provenance."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+ogun-types.workspace = true
+ogun-run.workspace = true
+zeus-types.workspace = true
+zeus-verify.workspace = true
+zeus-artifact.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+blake3.workspace = true
+tokio.workspace = true
+zeroize.workspace = true
+getrandom.workspace = true
+tracing.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+zeus-fs.workspace = true
+zeus-control.workspace = true
+
+[lints]
+workspace = true
