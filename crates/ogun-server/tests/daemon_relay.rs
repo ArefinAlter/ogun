@@ -379,7 +379,7 @@ async fn a_remote_approval_travels_with_webauthn_evidence() {
         reg["confirm_command"]
             .as_str()
             .unwrap()
-            .starts_with("ogun approvers confirm")
+            .starts_with("ogun --profile server approvers confirm")
     );
 
     // Ask for decision options and sign them.

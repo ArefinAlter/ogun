@@ -38,6 +38,24 @@ fn session_key(a: &Access) -> ServerResult<&str> {
     }
 }
 
+/// The command a person runs on the host to confirm a key: with the daemon's profile, and with `--` when the
+/// base64url id starts with `-` (so it is not read as an option).
+fn confirm_command(s: &AppState, a: &Access, credential_id: &str, fingerprint: &str) -> String {
+    let profile = s
+        .cfg
+        .daemons
+        .get(&a.workspace.daemon)
+        .and_then(|d| d.profile.as_deref())
+        .map(|p| format!(" --profile {p}"))
+        .unwrap_or_default();
+    let sep = if credential_id.starts_with('-') {
+        " --"
+    } else {
+        ""
+    };
+    format!("ogun{profile} approvers confirm{sep} {credential_id} {fingerprint}")
+}
+
 fn reply(r: ServerResult<Value>) -> Response {
     match r {
         Ok(v) => Json(v).into_response(),
@@ -167,7 +185,7 @@ pub async fn register(State(s): St, m: Method, h: HeaderMap, u: Uri, b: Bytes) -
         Ok(json!({
             "approver": view,
             "attestation_format": reg.fmt,
-            "confirm_command": format!("ogun approvers confirm {} {}", view.credential_id, view.fingerprint),
+            "confirm_command": confirm_command(&s, &a, &view.credential_id, &view.fingerprint),
             "note": "This passkey cannot sign decisions yet. A person at the host's terminal must run the confirm command, checking that the fingerprint matches the one shown here.",
         }))
     }
@@ -176,14 +194,19 @@ pub async fn register(State(s): St, m: Method, h: HeaderMap, u: Uri, b: Bytes) -
 
 /// `GET /api/v1/passkeys`: the caller's passkeys in the workspace, with their confirmation state.
 pub async fn passkeys_list(State(s): St, m: Method, h: HeaderMap, u: Uri) -> Response {
-    reply(async {
-        let a = access(&s, &m, &h, &u)?;
-        a.require_session()?;
-        let mine = s
-            .store
-            .passkeys_of(a.principal.user().user_id, a.workspace.workspace_id)?;
-        let confirmed = if a.approver { confirmed_keys(&s, &a).await? } else { vec![] };
-        let list: Vec<Value> = mine
+    reply(
+        async {
+            let a = access(&s, &m, &h, &u)?;
+            a.require_session()?;
+            let mine = s
+                .store
+                .passkeys_of(a.principal.user().user_id, a.workspace.workspace_id)?;
+            let confirmed = if a.approver {
+                confirmed_keys(&s, &a).await?
+            } else {
+                vec![]
+            };
+            let list: Vec<Value> = mine
             .into_iter()
             .map(|p| {
                 let c = confirmed
@@ -195,13 +218,14 @@ pub async fn passkeys_list(State(s): St, m: Method, h: HeaderMap, u: Uri) -> Res
                     "fingerprint": p.fingerprint,
                     "created_at": p.created_at,
                     "confirmed": c,
-                    "confirm_command": format!("ogun approvers confirm {} {}", p.credential_id, p.fingerprint),
+                    "confirm_command": confirm_command(&s, &a, &p.credential_id, &p.fingerprint),
                 })
             })
             .collect();
-        Ok(json!({ "passkeys": list }))
-    }
-    .await)
+            Ok(json!({ "passkeys": list }))
+        }
+        .await,
+    )
 }
 
 #[derive(Deserialize)]
