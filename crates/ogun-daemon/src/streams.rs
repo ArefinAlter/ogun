@@ -260,7 +260,7 @@ impl Streams {
     ///
     /// # Errors
     ///
-    /// `stream.unknown`, `workflow.not_approved`, `api.invalid_params` for oversized batches.
+    /// `stream.unknown`, `workflow.not_approved`, `api.invalid_params` for empty or oversized batches.
     pub fn push(
         &self,
         d: &Daemon,
@@ -270,21 +270,21 @@ impl Streams {
         if p.records.len() > MAX_PUSH {
             return Err(ApiError::invalid_params("at most 10 000 records per push"));
         }
-        if p.first_seq == 0 {
+        if p.records.is_empty() {
             return Err(ApiError::invalid_params(
-                "producer sequence numbers start at 1",
+                "a push carries at least one record",
             ));
         }
         let now = now_ms();
         self.with_source(d, &p.workflow, &p.node, |src| {
-            let last_accepted = src.producers.get(&producer).copied().unwrap_or(0);
-            let skip = usize::try_from(last_accepted.saturating_sub(p.first_seq - 1))
-                .unwrap_or(usize::MAX);
+            // `next` is one past the producer's last accepted sequence number; 0 before any push.
+            let next = src.producers.get(&producer).copied().unwrap_or(0);
+            let skip = usize::try_from(next.saturating_sub(p.first_seq)).unwrap_or(usize::MAX);
             let fresh: Vec<&StreamRecord> = p.records.iter().skip(skip).collect();
             let through = p.first_seq + p.records.len() as u64 - 1;
             if fresh.is_empty() {
                 return Ok(PushResult {
-                    accepted_through: last_accepted.max(p.first_seq.saturating_sub(1)),
+                    accepted_through: through,
                     dropped: 0,
                     late: 0,
                     retry_after_ms: 0,
@@ -302,7 +302,7 @@ impl Streams {
                 Ok(a) => a,
                 Err(LogError::Full { .. }) => {
                     return Ok(PushResult {
-                        accepted_through: last_accepted,
+                        accepted_through: next.saturating_sub(1),
                         dropped: 0,
                         late: 0,
                         retry_after_ms: 1_000,
@@ -339,12 +339,12 @@ impl Streams {
             if !late_lines.is_empty() {
                 append_late(&src.late_file, &late_lines);
             }
-            src.producers.insert(producer, through);
+            src.producers.insert(producer, through + 1);
             d.store
                 .put_doc(
                     Collection::Streams,
                     &format!("{}/{}/producer/{producer}", p.workflow, p.node),
-                    &through,
+                    &(through + 1),
                 )
                 .map_err(store_err)?;
             Ok(PushResult {

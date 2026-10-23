@@ -834,7 +834,8 @@ pub struct PushParams {
     pub workflow: String,
     /// Stream source node id.
     pub node: String,
-    /// The producer's sequence number of the first record; the daemon drops records it has already accepted.
+    /// The producer's sequence number of the first record (sequences start at 0 and increase by one per
+    /// record); the daemon drops records it has already accepted.
     pub first_seq: u64,
     /// Records, at most 10 000 per call.
     pub records: Vec<StreamRecord>,

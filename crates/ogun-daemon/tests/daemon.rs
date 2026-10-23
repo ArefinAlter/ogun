@@ -165,14 +165,14 @@ async fn stream_push_seals_a_window_into_a_run() {
     let p = m::PushParams {
         workflow: "air-quality-stream".into(),
         node: "sensors".into(),
-        first_seq: 1,
-        records: vec![rec(old, 1), rec(old + 1_000, 2), rec(now - 60_000, 3)],
+        first_seq: 0,
+        records: vec![rec(old, 0), rec(old + 1_000, 1), rec(now - 60_000, 2)],
     };
     let r: m::PushResult = ingest.call(name::STREAMS_PUSH, &p).await.unwrap();
-    assert_eq!(r.accepted_through, 3);
+    assert_eq!(r.accepted_through, 2);
     // A retry of the same batch is not ingested twice.
     let r: m::PushResult = ingest.call(name::STREAMS_PUSH, &p).await.unwrap();
-    assert_eq!(r.accepted_through, 3);
+    assert_eq!(r.accepted_through, 2);
     let mut found = None;
     for _ in 0..40 {
         let runs: m::ListRunsResult = cli
