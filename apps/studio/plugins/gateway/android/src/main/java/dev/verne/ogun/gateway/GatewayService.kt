@@ -39,7 +39,7 @@ internal object GatewayState {
  * ([onTimeout]); Android may also stop it at any time, and nothing is lost: unacknowledged MQTT messages stay at the
  * broker, and committed records stay in the log.
  */
-class GatewayService : Service(), MqttSubscriber.Listener, HttpPushServer.Listener {
+class GatewayService : Service() {
     companion object {
         private const val CHANNEL = "ogun-gateway"
         private const val NOTIFICATION_ID = 0x6f67
@@ -142,10 +142,10 @@ class GatewayService : Service(), MqttSubscriber.Listener, HttpPushServer.Listen
         GatewayState.mqttConfigured = settings.mqttUrl != null
         GatewayState.pushEnabled = settings.httpPushEnabled
         if (settings.mqttUrl != null) {
-            mqtt = MqttSubscriber(settings, GatewaySettings.mqttPassword(this), this).also { it.start() }
+            mqtt = MqttSubscriber(settings, GatewaySettings.mqttPassword(this), mqttListener).also { it.start() }
         }
         if (settings.httpPushEnabled) {
-            push = HttpPushServer(settings.httpPushPort, GatewaySettings.httpPushToken(this), this).also { it.start() }
+            push = HttpPushServer(settings.httpPushPort, GatewaySettings.httpPushToken(this), pushListener).also { it.start() }
             GatewayState.pushAddress = wifiAddress()?.let { "$it:${settings.httpPushPort}" }
         }
         timer = Executors.newSingleThreadScheduledExecutor().also {
@@ -195,21 +195,25 @@ class GatewayService : Service(), MqttSubscriber.Listener, HttpPushServer.Listen
         GatewayState.pushListening = false
     }
 
-    override fun onMqttState(connected: Boolean, error: String?) {
-        GatewayState.mqttConnected = connected
-        if (error != null || connected) GatewayState.mqttError = error
+    private val mqttListener = object : MqttSubscriber.Listener {
+        override fun onMqttState(connected: Boolean, error: String?) {
+            GatewayState.mqttConnected = connected
+            if (error != null || connected) GatewayState.mqttError = error
+        }
+
+        override fun onMqttReceived(count: Int) {
+            GatewayState.mqttReceived.addAndGet(count.toLong())
+        }
     }
 
-    override fun onMqttReceived(count: Int) {
-        GatewayState.mqttReceived.addAndGet(count.toLong())
-    }
+    private val pushListener = object : HttpPushServer.Listener {
+        override fun onPushState(listening: Boolean, error: String?) {
+            GatewayState.pushListening = listening
+            if (error != null || listening) GatewayState.pushError = error
+        }
 
-    override fun onPushState(listening: Boolean, error: String?) {
-        GatewayState.pushListening = listening
-        if (error != null || listening) GatewayState.pushError = error
-    }
-
-    override fun onPushReceived(count: Long) {
-        GatewayState.pushReceived.addAndGet(count)
+        override fun onPushReceived(count: Long) {
+            GatewayState.pushReceived.addAndGet(count)
+        }
     }
 }

@@ -97,7 +97,8 @@ internal object SyncRunner {
             note(false, "not enrolled on a hub")
             return false
         }
-        val hubUrl = settings.hubUrl ?: run {
+        val hubUrl = settings.hubUrl
+        if (hubUrl == null) {
             note(false, "no hub configured")
             return false
         }
