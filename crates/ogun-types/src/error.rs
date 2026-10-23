@@ -66,6 +66,17 @@ pub const CODES: &[CodeInfo] = &[
     code("edge.not_enrolled", ErrorClass::PolicyDenied, false),
     code("sync.bad_signature", ErrorClass::PolicyDenied, false),
     code("sync.digest_mismatch", ErrorClass::Conflict, false),
+    // The self-hosted server bridge (O-13).
+    code("server.rate_limited", ErrorClass::Throttled, true),
+    code("server.not_found", ErrorClass::NotFound, false),
+    code("server.sign_in_failed", ErrorClass::Unauthenticated, false),
+    code("server.csrf_failed", ErrorClass::PolicyDenied, false),
+    code("server.webauthn_invalid", ErrorClass::InvalidRequest, false),
+    code(
+        "server.remote_approvals_disabled",
+        ErrorClass::PolicyDenied,
+        false,
+    ),
 ];
 
 /// Looks up a registered code.
@@ -158,7 +169,8 @@ mod tests {
                     "credential",
                     "secret",
                     "edge",
-                    "sync"
+                    "sync",
+                    "server"
                 ]
                 .contains(&ns),
                 "{}",
