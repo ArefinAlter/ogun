@@ -1427,6 +1427,7 @@ dependencies = [
  "ogun-ir",
  "ogun-types",
  "rumqttc",
+ "rustls-native-certs",
  "serde",
  "serde_json",
  "tempfile",

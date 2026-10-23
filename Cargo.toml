@@ -83,6 +83,8 @@ ed25519-dalek = { version = "3.0", features = ["zeroize"] }
 base64 = "0.23"
 rumqttc = { version = "0.25", default-features = false, features = ["use-rustls"] }
 tokio-modbus = { version = "0.17", default-features = false, features = ["tcp", "rtu"] }
+# Platform trust roots for MQTT over TLS; already in the tree through rumqttc.
+rustls-native-certs = "0.8"
 
 [profile.dev]
 debug = "line-tables-only"
