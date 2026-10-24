@@ -1,0 +1,38 @@
+[package]
+name = "ogun-llm"
+description = "Ogun's model layer: the LLM provider ladder (llm.json), provider clients, structured output, prompt hygiene and the hash-chained spend ledger."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[features]
+# Configuration, pricing, budgets, prompts, schemas and the ledger only. The daemon needs no more.
+default = []
+# The HTTPS provider clients and the ladder runner (used by the `ogun-op-llm` child operator).
+http = ["dep:reqwest", "dep:tokio"]
+
+[dependencies]
+ogun-types.workspace = true
+zeus-types.workspace = true
+zeus-verify.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+blake3.workspace = true
+zeroize.workspace = true
+tracing.workspace = true
+jsonschema.workspace = true
+url.workspace = true
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
