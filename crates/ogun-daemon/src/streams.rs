@@ -92,16 +92,11 @@ fn to_record(r: &StreamRecord, seq: u64, dedupe_key: &[String]) -> Record {
     let dedupe = if dedupe_key.is_empty() {
         None
     } else {
-        let parts: Option<Vec<String>> = dedupe_key
+        let parts: Option<Vec<Value>> = dedupe_key
             .iter()
-            .map(|f| {
-                field(&r.payload, f).map(|v| match v {
-                    Value::String(s) => s.clone(),
-                    other => other.to_string(),
-                })
-            })
+            .map(|f| field(&r.payload, f).cloned())
             .collect();
-        parts.map(|p| p.join("/"))
+        parts.map(|p| Value::Array(p).to_string())
     };
     Record {
         key: r.key.clone(),
@@ -275,13 +270,18 @@ impl Streams {
                 "a push carries at least one record",
             ));
         }
+        // Keep the next frontier representable as well as the inclusive last sequence.
+        let next_after_batch = p
+            .first_seq
+            .checked_add(p.records.len() as u64)
+            .ok_or_else(|| ApiError::invalid_params("producer sequence range overflows"))?;
         let now = now_ms();
         self.with_source(d, &p.workflow, &p.node, |src| {
             // `next` is one past the producer's last accepted sequence number; 0 before any push.
             let next = src.producers.get(&producer).copied().unwrap_or(0);
             let skip = usize::try_from(next.saturating_sub(p.first_seq)).unwrap_or(usize::MAX);
             let fresh: Vec<&StreamRecord> = p.records.iter().skip(skip).collect();
-            let through = p.first_seq + p.records.len() as u64 - 1;
+            let through = next_after_batch - 1;
             if fresh.is_empty() {
                 return Ok(PushResult {
                     accepted_through: through,
@@ -339,12 +339,12 @@ impl Streams {
             if !late_lines.is_empty() {
                 append_late(&src.late_file, &late_lines);
             }
-            src.producers.insert(producer, through + 1);
+            src.producers.insert(producer, next_after_batch);
             d.store
                 .put_doc(
                     Collection::Streams,
                     &format!("{}/{}/producer/{producer}", p.workflow, p.node),
-                    &(through + 1),
+                    &next_after_batch,
                 )
                 .map_err(store_err)?;
             Ok(PushResult {
@@ -589,4 +589,26 @@ fn seal_window(
     src.sealed += 1;
     tracing::info!(workflow, node, partition = %partition, revision, records = batch.records, "window sealed");
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn dedupe_preserves_field_boundaries_and_json_types() {
+        let key = vec!["a".into(), "b".into()];
+        let record = |payload| StreamRecord {
+            event_time_ms: 0,
+            key: "sensor".into(),
+            payload,
+        };
+        let id = |payload| to_record(&record(payload), 0, &key).dedupe;
+        assert_ne!(
+            id(json!({"a":"x/y", "b":"z"})),
+            id(json!({"a":"x", "b":"y/z"}))
+        );
+        assert_ne!(id(json!({"a":1, "b":"z"})), id(json!({"a":"1", "b":"z"})));
+    }
 }

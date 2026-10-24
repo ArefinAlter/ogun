@@ -168,6 +168,13 @@ async fn stream_push_seals_a_window_into_a_run() {
         first_seq: 0,
         records: vec![rec(old, 0), rec(old + 1_000, 1), rec(now - 60_000, 2)],
     };
+    let mut overflow = p.clone();
+    overflow.first_seq = u64::MAX;
+    let error = ingest
+        .call::<_, m::PushResult>(name::STREAMS_PUSH, &overflow)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), "api.invalid_params");
     let r: m::PushResult = ingest.call(name::STREAMS_PUSH, &p).await.unwrap();
     assert_eq!(r.accepted_through, 2);
     // A retry of the same batch is not ingested twice.
