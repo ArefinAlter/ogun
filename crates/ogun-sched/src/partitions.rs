@@ -7,7 +7,7 @@ use ogun_ir::model::{Granularity, Partitions};
 
 use crate::civil::{
     DAY_MS, Date, civil_from_days, days_from_civil, days_in_month, format_day, format_month,
-    parse_day, parse_month,
+    format_window_key, parse_day, parse_month, parse_window_key,
 };
 
 /// Most partitions one enumeration may return. Larger backfills are split by range.
@@ -25,6 +25,10 @@ pub enum PartitionError {
     /// The range holds more than [`MAX_PARTITIONS`].
     #[error("the range holds more than {MAX_PARTITIONS} partitions; split it")]
     TooMany,
+    /// Window partitions are created by their stream, not by the clock; list them from the run
+    /// store instead.
+    #[error("window partitions are created by the stream; list them from the run store")]
+    Stream,
 }
 
 /// The half-open window `[start_ms, end_ms)` of a time partition, in Unix milliseconds.
@@ -51,6 +55,11 @@ fn ordinal(p: &Partitions, key: &str) -> Option<i64> {
             .iter()
             .position(|k| k == key)
             .and_then(|i| i64::try_from(i).ok()),
+        Partitions::Window(w) => {
+            let size = i64::try_from(w.size_ms).ok().filter(|s| *s > 0)?;
+            let start = parse_window_key(key)?;
+            (start % size == 0).then_some(start / size)
+        }
     }
 }
 
@@ -73,6 +82,9 @@ fn key_at(p: &Partitions, ordinal: i64) -> String {
             .and_then(|i| keys.get(i))
             .cloned()
             .unwrap_or_default(),
+        Partitions::Window(w) => {
+            format_window_key(ordinal.saturating_mul(i64::try_from(w.size_ms).unwrap_or(1)))
+        }
     }
 }
 
@@ -107,6 +119,13 @@ pub fn window(p: &Partitions, key: &str) -> Option<Window> {
             })
         }
         Partitions::Static { .. } => None,
+        Partitions::Window(w) => {
+            let start = ordinal(p, key)?.checked_mul(i64::try_from(w.size_ms).ok()?)?;
+            Some(Window {
+                start_ms: start,
+                end_ms: start.checked_add(i64::try_from(w.size_ms).ok()?)?,
+            })
+        }
     }
 }
 
@@ -137,6 +156,14 @@ fn bounds(p: &Partitions, now_ms: i64) -> Option<(i64, i64)> {
             let last = i64::try_from(keys.len()).ok()? - 1;
             (last >= 0).then_some((0, last))
         }
+        // Windows are final once `end + allowed_lateness` has passed; the first one is whatever
+        // the stream saw first, so ranges start at the caller's key.
+        Partitions::Window(w) => {
+            let size = i64::try_from(w.size_ms).ok().filter(|s| *s > 0)?;
+            let lateness = i64::try_from(w.allowed_lateness_ms).ok()?;
+            let last = (now_ms - lateness).div_euclid(size) - 1;
+            Some((i64::MIN / 2, last))
+        }
     }
 }
 
@@ -146,6 +173,9 @@ fn bounds(p: &Partitions, now_ms: i64) -> Option<(i64, i64)> {
 ///
 /// [`PartitionError::TooMany`] above [`MAX_PARTITIONS`].
 pub fn complete(p: &Partitions, now_ms: i64) -> Result<Vec<String>, PartitionError> {
+    if matches!(p, Partitions::Window(_)) {
+        return Err(PartitionError::Stream);
+    }
     match bounds(p, now_ms) {
         None => Ok(Vec::new()),
         Some((a, b)) => collect(p, a, b),
@@ -258,6 +288,30 @@ mod tests {
             keys: vec!["dhaka".into(), "ctg".into(), "sylhet".into()],
         };
         assert_eq!(range(&s, "ctg", "sylhet", NOW).unwrap(), ["ctg", "sylhet"]);
+    }
+
+    #[test]
+    fn window_partitions_come_from_the_stream() {
+        let p = Partitions::Window(ogun_ir::model::WindowPartitions {
+            source: "s".into(),
+            time_field: "ts_ms".into(),
+            key_field: "device_id".into(),
+            size_ms: 60_000,
+            allowed_lateness_ms: 3_600_000,
+            reseal_after_ms: 30_000,
+            max_delay_ms: 0,
+            idle_timeout_ms: 600_000,
+            max_future_ms: 300_000,
+        });
+        assert_eq!(complete(&p, NOW), Err(PartitionError::Stream));
+        // A downstream backfill over final windows: lateness of 1 h caps the range.
+        let keys = range(&p, "w20261023T065800Z", "w20261023T090000Z", NOW).unwrap();
+        assert_eq!(keys, ["w20261023T065800Z", "w20261023T065900Z"]);
+        assert_eq!(
+            window(&p, "w20261023T065900Z").map(|w| w.end_ms - w.start_ms),
+            Some(60_000)
+        );
+        assert!(range(&p, "w20261023T065830Z", "w20261023T070000Z", NOW).is_err());
     }
 
     #[test]

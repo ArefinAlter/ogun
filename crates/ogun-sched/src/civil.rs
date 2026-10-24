@@ -115,6 +115,40 @@ pub fn format_month(year: i32, month: u32) -> String {
     format!("{year:04}-{month:02}")
 }
 
+/// The partition key of an event-time window: `w` and its start as `YYYYMMDDTHHMMSSZ` in UTC
+/// (O-09 section 2). Keys sort in time order and match the static-key pattern of O-02.
+#[must_use]
+pub fn format_window_key(start_ms: i64) -> String {
+    let d = civil_from_days(start_ms.div_euclid(DAY_MS));
+    let secs = start_ms.rem_euclid(DAY_MS) / 1000;
+    format!(
+        "w{:04}{:02}{:02}T{:02}{:02}{:02}Z",
+        d.year,
+        d.month,
+        d.day,
+        secs / 3600,
+        (secs / 60) % 60,
+        secs % 60
+    )
+}
+
+/// Parses a window key back to its start in Unix milliseconds.
+#[must_use]
+pub fn parse_window_key(key: &str) -> Option<i64> {
+    let b = key.as_bytes();
+    if b.len() != 17 || b[0] != b'w' || b[9] != b'T' || b[16] != b'Z' {
+        return None;
+    }
+    let date = parse_day(&format!("{}-{}-{}", &key[1..5], &key[5..7], &key[7..9]))?;
+    let h: i64 = digits(&key[10..12])?;
+    let m: i64 = digits(&key[12..14])?;
+    let s: i64 = digits(&key[14..16])?;
+    if h > 23 || m > 59 || s > 59 {
+        return None;
+    }
+    Some(days_from_civil(date) * DAY_MS + ((h * 60 + m) * 60 + s) * 1000)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,6 +182,15 @@ mod tests {
             })),
             5
         );
+    }
+
+    #[test]
+    fn window_keys_round_trip() {
+        for ms in [0, 60_000, 1_792_743_300_000, 1_792_713_600_000 - 1000] {
+            assert_eq!(parse_window_key(&format_window_key(ms)), Some(ms));
+        }
+        assert_eq!(format_window_key(1_792_743_300_000), "w20261023T081500Z");
+        assert!(parse_window_key("w20261023T246000Z").is_none());
     }
 
     #[test]

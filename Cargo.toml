@@ -6,6 +6,7 @@ members = [
     "crates/ogun-run",
     "crates/ogun-sched",
     "crates/ogun-store",
+    "crates/ogun-stream",
     "crates/ogun-cli",
 ]
 
@@ -37,6 +38,7 @@ ogun-ir = { path = "crates/ogun-ir", version = "0.1.0" }
 ogun-run = { path = "crates/ogun-run", version = "0.1.0" }
 ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
 ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
+ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -50,6 +52,7 @@ ulid = "3"
 # Same embedded database and version line as the zeus-core journal (MSRV 1.90).
 redb = "4.3"
 tempfile = "3.27"
+blake3 = "1.8"
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
 clap = { version = "4.6", features = ["derive", "wrap_help"] }

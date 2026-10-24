@@ -247,3 +247,74 @@ fn warnings() {
     );
     assert!(codes(&doc, Severity::Error).is_empty());
 }
+
+fn stream_base() -> Value {
+    json!({
+        "ir_version": 0, "workflow": "s", "version": 1,
+        "triggers": [{ "kind": "stream", "source": "src" }],
+        "partitions": { "kind": "window", "source": "src", "time_field": "ts_ms", "key_field": "device_id", "size_ms": 60000 },
+        "streams": { "src": { "max_buffer_bytes": 1048576 } },
+        "nodes": [
+            { "id": "src", "op": "stream.mqtt@1", "config": { "broker": "mqtt://localhost:1883", "topics": ["a/#"] } },
+            { "id": "roll", "op": "window.rollup@1", "inputs": ["src.window"] }
+        ]
+    })
+}
+
+fn expect_stream_error(code: &str, mutate: impl FnOnce(&mut Value)) {
+    let mut doc = stream_base();
+    mutate(&mut doc);
+    let got = codes(&doc, Severity::Error);
+    assert!(
+        got.contains(&code),
+        "expected {code}, got {got:?} for {doc}"
+    );
+}
+
+#[test]
+fn stream_base_is_valid() {
+    assert!(
+        codes(&stream_base(), Severity::Error).is_empty(),
+        "{:?}",
+        codes(&stream_base(), Severity::Error)
+    );
+}
+
+#[test]
+fn stream_rules() {
+    expect_stream_error("ir.window_invalid", |d| {
+        d["partitions"]["size_ms"] = json!(7000)
+    });
+    expect_stream_error("ir.window_invalid", |d| {
+        d["partitions"]["allowed_lateness_ms"] = json!(8 * 86_400_000_u64)
+    });
+    expect_stream_error("ir.window_invalid", |d| {
+        d["partitions"]["time_field"] = json!("Ts")
+    });
+    expect_stream_error("ir.stream_source_unknown", |d| {
+        d["partitions"]["source"] = json!("roll")
+    });
+    expect_stream_error("ir.stream_source_unknown", |d| {
+        d["triggers"][0]["source"] = json!("nowhere")
+    });
+    expect_stream_error("ir.stream_source_unknown", |d| {
+        d["streams"]["roll"] = json!({ "max_buffer_bytes": 1048576 })
+    });
+    expect_stream_error("ir.stream_buffer_required", |d| d["streams"] = json!({}));
+    expect_stream_error("ir.stream_buffer_required", |d| {
+        d["streams"]["src"]["max_buffer_bytes"] = json!(1024)
+    });
+    expect_stream_error("ir.source_has_inputs", |d| {
+        d["nodes"][0]["inputs"] = json!(["roll.artifacts"]);
+    });
+    expect_stream_error("ir.stream_requires_window", |d| {
+        d["partitions"] = json!({ "kind": "static", "keys": ["a"] });
+    });
+    expect_stream_error("ir.stream_single_source", |d| {
+        add_node(d, json!({ "id": "src2", "op": "stream.http@1" }));
+        d["streams"]["src2"] = json!({ "max_buffer_bytes": 1048576 });
+    });
+    expect_stream_error("ir.secret_inline", |d| {
+        d["nodes"][0]["config"]["password"] = json!("ZEUS-CANARY-6")
+    });
+}

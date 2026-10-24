@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Draft 1 |
+| Status | Draft 2 (2026-10-23: streams, section 11) |
 | Depends on | O-00, O-01, O-03 (catalogue), Zeus 00 section 7, Zeus 08 section 12 |
 | Decided by | Proposed ADR 0003 |
 | Implemented by | `ogun-ir`; schema [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
@@ -35,6 +35,7 @@ Then the validator (section 10) reports every finding it can, not just the first
 | `triggers` | array | no | `[]` | Section 4.1. Empty means manual only. |
 | `partitions` | object | no | | Section 4.2. Absent means one implicit partition. |
 | `budgets` | object | no | `{}` | Section 4.3. Limits per run (per partition when partitioned). |
+| `streams` | object | no | `{}` (absent in the normal form when empty) | Ingest-log buffering per stream source node (O-09 section 4). |
 | `nodes` | array | yes | | 1 to 1000 nodes, section 5. |
 
 ## 4. Triggers, partitions and budgets
@@ -43,12 +44,13 @@ The full scheduling model is O-04. IR v0 carries:
 
 ### 4.1 Triggers
 
-Each trigger is an object with `kind`: `manual`; `cron` with a five-field `cron` expression (minute, hour, day of month, month, day of week; `*`, lists, ranges and `/step`; evaluated in UTC); or `interval` with `interval_ms` of at least 60 000. At most 16.
+Each trigger is an object with `kind`: `manual`; `cron` with a five-field `cron` expression (minute, hour, day of month, month, day of week; `*`, lists, ranges and `/step`; evaluated in UTC); `interval` with `interval_ms` of at least 60 000; or `stream` with the `source` node id of a stream source, which keeps one continuous run going (O-09 section 7). At most 16.
 
 ### 4.2 Partitions
 
 - `{"kind": "time", "granularity": "day" | "month", "start": ..., "end": ...}`: one partition per UTC day (`YYYY-MM-DD`) or month (`YYYY-MM`). `end` is inclusive and optional; it is not before `start`.
 - `{"kind": "static", "keys": [...]}`: 1 to 10 000 distinct keys, `^[A-Za-z0-9._-]{1,64}$`.
+- `{"kind": "window", "source", "time_field", "key_field", "size_ms", ...}`: tumbling event-time windows over a stream source, keyed `wYYYYMMDDTHHMMSSZ`. Members, defaults and limits are in O-09 section 2.
 
 ### 4.3 Budgets
 
@@ -68,7 +70,7 @@ Optional members `bytes`, `files`, `wall_ms` and `llm_usd_micro`, each a positiv
 
 Edges come from `inputs` (producer to consumer) and `route` (router to target). The graph MUST be acyclic (`ir.cycle`).
 
-A node that has no inputs, is no route target and whose operator cannot start a DAG gets the warning `ir.node_has_no_inputs`. Operators that can start a DAG: `acquire`, `zeus.session_acquire`, `crawl`, `duckdb`, `git`, `hf`, `rclone`, `yt_dlp`, and every code operator.
+A node that has no inputs, is no route target and whose operator cannot start a DAG gets the warning `ir.node_has_no_inputs`. Operators that can start a DAG: `acquire`, `zeus.session_acquire`, `crawl`, `duckdb`, `git`, `hf`, `rclone`, `yt_dlp`, every code operator and every stream source.
 
 ### 5.1 Routes and predicates
 
@@ -165,8 +167,19 @@ A diagnostic is `{"severity", "code", "path", "message"}` as in Zeus 08 section 
 | `ir.node_has_no_inputs` | warning | Section 5 |
 | `ir.op_invalid`, `ir.op_unknown`, `ir.op_version_unknown`, `ir.inline_code`, `ir.secret_inline`, `ir.url_credentials`, `ir.session_in_acquire` | error | Section 6 |
 | `ir.code_required`, `ir.code_unexpected`, `ir.code_hash_invalid`, `ir.shell_needs_approval`, `ir.llm_budget_required` | error | Section 7 |
+| `ir.window_invalid`, `ir.stream_source_unknown`, `ir.stream_buffer_required`, `ir.source_has_inputs`, `ir.stream_requires_window`, `ir.stream_single_source` | error | Section 11, O-09 section 9 |
 
-## 11. Limits
+## 11. Streams
+
+A workflow may contain one stream source node, of operator kind `source` (`stream.mqtt`, `stream.http`, `stream.lorawan`, `stream.modbus`, `stream.file_tail`). A stream source:
+
+- has no inputs;
+- requires `window` partitions naming it, and a `streams` entry;
+- exposes the output `window`, the sealed batch of each window partition.
+
+The rules and their diagnostics are in O-09 section 9. Stream sources run in the `ogun-ingest` bridge (O-10), never inside `ogund`.
+
+## 12. Limits
 
 | Item | Limit |
 |---|---|
@@ -179,7 +192,7 @@ A diagnostic is `{"severity", "code", "path", "message"}` as in Zeus 08 section 
 | Static partition keys | 10 000 |
 | Description | 4096 bytes |
 
-## 12. Open issues
+## 13. Open issues
 
 1. YAML authoring: the mapping is one to one, but YAML 1.2 number typing (floats) needs a rule before the loader exists.
 2. Templates in `config` (Zeus 08 section 5.1) are validated only once the plan core moves to `zeus-core`.

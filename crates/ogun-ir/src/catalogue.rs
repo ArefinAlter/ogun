@@ -14,6 +14,8 @@ pub enum OpKind {
     Code,
     /// Calls a model. Needs a model-spend budget.
     Model,
+    /// A continuous stream source (O-09). Never finishes; has no inputs; feeds window partitions.
+    Source,
 }
 
 /// One catalogue entry.
@@ -38,7 +40,7 @@ const fn op(name: &'static str, outputs: &'static [&'static str], kind: OpKind) 
     }
 }
 
-use OpKind::{Adapter, Code, Core, Model};
+use OpKind::{Adapter, Code, Core, Model, Source};
 
 /// The built-in catalogue for IR v0 (O-03 section 7).
 pub const BUILTIN: &[OpSpec] = &[
@@ -73,6 +75,14 @@ pub const BUILTIN: &[OpSpec] = &[
     op("sql", &["tables"], Code),
     op("dbt", &["artifacts", "results"], Code),
     op("shell", &["artifacts"], Code),
+    // Window maintenance.
+    op("window.rollup", &["artifacts"], Core),
+    // Stream sources (O-09, O-10). They run in the ogun-ingest bridge, never in ogund.
+    op("stream.mqtt", &["window"], Source),
+    op("stream.http", &["window"], Source),
+    op("stream.lorawan", &["window"], Source),
+    op("stream.modbus", &["window"], Source),
+    op("stream.file_tail", &["window"], Source),
     // Model operators.
     op("llm.extract", &["rows"], Model),
     op("llm.classify", &["labels"], Model),

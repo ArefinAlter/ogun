@@ -41,6 +41,10 @@ pub mod limits {
     pub const MIN_TIMEOUT_MS: u64 = 1_000;
     /// Parallel instances per node.
     pub const MAX_CONCURRENCY: u32 = 64;
+    /// Longest allowed lateness of a window: 7 days.
+    pub const MAX_LATENESS_MS: u64 = 7 * 86_400_000;
+    /// Smallest stream ingest log: 1 MiB.
+    pub const MIN_BUFFER_BYTES: u64 = 1024 * 1024;
 }
 
 /// Configuration keys that would carry code inline. Code is referenced by hash (ADR 0003).
@@ -66,7 +70,7 @@ const SECRET_KEYS: &[&str] = &[
 
 /// Operators that may start a DAG without inputs.
 fn is_source(op: &OpSpec) -> bool {
-    matches!(op.kind, OpKind::Code)
+    matches!(op.kind, OpKind::Code | OpKind::Source)
         || matches!(
             op.name,
             "acquire"
@@ -206,6 +210,7 @@ impl Validator<'_> {
                 }
             }
         }
+        self.streams(wf);
         self.cycles(wf, &index);
     }
 
@@ -486,6 +491,8 @@ impl Validator<'_> {
                         );
                     }
                 }
+                // Checked with the stream rules, which know the nodes.
+                Trigger::Stream { .. } => {}
             }
         }
     }
@@ -558,6 +565,133 @@ impl Validator<'_> {
                         );
                     }
                 }
+            }
+            Partitions::Window(w) => {
+                if w.size_ms < 1_000 || 86_400_000 % w.size_ms != 0 {
+                    self.err(
+                        "ir.window_invalid",
+                        "/partitions/size_ms",
+                        "size_ms is at least 1000 and divides 86400000.",
+                    );
+                }
+                if w.allowed_lateness_ms > limits::MAX_LATENESS_MS {
+                    self.err(
+                        "ir.window_invalid",
+                        "/partitions/allowed_lateness_ms",
+                        "allowed_lateness_ms is at most 7 days.",
+                    );
+                }
+                for (field, value) in [("time_field", &w.time_field), ("key_field", &w.key_field)] {
+                    if !value.split('.').all(|seg| name_ok(seg, b'_', 64)) {
+                        self.err(
+                            "ir.window_invalid",
+                            format!("/partitions/{field}"),
+                            "Record fields are dotted snake_case names.",
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// O-09 section 4: stream sources, window partitions, stream triggers and buffers agree.
+    fn streams(&mut self, wf: &Workflow) {
+        let sources: Vec<(usize, &Node)> = wf
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| {
+                parse_op_ref(&n.op)
+                    .and_then(|r| self.catalogue.get(r.name))
+                    .is_some_and(|op| op.kind == OpKind::Source)
+            })
+            .collect();
+        let window_source = match &wf.partitions {
+            Some(Partitions::Window(w)) => Some(w.source.as_str()),
+            _ => None,
+        };
+        if sources.len() > 1 {
+            self.err(
+                "ir.stream_single_source",
+                "/nodes",
+                "IR v0 allows one stream source per workflow; split the workflow.",
+            );
+        }
+        for (i, node) in &sources {
+            if !node.inputs.is_empty() {
+                self.err(
+                    "ir.source_has_inputs",
+                    format!("/nodes/{i}/inputs"),
+                    "A stream source has no inputs.",
+                );
+            }
+            if window_source != Some(node.id.as_str()) {
+                self.err(
+                    "ir.stream_requires_window",
+                    "/partitions",
+                    format!(
+                        "Stream source {} needs window partitions naming it as source.",
+                        node.id
+                    ),
+                );
+            }
+            match wf.streams.get(&node.id) {
+                None => self.err(
+                    "ir.stream_buffer_required",
+                    "/streams",
+                    format!(
+                        "Stream source {} needs a streams entry with max_buffer_bytes.",
+                        node.id
+                    ),
+                ),
+                Some(b) if b.max_buffer_bytes < limits::MIN_BUFFER_BYTES => {
+                    self.err(
+                        "ir.stream_buffer_required",
+                        format!("/streams/{}/max_buffer_bytes", pointer_token(&node.id)),
+                        "max_buffer_bytes is at least 1 MiB.",
+                    );
+                }
+                Some(b) => {
+                    for (k, f) in b.dedupe_key.iter().enumerate() {
+                        if !f.split('.').all(|seg| name_ok(seg, b'_', 64)) {
+                            self.err(
+                                "ir.stream_buffer_required",
+                                format!("/streams/{}/dedupe_key/{k}", pointer_token(&node.id)),
+                                "Dedupe key fields are dotted snake_case names.",
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        let is_source = |id: &str| sources.iter().any(|(_, n)| n.id == id);
+        if let Some(src) = window_source
+            && !is_source(src)
+        {
+            self.err(
+                "ir.stream_source_unknown",
+                "/partitions/source",
+                format!("{src} is not a stream source node."),
+            );
+        }
+        for (i, t) in wf.triggers.iter().enumerate() {
+            if let Trigger::Stream { source } = t
+                && !is_source(source)
+            {
+                self.err(
+                    "ir.stream_source_unknown",
+                    format!("/triggers/{i}/source"),
+                    format!("{source} is not a stream source node."),
+                );
+            }
+        }
+        for key in wf.streams.keys() {
+            if !is_source(key) {
+                self.err(
+                    "ir.stream_source_unknown",
+                    format!("/streams/{}", pointer_token(key)),
+                    format!("{key} is not a stream source node."),
+                );
             }
         }
     }

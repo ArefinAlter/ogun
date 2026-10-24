@@ -19,6 +19,7 @@ An operator is one unit of work in a workflow. This spec defines what an operato
 | `adapter` | Sandboxed child process | no | `duckdb`, `pdf.extract`, `tesseract` |
 | `code` | Sandboxed child process | yes, by `code.blake3` | `python`, `sql`, `dbt`, `shell` |
 | `model` | Sandboxed child process | no; calls a model through Ogun's provider ladder | `llm.extract`, `embedding.generate` |
+| `source` | The `ogun-ingest` bridge process (O-10) | no | `stream.mqtt`, `stream.http` |
 
 Only `core` operators run in the daemon. Everything else is a child process; user code never runs in `ogund`.
 
@@ -99,3 +100,5 @@ The validator checks references against this catalogue. Every entry is major ver
 | `llm.filter` | model | `artifacts`, `rejected` |
 | `llm.schema` | model | `schema` |
 | `embedding.generate` | model | `vectors` |
+| `window.rollup` | core | `artifacts` |
+| `stream.mqtt`, `stream.http`, `stream.lorawan`, `stream.modbus`, `stream.file_tail` | source | `window` |
