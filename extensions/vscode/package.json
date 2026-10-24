@@ -1,7 +1,7 @@
 {
   "name": "ogun",
   "displayName": "Ogun",
-  "description": "Ogun workflow IR in VS Code: schema completion and checking for *.workflow.json, diagnostics from the Ogun validator, workflow hashes.",
+  "description": "Ogun workflow IR in VS Code: schema checking for *.workflow.json, diagnostics, hover, completion and go-to-definition from the Ogun language server or validator, workflow hashes.",
   "version": "0.1.0",
   "publisher": "verne",
   "license": "Apache-2.0",
@@ -20,7 +20,19 @@
       "title": "Ogun",
       "properties": {
         "ogun.path": { "type": "string", "default": "ogun", "description": "Path to the ogun command-line tool." },
-        "ogun.validateOnSave": { "type": "boolean", "default": true, "description": "Run the Ogun validator when a *.workflow.json file is saved." }
+        "ogun.validateOnSave": { "type": "boolean", "default": true, "description": "In CLI mode, run the Ogun validator when a *.workflow.json file is saved." },
+        "ogun.languageServer.mode": {
+          "type": "string",
+          "enum": ["auto", "on", "off"],
+          "default": "auto",
+          "enumDescriptions": [
+            "Use ogun-lsp (or `ogun lsp`) when it is found; otherwise run `ogun validate --json`.",
+            "Use the language server and log why when it cannot start.",
+            "Never start the language server; run `ogun validate --json` on open and save."
+          ],
+          "description": "Whether to use the Ogun language server."
+        },
+        "ogun.languageServer.path": { "type": "string", "default": "", "description": "Command that starts the Ogun language server. Empty: ogun-lsp on PATH, then `ogun lsp`." }
       }
     }
   },

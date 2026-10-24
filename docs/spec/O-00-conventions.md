@@ -70,6 +70,25 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `op.sandbox_violation` | `policy_denied` | no | An operator tried something its manifest does not declare. |
 | `op.crashed` | `internal` | no | An operator process exited without a result. |
 | `op.timeout` | `timeout` | yes | An attempt exceeded `policy.timeout_ms`. |
+| `op.not_runnable` | `unsupported` | no | The operator exists but does not run in `ogund` (stream sources run in the ingest bridge, O-10). |
+| `op.unsupported` | `unsupported` | no | The operator does not support this configuration in this build. |
+| `op.manifest_invalid` | `invalid_request` | no | An operator's manifest is missing, unreadable or invalid (O-03 section 3). |
+| `op.config_invalid` | `invalid_request` | no | A node's `config` fails the operator's `config_schema` or its own checks. |
+| `op.input_invalid` | `invalid_request` | no | An input cannot be read, or does not have the form the operator needs. |
+| `op.output_invalid` | `permanent` | no | An operator reported an output that is missing, not a regular file or not well formed. |
+| `op.protocol_violation` | `permanent` | no | A child operator broke `jsonl-stdio/0` (malformed line, oversized checkpoint). |
+| `op.tool_missing` | `unavailable` | no | The external tool an adapter wraps, or its command, is not installed. |
+| `op.tool_failed` | `permanent` | no | The external tool exited unsuccessfully. |
+| `op.network_denied` | `policy_denied` | no | A request or manifest needs network that the environment or `allowed_domains` does not grant. |
+| `op.sandbox_unavailable` | `unsupported` | no | No OS sandbox is available and unsandboxed child operators are not allowed. |
+| `op.unsafe_archive` | `policy_denied` | no | An archive entry escapes the extraction root, is a link or device, or breaks a limit. |
+| `op.limit_exceeded` | `policy_denied` | no | An operator cap (bytes, files, pages, rows) was reached. |
+| `op.fetch_failed` | `transient_network` | yes | A network fetch failed in a way that may pass. |
+| `op.fetch_refused` | `permanent` | no | The server refused the request (4xx other than throttling), or robots.txt disallows it. |
+| `op.integrity` | `integrity` | no | Bytes do not match a declared digest or size. |
+| `op.io` | `disk` | yes | A local file operation in the scratch directory failed. |
+| `op.operator_failed` | `permanent` | no | A child operator reported an error whose code Ogun does not register; `details.operator_code` keeps it. |
+| `op.operator_transient` | `unavailable` | yes | As `op.operator_failed`, for an error the operator marked retryable. |
 | `internal.bug` | `internal` | no | An invariant was violated. |
 | `api.unauthenticated` | `unauthenticated` | no | The handshake failed, or a call came before it (O-15). |
 | `api.permission_denied` | `policy_denied` | no | The connection's kind or peer may not call the method (O-15 section 6). |
@@ -94,5 +113,41 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
 | `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
 | `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |
+| `llm.not_configured` | `unavailable` | no | No provider in the ladder can serve a model operator (O-03 section 8.10). |
+| `llm.config_invalid` | `invalid_request` | no | `llm.json` or a model operator's configuration is invalid. |
+| `llm.provider_unavailable` | `unavailable` | yes | Every provider tried failed transiently (429, 5xx, timeout). |
+| `llm.auth_failed` | `unauthenticated` | no | A model provider rejected its API key. |
+| `llm.request_rejected` | `invalid_request` | no | A model provider rejected the request as invalid. |
+| `llm.refused` | `policy_denied` | no | A model or provider declined on policy grounds. |
+| `llm.output_invalid` | `integrity` | no | A model's answer failed schema validation after the repair request. |
+| `llm.call_limit` | `policy_denied` | no | A model operator's `max_calls` would be exceeded. |
+| `llm.input_unsupported` | `invalid_request` | no | A model operator's input is not text, too large or the wrong shape. |
+| `lineage.io_failed` | `internal` | no | A lineage export file cannot be read or written (O-05). |
+| `lineage.endpoint_unsupported` | `invalid_request` | no | The configured OpenLineage endpoint is not an `http://` URL without user information (O-05). |
+| `lineage.endpoint_failed` | `unavailable` | yes | The OpenLineage endpoint could not be reached, timed out or refused an event (O-05). |
+| `lineage.trajectory_broken` | `conflict` | no | A trajectory has a sequence gap or a broken BLAKE3 chain (O-05). |
+| `bench.task_invalid` | `invalid_request` | no | A task directory does not match its adapter's format (O-06). |
+| `bench.task_unsupported` | `unsupported` | no | A task needs something this build does not do (O-06). |
+| `bench.isolation_unavailable` | `policy_denied` | no | Required benchmark isolation cannot be enforced, or the state overlaps Ogun's or Zeus's (O-06). |
+| `bench.environment_failed` | `unavailable` | yes | The container runtime or a local process failed (O-06). |
+| `bench.evaluator_failed` | `internal` | no | An evaluator produced no readable verdict (O-06). |
+| `bench.spec_invalid` | `invalid_request` | no | A matrix or agent specification is invalid (O-06). |
+| `zeus.not_linked` | `policy_denied` | no | No usable Zeus service credential, or `zeusd` refused it (O-08). |
+| `zeus.unavailable` | `unavailable` | yes | `zeusd` is not running, the connection broke or a request timed out (O-08). |
+| `zeus.server_unverified` | `unauthenticated` | no | The Zeus endpoint failed `server_proof` or the peer checks (O-08). |
+| `zeus.wrong_kind` | `policy_denied` | no | The Zeus credential is not a `service` credential (O-08). |
+| `zeus.call_failed` | `unavailable` | yes | `zeusd` answered with a retryable error; `details.zeus_code` (O-08). |
+| `zeus.refused` | `policy_denied` | no | `zeusd` answered with a non-retryable error; `details.zeus_code` (O-08). |
+| `zeus.protocol_error` | `internal` | no | A `zeusd` answer did not have the shape Zeus 05 specifies (O-08). |
+| `zeus.request_invalid` | `invalid_request` | no | A session request breaks O-08 section 6. |
+| `zeus.path_outside_root` | `policy_denied` | no | No Zeus root is registered, or a job's file is outside it (O-08). |
+| `zeus.job_not_completed` | `conflict` | no | Import of a Zeus job that has not completed (O-08). |
+| `zeus.import_failed` | `conflict` | no | Ogun's artifact store refused an import from Zeus (O-08). |
+| `server.rate_limited` | `throttled` | yes | `ogun-server` refused a request over a per-address or per-token rate limit; retry after `Retry-After` (O-13). |
+| `server.not_found` | `not_found` | no | No such server user, workspace, membership, invitation, API token or passkey (O-13). |
+| `server.sign_in_failed` | `unauthenticated` | no | An OIDC sign-in did not verify, or the identity has no account and no valid invitation (O-13). |
+| `server.csrf_failed` | `policy_denied` | no | A cookie-authenticated request that changes state lacked the CSRF header or a same-origin `Origin` (O-13). |
+| `server.webauthn_invalid` | `invalid_request` | no | A passkey registration or assertion did not verify (O-13 section 8). |
+| `server.remote_approvals_disabled` | `policy_denied` | no | A remote approval decision while `remote_approvals` is off (ADR 0010, O-13 section 8). |
 
 A code keeps its meaning and class forever; a replaced code is deprecated, never reused. Diagnostics (O-02 section 10) use the same lexical form in the `ir` namespace but are not errors.

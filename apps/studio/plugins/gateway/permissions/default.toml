@@ -1,0 +1,9 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = """
+The field gateway commands Ogun Studio uses on Android: read the status, save the configuration, start and stop
+the foreground service, and request a sync. On other platforms the commands only report that the gateway is not
+available.
+"""
+permissions = ["allow-status", "allow-configure", "allow-start", "allow-stop", "allow-sync-now"]

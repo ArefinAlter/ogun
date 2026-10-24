@@ -224,3 +224,84 @@ async fn stream_push_seals_a_window_into_a_run() {
     assert_eq!(streams.streams.len(), 1);
     running.stop().await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_enrolled_edge_syncs_a_sealed_window_to_the_hub() {
+    use base64::Engine;
+    let dir = tempfile::tempdir().unwrap();
+    let (paths, running) = setup(dir.path()).await;
+    let key = ogun_sync::keys::EdgeKey::from_seed(&[7u8; 32]);
+    let edge_id = IdGenerator::new().edge_id();
+    // Enrolment needs a person on the host terminal; the test writes the row the way it would.
+    let view = m::EdgeView {
+        edge_id,
+        name: "site-a".into(),
+        public_key: key.public_key(),
+        enrolled_at: Timestamp::now(),
+        last_sync_at: None,
+    };
+    running
+        .daemon
+        .store
+        .put_doc(ogun_store::Collection::Edges, &edge_id.to_string(), &view)
+        .unwrap();
+
+    let blob = b"{\"key\":\"dev-1\",\"event_ms\":1}\n".repeat(40_000);
+    let digest = blake3::hash(&blob).to_hex().to_string();
+    let offer = ogun_edge::Offer {
+        edge_id: edge_id.to_string(),
+        items: vec![ogun_edge::Item {
+            asset: format!("{edge_id}/air-quality-stream/sensors"),
+            partition: "w20261023T081500Z".into(),
+            revision: 1,
+            blake3: digest.clone(),
+            size_bytes: blob.len() as u64,
+        }],
+    };
+    let (offer_json, signature) = ogun_sync::signing::sign_offer(&key, &offer).unwrap();
+    let mut svc = Client::connect(&paths, "ingest", info()).await.unwrap();
+    let forged = svc
+        .call_value(
+            name::SYNC_OFFER,
+            json!({"edge_id": edge_id, "offer": offer_json, "signature": ogun_sync::keys::EdgeKey::from_seed(&[8u8; 32]).sign(b"x")}),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(forged.code(), "sync.bad_signature");
+    let want: m::SyncOfferResult = svc
+        .call(
+            name::SYNC_OFFER,
+            &m::SyncOfferParams {
+                edge_id,
+                offer: offer_json,
+                signature,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(want.want.to_string().contains(&digest));
+    let chunk = usize::try_from(ogun_sync::CHUNK_BYTES).unwrap();
+    let parts: Vec<&[u8]> = blob.chunks(chunk).collect();
+    let mut complete = false;
+    for (i, part) in parts.iter().enumerate() {
+        let r: m::SyncChunkResult = svc
+            .call(
+                name::SYNC_CHUNK,
+                &m::SyncChunkParams {
+                    edge_id,
+                    partition: "w20261023T081500Z".into(),
+                    blake3: digest.clone(),
+                    index: u32::try_from(i).unwrap(),
+                    total: u32::try_from(parts.len()).unwrap(),
+                    data_base64: base64::engine::general_purpose::STANDARD.encode(part),
+                },
+            )
+            .await
+            .unwrap();
+        complete = r.complete;
+    }
+    assert!(complete, "the last chunk completes the object");
+    let edges: m::ListEdgesResult = svc.call(name::EDGES_LIST, &json!({})).await.unwrap();
+    assert!(edges.edges[0].last_sync_at.is_some());
+    running.stop().await;
+}

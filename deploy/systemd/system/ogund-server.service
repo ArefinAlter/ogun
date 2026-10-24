@@ -1,0 +1,55 @@
+# System unit for the server profile's daemon: `ogund --profile server` as the `ogun` user, state in
+# /var/lib/ogun/profiles/server, its one listener a Unix socket in profiles/server/run (O-15 section 2).
+#
+# People manage it on the host as the same user, on a terminal, for example:
+#   sudo -u ogun env OGUN_HOME=/var/lib/ogun ogun --profile server credentials add server --kind bridge
+#   sudo -u ogun env OGUN_HOME=/var/lib/ogun ogun --profile server approvers confirm <credential_id> <fingerprint>
+
+[Unit]
+Description=Ogun daemon, server profile (ogund --profile server)
+Documentation=https://github.com/ArefinAlter/ogun/blob/main/docs/self-hosting.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=ogun
+Group=ogun
+Environment=OGUN_HOME=/var/lib/ogun
+Environment=OGUN_LOG=info
+ExecStart=/usr/local/bin/ogund --profile server
+Restart=on-failure
+RestartSec=2s
+TimeoutStopSec=60s
+
+StateDirectory=ogun
+StateDirectoryMode=0700
+UMask=0077
+
+# Hardening. ogund runs operators as child processes, which inherit these settings.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+# Other users' processes are hidden; the daemon still sees its same-user peers (O-15 section 4.4).
+ProtectProc=invisible
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# Left off on purpose: operator sandboxes may need namespaces, and some adapters JIT.
+#RestrictNamespaces=yes
+#MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=multi-user.target

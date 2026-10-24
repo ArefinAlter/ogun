@@ -1,0 +1,117 @@
+/* Ogun Studio design tokens: the Forge (dark, default) and Vellum (light) themes of the Ogun brand guidelines,
+   section 6. One token set; components use only these variables. The theme follows prefers-color-scheme; the
+   toggle sets data-theme on <html> for the current session only. */
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('../assets/fonts/ibm-plex-sans-vf.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../assets/fonts/ibm-plex-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../assets/fonts/ibm-plex-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../assets/fonts/eb-garamond-vf.woff2') format('woff2');
+  font-weight: 400 800;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-display: 'EB Garamond', Georgia, 'Times New Roman', serif;
+
+  --radius-s: 4px;
+  --radius-m: 6px;
+  --radius-l: 10px;
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --gap-6: 32px;
+  --sidebar: 232px;
+  --ease: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* Forge */
+  --bg: #13110f;
+  --surface: #1c1916;
+  --raised: #2a2520;
+  --line: #3a332c;
+  --line-strong: #544a3f;
+  --text: #e9e1d0;
+  --text-2: #a99f8c;
+  --accent: #e8662e;
+  --accent-text: #e8662e;
+  --on-accent: #13110f;
+  --brass: #b89157;
+  --brass-text: #b89157;
+  --ok: #5fae9c;
+  --info: #7aa6cf;
+  --bad: #e0604a;
+  --muted-fill: #3a332c;
+  --focus: #e8662e;
+  --untrusted-bg: #241f1a;
+  --untrusted-line: #7a5a22;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #f1e9d8;
+    --surface: #e9dfca;
+    --raised: #e0d4bb;
+    --line: #cbbd9f;
+    --line-strong: #a8987a;
+    --text: #1e1a16;
+    --text-2: #57503f;
+    --accent: #b5521e;
+    --accent-text: #9c4419;
+    --on-accent: #f1e9d8;
+    --brass: #7a5a22;
+    --brass-text: #7a5a22;
+    --ok: #2f6e61;
+    --info: #2c5d86;
+    --bad: #a63a24;
+    --muted-fill: #d6c8ab;
+    --focus: #9c4419;
+    --untrusted-bg: #efe2c4;
+    --untrusted-line: #7a5a22;
+    color-scheme: light;
+  }
+}
+
+:root[data-theme='light'] {
+  --bg: #f1e9d8;
+  --surface: #e9dfca;
+  --raised: #e0d4bb;
+  --line: #cbbd9f;
+  --line-strong: #a8987a;
+  --text: #1e1a16;
+  --text-2: #57503f;
+  --accent: #b5521e;
+  --accent-text: #9c4419;
+  --on-accent: #f1e9d8;
+  --brass: #7a5a22;
+  --brass-text: #7a5a22;
+  --ok: #2f6e61;
+  --info: #2c5d86;
+  --bad: #a63a24;
+  --muted-fill: #d6c8ab;
+  --focus: #9c4419;
+  --untrusted-bg: #efe2c4;
+  --untrusted-line: #7a5a22;
+  color-scheme: light;
+}

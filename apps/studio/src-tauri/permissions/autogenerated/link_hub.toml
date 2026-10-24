@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-hub"
+description = "Enables the link_hub command without any pre-configured scope."
+commands.allow = ["link_hub"]
+
+[[permission]]
+identifier = "deny-link-hub"
+description = "Denies the link_hub command without any pre-configured scope."
+commands.deny = ["link_hub"]

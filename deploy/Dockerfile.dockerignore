@@ -1,0 +1,13 @@
+# Patterns are relative to the build context (the directory holding ogun/ and zeus-core/).
+**/.git
+**/target
+**/node_modules
+**/dist
+**/*.redb
+**/*.token
+**/*.pem
+**/*.key
+**/.env
+**/.env.*
+zeus-build-cache
+ogun-build-cache

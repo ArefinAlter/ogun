@@ -1,0 +1,41 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "studio",
+  "description": "Only the bundled main window may call the closed Ogun Studio command set. No shell, filesystem, HTTP, opener or remote-content permission is granted; the Rust process holds the daemon credential and the hub token.",
+  "local": true,
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-studio-info",
+    "allow-link-local",
+    "allow-link-hub",
+    "allow-link-forget",
+    "allow-daemon-status",
+    "allow-workflows-list",
+    "allow-workflows-get",
+    "allow-workflows-validate",
+    "allow-workflows-put",
+    "allow-runs-list",
+    "allow-runs-get",
+    "allow-runs-start",
+    "allow-runs-cancel",
+    "allow-partitions-status",
+    "allow-backfills-plan",
+    "allow-events-since",
+    "allow-approvals-list",
+    "allow-approvals-get",
+    "allow-approvals-prepare",
+    "allow-approvals-confirm",
+    "allow-approvals-discard",
+    "allow-artifacts-list",
+    "allow-artifacts-get",
+    "allow-lineage-get",
+    "allow-streams-list",
+    "allow-streams-status",
+    "allow-edges-list",
+    "allow-credentials-list",
+    "allow-secrets-list",
+    "allow-llm-ladder"
+  ]
+}

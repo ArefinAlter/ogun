@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-lineage-get"
+description = "Enables the lineage_get command without any pre-configured scope."
+commands.allow = ["lineage_get"]
+
+[[permission]]
+identifier = "deny-lineage-get"
+description = "Denies the lineage_get command without any pre-configured scope."
+commands.deny = ["lineage_get"]
