@@ -47,7 +47,8 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
 
 - Cargo workspace (`ogun-*` crates; binaries `ogun` and `ogund`): IR types and validator, durable run store, run state machine, embedded `zeus-core` engine with the null session provider.
   - Done: `ogun-types`, `ogun-ir` (types, validator, workflow hash, plan diff), `ogun-run` (table-driven run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budgets), `ogun-store` (durable run store with a kill-and-recover test), and `ogun validate`, `hash`, `diff`, `partitions` and `next`.
-  - Next: `ogund` with the embedded engine and its scheduling loop, and the core operators.
+  - Done: `ogun-api` (O-15) and `ogund` (`ogun-daemon`): the local API, executor, scheduler, stream driver and approvals (O-07), with `ogun daemon`, `put`, `run`, `backfill`, `partition-status`, `approve` and the other client commands. See `docs/IMPLEMENTATION_STATUS.md`.
+  - Next: the core operators behind `ogun-ops`, and the O1 exit test.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
@@ -64,7 +65,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
 - Next, in order:
   1. The CI matrix passing (blocked on the account's Actions billing).
   2. `ogund` and the `ogun-ingest` bridge with MQTT and HTTP push, after the O1 exit test.
-  3. Range-compressed partition status.
+  3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
   4. `ogun lsp`.
   5. Server mode without remote approvals.
   6. Edge-to-hub sync transport and enrolment.

@@ -8,6 +8,9 @@ members = [
     "crates/ogun-store",
     "crates/ogun-stream",
     "crates/ogun-edge",
+    "crates/ogun-api",
+    "crates/ogun-ops",
+    "crates/ogun-daemon",
     "crates/ogun-cli",
 ]
 
@@ -41,10 +44,17 @@ ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
 ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
 ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
+ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
+ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
+ogun-daemon = { path = "crates/ogun-daemon", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
 zeus-verify = { path = "../zeus-core/crates/zeus-verify", version = "0.1.0" }
+zeus-artifact = { path = "../zeus-core/crates/zeus-artifact", version = "0.1.0" }
+zeus-engine = { path = "../zeus-core/crates/zeus-engine", version = "0.1.0" }
+zeus-fs = { path = "../zeus-core/crates/zeus-fs", version = "0.1.0" }
+zeus-control = { path = "../zeus-core/crates/zeus-control", version = "0.1.0" }
 
 # ---- third party, versions aligned with zeus-core and zeus ----
 serde = { version = "1", features = ["derive"] }
@@ -55,9 +65,23 @@ ulid = "3"
 redb = "4.3"
 tempfile = "3.27"
 blake3 = "1.8"
+# ---- runtime: async, IPC, paths (versions as in the zeus app workspace) ----
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "io-std", "fs", "process", "signal"] }
+directories = "6"
+zeroize = { version = "1.9", features = ["derive"] }
+getrandom = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi"] }
+rustix = { version = "1", features = ["process", "fs"] }
+# ---- crypto for WebAuthn approver assertions (O-15 section 7); sha2 and base64 as in the zeus app ----
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
+sha2 = "0.11"
+base64 = "0.23"
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
-clap = { version = "4.6", features = ["derive", "wrap_help"] }
+# Terminal input without echo for `ogun secrets set` (same version as the zeus TUI).
+crossterm = "0.29"
+clap = { version = "4.6", features = ["derive", "env", "wrap_help"] }
 
 [profile.dev]
 debug = "line-tables-only"

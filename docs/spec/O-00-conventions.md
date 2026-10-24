@@ -23,7 +23,7 @@ Everything in Zeus 00 sections 3 to 10 applies to Ogun as written, including:
 
 ## 3. Identifiers
 
-Ogun identifiers are prefixed ULIDs with exactly the syntax of Zeus 00 section 5.1. Only `ogund` mints them. The prefixes below are Ogun's; none equals a Zeus prefix. Until Zeus 00 section 5.1 lists them (a Zeus pull request), this table is the reservation.
+Ogun identifiers are prefixed ULIDs with exactly the syntax of Zeus 00 section 5.1. Only `ogund` mints them. The prefixes below are Ogun's; none equals a Zeus prefix. Zeus 00 section 5.1 lists them through a Zeus pull request; until it merges, this table is the reservation.
 
 | Prefix | Entity | Persisted | Notes |
 |---|---|---|---|
@@ -37,12 +37,16 @@ Ogun identifiers are prefixed ULIDs with exactly the syntax of Zeus 00 section 5
 | `agr_` | Agent run | yes | A recorded agent run. |
 | `edg_` | Edge | yes | An edge installation; the namespace of the partitions it writes (O-11). |
 | `syn_` | Sync session | yes | One edge-to-hub sync session (O-11). |
+| `ocl_` | Local credential | yes | A client credential of `ogund` (O-15 section 4). Zeus's local credentials keep `cli_`. |
+| `usr_` | Server user | yes | A user of a self-hosted Ogun server (O-13). |
+| `wsp_` | Server workspace | yes | A workspace on a self-hosted Ogun server (O-13). |
+| `tok_` | API token | yes | An Ogun server API token; always acts as an agent, never as a person (O-13). |
 
 Artifacts use `art_` from the `zeus-artifact` store (Zeus 13): Ogun runs its own store instance through that crate, and the id is local to the store, while the BLAKE3 digest is the identity across stores.
 
 ## 4. Local API transport
 
-`ogund` has one listener, a local IPC endpoint (Unix domain socket, or a named pipe on Windows), speaking JSON-RPC 2.0 as Zeus 05 does. HTTP surfaces (MCP over HTTP, A2A) are separate bridge processes, off by default (Zeus ADR 0010 pattern). The method set is specified with the runtime; it is not part of Draft 1.
+`ogund` has one listener, a local IPC endpoint (Unix domain socket, or a named pipe on Windows), speaking JSON-RPC 2.0 as Zeus 05 does. HTTP surfaces (MCP over HTTP, A2A) are separate bridge processes, off by default (Zeus ADR 0010 pattern). The method set, handshake and policy table are O-15.
 
 ## 5. Errors
 
@@ -67,5 +71,28 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `op.crashed` | `internal` | no | An operator process exited without a result. |
 | `op.timeout` | `timeout` | yes | An attempt exceeded `policy.timeout_ms`. |
 | `internal.bug` | `internal` | no | An invariant was violated. |
+| `api.unauthenticated` | `unauthenticated` | no | The handshake failed, or a call came before it (O-15). |
+| `api.permission_denied` | `policy_denied` | no | The connection's kind or peer may not call the method (O-15 section 6). |
+| `api.method_not_found` | `unsupported` | no | No such method. |
+| `api.invalid_params` | `invalid_request` | no | Parameters do not match the method's shape. |
+| `api.payload_too_large` | `invalid_request` | no | A request line exceeds 1 MiB. |
+| `api.unavailable` | `unavailable` | yes | `ogund` is not running, is shutting down or cannot reach its store. |
+| `api.idempotency_conflict` | `conflict` | no | An idempotency key was reused with different parameters. |
+| `workflow.not_found` | `not_found` | no | No workflow or version by that name. |
+| `workflow.not_approved` | `policy_denied` | no | The version needs approvals that are not granted (O-07). |
+| `approval.not_found` | `not_found` | no | No such approval. |
+| `approval.hash_mismatch` | `conflict` | no | A decision named a request hash other than the approval's. |
+| `approval.channel_required` | `policy_denied` | no | The decision lacks evidence the daemon can check for this connection. |
+| `approval.already_decided` | `conflict` | no | The approval is no longer pending. |
+| `approval.expired` | `policy_denied` | no | The approval expired; it counts as a denial. |
+| `artifact.not_found` | `not_found` | no | No artifact with that digest. |
+| `stream.unknown` | `not_found` | no | No stream source node by that name. |
+| `stream.full` | `unavailable` | yes | The stream buffer is full under `when_full: block`; retry after `retry_after_ms`. |
+| `credential.not_found` | `not_found` | no | No such local credential. |
+| `credential.name_taken` | `conflict` | no | A live credential already has that name. |
+| `secret.not_found` | `not_found` | no | A `secret_ref` names no stored secret. |
+| `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
+| `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
+| `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |
 
 A code keeps its meaning and class forever; a replaced code is deprecated, never reused. Diagnostics (O-02 section 10) use the same lexical form in the `ir` namespace but are not errors.
