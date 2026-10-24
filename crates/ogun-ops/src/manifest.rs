@@ -254,7 +254,7 @@ impl LoadedManifest {
             |m: &str| OpError::new("op.manifest_invalid", format!("operator manifest: {m}"));
         let manifest: Manifest = serde_json::from_value(doc.clone())
             .map_err(|_| invalid("does not match the manifest shape of O-03 section 3"))?;
-        validate(&manifest).map_err(&invalid)?;
+        validate(&manifest).map_err(invalid)?;
         let validator = jsonschema::validator_for(&manifest.config_schema)
             .map_err(|_| invalid("config_schema is not a valid JSON Schema"))?;
         let jcs = zeus_verify::canonical::to_jcs_bytes(doc)
