@@ -1,0 +1,49 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/ogun-types",
+    "crates/ogun-ir",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "Apache-2.0"
+repository = "https://github.com/ArefinAlter/ogun"
+authors = ["Ogun contributors"]
+publish = false
+
+# Same lint policy as zeus-core. Every crate adds `#![forbid(unsafe_code)]` to its lib.rs or main.rs.
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "deny"
+unimplemented = "deny"
+print_stdout = "warn"
+print_stderr = "warn"
+
+[workspace.dependencies]
+# ---- this workspace ----
+ogun-types = { path = "crates/ogun-types", version = "0.1.0" }
+ogun-ir = { path = "crates/ogun-ir", version = "0.1.0" }
+
+# ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
+zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
+zeus-verify = { path = "../zeus-core/crates/zeus-verify", version = "0.1.0" }
+
+# ---- third party, versions aligned with zeus-core and zeus ----
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+ulid = "3"
+jsonschema = { version = "0.58", default-features = false }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"

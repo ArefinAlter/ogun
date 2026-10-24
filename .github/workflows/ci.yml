@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Ogun path-depends on zeus-core as a sibling checkout (ADR 0002), so both repositories are checked
+# out side by side and every step runs in ./ogun.
+jobs:
+  rust:
+    name: fmt, clippy, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ogun
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/checkout@v5
+        with:
+          repository: ArefinAlter/zeus-core
+          path: zeus-core
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ogun
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  msrv:
+    name: build on Rust 1.90
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ogun
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/checkout@v5
+        with:
+          repository: ArefinAlter/zeus-core
+          path: zeus-core
+      - uses: dtolnay/rust-toolchain@1.90.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ogun
+      - run: cargo build --workspace --all-targets

@@ -1,0 +1,45 @@
+{
+  "ir_version": 0,
+  "workflow": "climate-papers",
+  "version": 17,
+  "description": "Weekly: new climate-health papers, text extracted (OCR for scans), classified into rows.",
+  "triggers": [{ "kind": "cron", "cron": "0 3 * * 0" }],
+  "budgets": { "bytes": 64424509440, "llm_usd_micro": 2500000 },
+  "nodes": [
+    {
+      "id": "discover",
+      "op": "crawl@1",
+      "config": {
+        "start": "https://journal.example.org/climate-health",
+        "pagination": { "strategy": "rel_next", "max_pages": 40 },
+        "select": { "css": "a.pdf-link", "attr": "href" }
+      }
+    },
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "inputs": ["discover.urls"],
+      "policy": { "retries": 5, "concurrency": 8 }
+    },
+    {
+      "id": "extract",
+      "op": "pdf.extract@1",
+      "inputs": ["fetch.artifacts"],
+      "route": [{ "when": { "eq": { "field": "pdf.has_text", "value": false } }, "to": "ocr" }]
+    },
+    { "id": "ocr", "op": "tesseract@1", "config": { "lang": "eng" } },
+    {
+      "id": "classify",
+      "op": "llm.extract@1",
+      "inputs": ["extract.text", "ocr.text"],
+      "config": { "schema": "paper.schema.json" },
+      "policy": { "approval": "over_budget", "budgets": { "llm_usd_micro": 2500000 } }
+    },
+    {
+      "id": "publish",
+      "op": "duckdb@1",
+      "inputs": ["classify.rows"],
+      "config": { "write": "papers.parquet" }
+    }
+  ]
+}
