@@ -47,7 +47,8 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
 
 - Cargo workspace (`ogun-*` crates; binaries `ogun` and `ogund`): IR types and validator, durable run store, run state machine, embedded `zeus-core` engine with the null session provider.
   - Done: `ogun-types`, `ogun-ir` (types, validator, workflow hash, plan diff), `ogun-run` (table-driven run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budgets), `ogun-store` (durable run store with a kill-and-recover test), and `ogun validate`, `hash`, `diff`, `partitions` and `next`.
-  - Next: `ogund` with the embedded engine and its scheduling loop, and the core operators.
+  - Done: `ogun-api` (O-15) and `ogund` (`ogun-daemon`): the local API, executor, scheduler, stream driver and approvals (O-07), with `ogun daemon`, `put`, `run`, `backfill`, `partition-status`, `approve` and the other client commands. See `docs/IMPLEMENTATION_STATUS.md`.
+  - Next: the core operators behind `ogun-ops`, and the O1 exit test.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
@@ -65,8 +66,8 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   - `ogun-sync`: edge keys, signed offers, the edge client (`ogun-sync keygen`, `once`, `run`), and the hub-side offer verification and chunk assembly. Unit-tested; the hub handlers and relay routes are not wired yet.
 - Next, in order:
   1. The CI matrix passing (blocked on the account's Actions billing).
-  2. `ogund` with `streams.push`, after the O1 exit test, and an acceptance run of `ogun-ingest` against it (broker restart, `ogund` restart, full log under each `when_full` policy).
-  3. Range-compressed partition status.
+  2. Acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy).
+  3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
   4. `ogun lsp`.
   5. Server mode without remote approvals.
   6. Edge-to-hub sync on a hub: the `sync.offer` and `sync.chunk` handlers in `ogund`, the relay routes in `ogun-server`, and a soak test over a link that drops.
@@ -78,7 +79,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
 ## Phase O2: data and model operators
 
 - Python, SQL and dbt adapters with sandbox profiles; code-operator approvals on Ogun's trust surfaces (O-07).
-- Ogun's own LLM provider ladder; LLM operators (`llm.extract`, `llm.classify`, `embedding.generate`).
+- Ogun's own LLM provider ladder; LLM operators (`llm.extract`, `llm.classify`, `embedding.generate`). Built: `ogun-llm` (ladder, Anthropic, OpenAI, OpenAI-compatible, Ollama and Gemini clients, spend ledger) and `ogun-op-llm` (all eight model operators, O-03 section 8); the `ogund` runner side (injection, ledger writes) is next.
 - Assets, partitions and schedules with time, event and data triggers. The Python SDK and YAML authoring compile to IR.
 - Session bridge (O-08), once Zeus phase 1 has shipped the extension handoff.
 

@@ -14,7 +14,7 @@
 //! (default 1 000), `start` (`beginning` or `end`, for a file seen for the first time; default
 //! `beginning`).
 
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -67,8 +67,11 @@ fn load_position(path: &Path) -> Option<Position> {
 fn save_position(path: &Path, pos: &Position) -> Result<(), String> {
     let bytes = serde_json::to_vec(pos).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, &bytes)
-        .and_then(|()| std::fs::File::open(&tmp)?.sync_all())
+    std::fs::File::create(&tmp)
+        .and_then(|mut file| {
+            file.write_all(&bytes)?;
+            file.sync_all()
+        })
         .and_then(|()| std::fs::rename(&tmp, path))
         .map_err(|e| format!("cannot save the tail offset: {:?}", e.kind()))
 }
@@ -288,6 +291,22 @@ pub async fn run(ctx: Ctx) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tail_position_is_durable_and_can_be_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sensor.tail.json");
+        let mut position = Position {
+            identity: "sensor".into(),
+            offset: 10,
+            header: Some(vec!["time".into(), "value".into()]),
+        };
+        save_position(&path, &position).unwrap();
+        assert_eq!(load_position(&path), Some(position.clone()));
+        position.offset = 20;
+        save_position(&path, &position).unwrap();
+        assert_eq!(load_position(&path), Some(position));
+    }
 
     #[test]
     fn only_complete_lines_are_consumed() {

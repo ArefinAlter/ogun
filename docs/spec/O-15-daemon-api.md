@@ -123,7 +123,7 @@ Partition selectors for `runs.start`: `{"kind": "latest"}`, `{"kind": "keys", "k
 
 `partitions.status` and `backfills.plan` compress consecutive keys with the same state (`done`, `running`, `failed`, `missing`) into `{from, to, count, state}` ranges, so a year of five-minute windows is a handful of rows, not 105 120.
 
-`streams.push`: records are `{event_time_ms, key, payload}`, at most 10 000 per call. `first_seq` is the producer's sequence number of the first record; the daemon drops records at or below the last `accepted_through` it returned for that producer, so a producer that retries after a lost response does not duplicate. `accepted_through` means durable in the daemon's ingest log: the producer may forget those records.
+`streams.push`: records are `{event_time_ms, key, payload}`, at most 10 000 per call. `first_seq` is the producer's sequence number of the first record (from 0, one per record); the daemon drops records at or below the last `accepted_through` it returned for that producer, so a producer that retries after a lost response does not duplicate. `accepted_through` means durable in the daemon's ingest log: the producer may forget those records.
 
 The exact member types are the Rust types in `ogun_api::methods`; they are the schema for this draft.
 
