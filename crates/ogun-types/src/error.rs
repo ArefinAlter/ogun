@@ -86,6 +86,17 @@ pub const CODES: &[CodeInfo] = &[
     code("edge.not_enrolled", ErrorClass::PolicyDenied, false),
     code("sync.bad_signature", ErrorClass::PolicyDenied, false),
     code("sync.digest_mismatch", ErrorClass::Conflict, false),
+    // The self-hosted server bridge (O-13).
+    code("server.rate_limited", ErrorClass::Throttled, true),
+    code("server.not_found", ErrorClass::NotFound, false),
+    code("server.sign_in_failed", ErrorClass::Unauthenticated, false),
+    code("server.csrf_failed", ErrorClass::PolicyDenied, false),
+    code("server.webauthn_invalid", ErrorClass::InvalidRequest, false),
+    code(
+        "server.remote_approvals_disabled",
+        ErrorClass::PolicyDenied,
+        false,
+    ),
     // Model operators and the provider ladder (O-03 section 8).
     code("llm.not_configured", ErrorClass::Unavailable, false),
     code("llm.config_invalid", ErrorClass::InvalidRequest, false),
@@ -189,6 +200,7 @@ mod tests {
                     "secret",
                     "edge",
                     "sync",
+                    "server",
                     "llm"
                 ]
                 .contains(&ns),

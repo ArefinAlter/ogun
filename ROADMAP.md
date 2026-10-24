@@ -71,9 +71,9 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   2. Acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy).
   3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
   4. `ogun lsp`.
-  5. Server mode without remote approvals.
-  6. Edge-to-hub sync on a hub: the `sync.offer` and `sync.chunk` handlers in `ogund`, the relay routes in `ogun-server`, and a soak test over a link that drops.
-  7. Remote approvals with WebAuthn, after a security review.
+  5. Server mode without remote approvals. Started 2026-10-23: O-13 is Draft 1 and `ogun-server` (OIDC, workspaces, roles, API tokens, Studio-web REST and events, MCP over HTTP, the sync relay) builds; deployment assets are in `deploy/`. It waits for `ogund` to run end to end.
+  6. Edge-to-hub sync on a hub: daemon handlers, relay routes and a soak test over a link that drops.
+  7. Remote approvals with WebAuthn, after a security review. The passkey registration and decision relay are implemented behind `remote_approvals` (off by default); the external review (O-13 section 12) is open.
   8. The Android companion and gateway.
   9. The iOS companion.
 - The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record.

@@ -113,6 +113,12 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
 | `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
 | `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |
+| `server.rate_limited` | `throttled` | yes | `ogun-server` refused a request over a per-address or per-token rate limit; retry after `Retry-After` (O-13). |
+| `server.not_found` | `not_found` | no | No such server user, workspace, membership, invitation, API token or passkey (O-13). |
+| `server.sign_in_failed` | `unauthenticated` | no | An OIDC sign-in did not verify, or the identity has no account and no valid invitation (O-13). |
+| `server.csrf_failed` | `policy_denied` | no | A cookie-authenticated request that changes state lacked the CSRF header or a same-origin `Origin` (O-13). |
+| `server.webauthn_invalid` | `invalid_request` | no | A passkey registration or assertion did not verify (O-13 section 8). |
+| `server.remote_approvals_disabled` | `policy_denied` | no | A remote approval decision while `remote_approvals` is off (ADR 0010, O-13 section 8). |
 | `llm.not_configured` | `unavailable` | no | No provider in the ladder can serve a model operator (O-03 section 8.10). |
 | `llm.config_invalid` | `invalid_request` | no | `llm.json` or a model operator's configuration is invalid. |
 | `llm.provider_unavailable` | `unavailable` | yes | Every provider tried failed transiently (429, 5xx, timeout). |
