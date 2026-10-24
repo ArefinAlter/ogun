@@ -352,6 +352,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fastrand"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -800,7 +806,10 @@ dependencies = [
  "anyhow",
  "clap",
  "ogun-ir",
+ "ogun-sched",
+ "ogun-store",
  "serde_json",
+ "zeus-types",
 ]
 
 [[package]]
@@ -832,6 +841,22 @@ dependencies = [
  "ogun-ir",
  "serde",
  "serde_json",
+ "thiserror",
+ "zeus-types",
+]
+
+[[package]]
+name = "ogun-store"
+version = "0.1.0"
+dependencies = [
+ "ogun-ir",
+ "ogun-run",
+ "ogun-sched",
+ "ogun-types",
+ "redb",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror",
  "zeus-types",
 ]
@@ -961,6 +986,15 @@ name = "rand_core"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
+
+[[package]]
+name = "redb"
+version = "4.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39178e0a867f9e3eaa6292a4ab1dd3613f2519c5b564341e1e7b29b270736cc4"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "redox_syscall"
@@ -1251,6 +1285,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "tempfile"
+version = "3.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
+dependencies = [
+ "fastrand",
+ "getrandom 0.4.3",
+ "once_cell",
+ "rustix",
+ "windows-sys",
 ]
 
 [[package]]

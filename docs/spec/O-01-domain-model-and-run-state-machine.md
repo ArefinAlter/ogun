@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-00, Zeus 01 (domain model), Zeus 13 (artifacts) |
-| Implemented by | `ogun-run` (section 5) |
+| Implemented by | `ogun-run` (section 5), `ogun-store` (section 4) |
 
 ## 1. Purpose
 
@@ -32,7 +32,9 @@ A run over a partitioned workflow has one node instance per node and partition. 
 
 ## 4. Durability
 
-Every transition is committed to the run store before its effects are visible: events, child dispatch or the next transition. After a crash, `ogund` finds each node instance that was `running` and applies `recovered`, which returns it to `ready`. Operators resume from their last checkpoint; acquisitions resume from the Zeus engine's journal. Outputs are committed to the artifact store before `outputs_committed`, so a recovered node never loses or duplicates a committed artifact.
+Every transition is committed to the run store before its effects are visible: events, child dispatch or the next transition. The run store is one redb database owned by one `ogund` process; a transition and the event that records it commit in one transaction with immediate durability, so after a crash the store holds both or neither. Events carry a store-wide sequence number without gaps. Operator checkpoints are at most 64 KiB and are kept across recovery.
+
+A partition is **done** under a workflow hash when every one of its node instances is `succeeded`, or `skipped` for a reason other than a denied approval. Done partitions are what O-04 section 4 skips as `up_to_date`. After a crash, `ogund` finds each node instance that was `running` and applies `recovered`, which returns it to `ready`. Operators resume from their last checkpoint; acquisitions resume from the Zeus engine's journal. Outputs are committed to the artifact store before `outputs_committed`, so a recovered node never loses or duplicates a committed artifact.
 
 ## 5. State machine
 

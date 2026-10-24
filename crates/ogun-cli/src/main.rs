@@ -41,6 +41,25 @@ enum Command {
         /// Workflow IR, JSON.
         file: PathBuf,
     },
+    /// List the complete partitions of a workflow and which still need a run.
+    Partitions {
+        /// Workflow IR, JSON.
+        file: PathBuf,
+        /// First partition key of a backfill range.
+        #[arg(long, requires = "to")]
+        from: Option<String>,
+        /// Last partition key of a backfill range, inclusive.
+        #[arg(long, requires = "from")]
+        to: Option<String>,
+        /// A run store to read finished partitions from.
+        #[arg(long)]
+        store: Option<PathBuf>,
+    },
+    /// Print when the workflow's triggers next start a run (UTC).
+    Next {
+        /// Workflow IR, JSON.
+        file: PathBuf,
+    },
     /// Show what changed between two versions and whether the new one needs an approval.
     Diff {
         /// The approved version.
@@ -125,6 +144,71 @@ fn run(cli: &Cli) -> Result<bool> {
                 None => print_diagnostics(file, &report),
             }
             Ok(report.is_valid())
+        }
+        Command::Partitions {
+            file,
+            from,
+            to,
+            store,
+        } => {
+            let report = load(file)?;
+            let Some(wf) = report.workflow() else {
+                print_diagnostics(file, &report);
+                return Ok(false);
+            };
+            let Some(decl) = &wf.partitions else {
+                println!("{} is not partitioned", wf.workflow);
+                return Ok(true);
+            };
+            let now = zeus_types::Timestamp::now().unix_millis();
+            let keys = match (from, to) {
+                (Some(f), Some(t)) => ogun_sched::range(decl, f, t, now)?,
+                _ => ogun_sched::complete(decl, now)?,
+            };
+            let done = match store {
+                Some(path) => {
+                    let hash = report
+                        .workflow_hash
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default();
+                    ogun_store::Store::open(path)?.done_partitions(&hash)?
+                }
+                None => std::collections::BTreeSet::new(),
+            };
+            let plan = ogun_sched::plan(&keys, &done);
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&plan)?);
+                return Ok(true);
+            }
+            let span = |v: &[String]| match (v.first(), v.last()) {
+                (Some(a), Some(b)) if a == b => a.clone(),
+                (Some(a), Some(b)) => format!("{a} .. {b}"),
+                _ => "none".to_owned(),
+            };
+            println!("{} partitions complete: {}", keys.len(), span(&keys));
+            println!(
+                "  to run      {} ({})",
+                plan.to_run.len(),
+                span(&plan.to_run)
+            );
+            println!("  up to date  {}", plan.up_to_date.len());
+            Ok(true)
+        }
+        Command::Next { file } => {
+            let report = load(file)?;
+            let Some(wf) = report.workflow() else {
+                print_diagnostics(file, &report);
+                return Ok(false);
+            };
+            let now = zeus_types::Timestamp::now().unix_millis();
+            match ogun_sched::next_fire(&wf.triggers, now, None)
+                .and_then(|ms| zeus_types::Timestamp::from_unix_millis(ms).ok())
+            {
+                Some(t) => println!("{}", t.to_rfc3339()),
+                None => println!("manual only"),
+            }
+            Ok(true)
         }
         Command::Diff { old, new } => {
             let (a, b) = (load(old)?, load(new)?);

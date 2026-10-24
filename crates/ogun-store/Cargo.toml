@@ -1,0 +1,27 @@
+[package]
+name = "ogun-store"
+description = "The durable Ogun run store: runs, node instances, events and finished partitions on redb (Ogun spec O-01 section 4, O-05)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+ogun-types.workspace = true
+ogun-ir.workspace = true
+ogun-run.workspace = true
+zeus-types.workspace = true
+redb.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+ogun-sched.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
