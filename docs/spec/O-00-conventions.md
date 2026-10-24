@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | Zeus spec 00 (conventions) |
-| Decided by | ADR 0002 decision 10; proposed ADR 0006 decision 4 |
+| Decided by | ADR 0002 decision 10; ADR 0006 decision 4 |
 | Implemented by | `ogun-types` |
 
 ## 1. Purpose

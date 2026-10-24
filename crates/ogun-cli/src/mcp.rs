@@ -1,4 +1,4 @@
-//! `ogun mcp`: a Model Context Protocol server on stdio (O-14 section 3; proposed ADR 0011).
+//! `ogun mcp`: a Model Context Protocol server on stdio (O-14 section 3; ADR 0011).
 //!
 //! Newline-delimited JSON-RPC 2.0. The tools are read-only: they validate, hash, diff and plan
 //! workflow IR that the agent passes as text. None of them runs a workflow, writes a file or

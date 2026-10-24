@@ -1,4 +1,4 @@
-//! Continuous streams as windowed partitions (Ogun spec O-09; proposed ADR 0007).
+//! Continuous streams as windowed partitions (Ogun spec O-09; ADR 0007).
 //!
 //! Ogun does not embed a stream engine. A stream source writes records to a durable ingest log;
 //! records are assigned to tumbling event-time windows; when the watermark passes a window's end,

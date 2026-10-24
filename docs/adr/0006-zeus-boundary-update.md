@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-23 |
-| Would amend | [ADR 0002](0002-separate-product-on-zeus-core.md), decisions 8 and 9, and its first consequence |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
+| Amends | [ADR 0002](0002-separate-product-on-zeus-core.md), decisions 8 and 9, and its first consequence |
 
 ## Context
 
@@ -27,7 +28,7 @@ The Zeus side also delivered what Ogun asked for in Zeus ADR 0011: the `service`
 
 - The session bridge (phase O2) needs a hand-written client for a handful of spec 05 methods. That is less code than it sounds: Ogun calls `clients.*`, `files.roots.register`, job submission and events, and nothing else.
 - Implementation can begin with the parts that need no bridge: the workflow IR, the run state machine, the run store and the embedded engine.
-- ADR 0002 stays accepted; once accepted, this record replaces only the statements listed above.
+- ADR 0002 stays accepted; this record replaces only the statements listed above.
 
 ## Alternatives considered
 

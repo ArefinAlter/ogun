@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-23 |
-| Builds on | Proposed ADR 0007 (streams), Zeus ADR 0010 (one listener, HTTP bridges) |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
+| Builds on | ADR 0007 (streams), Zeus ADR 0010 (one listener, HTTP bridges) |
 | Research | `docs/research/OR5-edge-streams-platforms.md` section 2 |
 
 ## Context
@@ -18,7 +19,7 @@ A site therefore needs a component that stores data locally and forwards it late
 1. **Three tiers.**
    - **Devices** publish only. A microcontroller sends integer fixed-point readings with a device sequence number over MQTT 5, HTTP, CoAP or LoRaWAN, and never runs Ogun.
    - The **edge** runs `ogund` plus the `ogun-ingest` bridge. It is a Raspberry Pi, an industrial gateway or a site PC on Linux, Windows or macOS.
-   - The **hub** is a self-hosted Ogun server (proposed ADR 0010), or simply another workstation.
+   - The **hub** is a self-hosted Ogun server (ADR 0010), or simply another workstation.
 2. **The ingest bridge owns every protocol and every listener.** `ogun-ingest` is a separate process (Zeus ADR 0010 pattern). It runs the MQTT client, HTTP push endpoint and LoRaWAN integration, appends records to a durable ingest log, and acknowledges a device or broker only after the append commits. `ogund` keeps its single local IPC listener.
 3. **The ingest log** (O-10) is redb-indexed, with group commit and an explicit `when_full` policy:
    - `block`: stop acknowledging, so brokers queue and HTTP push gets 503 with `Retry-After`.

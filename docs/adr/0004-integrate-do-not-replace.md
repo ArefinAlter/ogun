@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-06 |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
 
 ## Context
 

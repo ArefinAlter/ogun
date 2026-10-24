@@ -308,7 +308,7 @@ Candidate taglines, undecided: "From browser session to reproducible dataset". "
 
 The original research warned that building the GUI, workflows, A2A, a file manager and a downloader at once would mean catastrophic scope creep. That warning still holds, so the order is deliberate: `zeus-core` engine, then Ogun Workflows, then Ogun Studio. The Zeus consumer app proceeds on its own track.
 
-1. Ogun's runtime starts when the `zeus-core` engine survives a crash and resumes (kill the process mid-download, restart, matching hash). The Zeus smoke test showed this on 2026-10-18, so runtime work has started (proposed ADR 0006). It does not wait for the Zeus extension or the consumer app.
+1. Ogun's runtime starts when the `zeus-core` engine survives a crash and resumes (kill the process mid-download, restart, matching hash). The Zeus smoke test showed this on 2026-10-18, so runtime work has started (ADR 0006). It does not wait for the Zeus extension or the consumer app.
 2. Before much implementation, design the four contracts that decide whether Ogun becomes this platform or gets trapped as a sophisticated downloader: the **workflow IR**, the **artifact and asset model**, the **run state machine** and the **operator ABI**.
 
 ## 16. Name

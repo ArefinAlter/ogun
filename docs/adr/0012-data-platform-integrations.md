@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-23 |
-| Refines | Proposed ADR 0004 (integrate, do not replace) |
+| Decided by | Maintainer, 2026-10-23 ("accept for all") |
+| Refines | ADR 0004 (integrate, do not replace) |
 | Research | `docs/research/OR5-edge-streams-platforms.md` section 4.3 |
 
 ## Context

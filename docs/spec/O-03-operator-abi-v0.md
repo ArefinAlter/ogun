@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-00, O-01, O-02 |
-| Decided by | Proposed ADR 0003 decision 3; proposed ADR 0004 |
+| Decided by | ADR 0003 decision 3; ADR 0004 |
 | Implemented by | Catalogue (section 7) in `ogun-ir`; manifests and invocation are not implemented yet |
 
 ## 1. Purpose

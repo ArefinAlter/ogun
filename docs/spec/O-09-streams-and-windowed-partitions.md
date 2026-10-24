@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-01, O-02, O-04, O-10 (ingest) |
-| Decided by | Proposed ADR 0007 |
+| Decided by | ADR 0007 |
 | Implemented by | `ogun-stream` (windower, window state machine, sealing); IR rules in `ogun-ir`; window keys in `ogun-sched`. The ingest bridge and the daemon loop are not implemented yet. |
 | Example | [`examples/air-quality-stream.workflow.json`](../../examples/air-quality-stream.workflow.json) |
 

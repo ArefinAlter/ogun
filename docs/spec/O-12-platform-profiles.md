@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-03, O-09, O-10 |
-| Decided by | Proposed ADRs 0009 and 0010 |
+| Decided by | ADRs 0009 and 0010 |
 
 ## 1. Purpose
 
