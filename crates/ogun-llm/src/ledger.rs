@@ -238,8 +238,11 @@ impl Ledger {
         let io = |what: &str, e: std::io::Error| LlmError::Ledger(format!("{what}: {}", e.kind()));
         let mut file = OpenOptions::new()
             .read(true)
-            .append(true)
+            // Windows append-only handles cannot truncate a torn tail. The exclusive
+            // lock keeps writes serial, and append_at explicitly seeks to the end.
+            .write(true)
             .create(true)
+            .truncate(false)
             .open(path)
             .map_err(|e| io("cannot open", e))?;
         file.try_lock()
@@ -313,7 +316,8 @@ impl Ledger {
             .map_err(|_| LlmError::Ledger("cannot serialise an entry".into()))?;
         line.push('\n');
         self.file
-            .write_all(line.as_bytes())
+            .seek(SeekFrom::End(0))
+            .and_then(|_| self.file.write_all(line.as_bytes()))
             .and_then(|()| self.file.sync_data())
             .map_err(|e| LlmError::Ledger(format!("cannot append: {}", e.kind())))?;
         self.account(&entry);
@@ -442,6 +446,30 @@ mod tests {
         )
         .unwrap();
         assert!(Ledger::open(dir.path()).is_err());
+    }
+
+    #[test]
+    fn complete_entry_without_newline_is_kept_before_append() {
+        let dir = tempfile::tempdir().unwrap();
+        let ids = IdGenerator::new();
+        let (run, ni) = (ids.run_id(), ids.node_instance_id());
+        {
+            let mut ledger = Ledger::open(dir.path()).unwrap();
+            ledger.append(usage(run, ni, 10)).unwrap();
+        }
+        let path = dir.path().join(LEDGER_FILE);
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::write(&path, &bytes[..bytes.len() - 1]).unwrap();
+        {
+            let mut ledger = Ledger::open(dir.path()).unwrap();
+            assert_eq!(ledger.len(), 1);
+            ledger.append(usage(run, ni, 2)).unwrap();
+        }
+        let verified = verify_path(&path).unwrap();
+        assert!(!verified.torn_tail);
+        assert_eq!(verified.entries.len(), 2);
+        assert_eq!(verified.entries[0].usage.cost_usd_micro, 10);
+        assert_eq!(verified.entries[1].usage.cost_usd_micro, 2);
     }
 
     #[test]
