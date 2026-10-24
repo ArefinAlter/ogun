@@ -710,6 +710,18 @@ mod tests {
             "{\"instance_id\":\"t1\",\"instruction\":\"Write done.txt\"}\n",
         )
         .unwrap();
+        // Use the native shell on Windows; passing a native path through an unquoted sh
+        // script strips backslashes and makes the evaluator look for the wrong file.
+        #[cfg(windows)]
+        let (evaluator, agent) = (
+            vec!["cmd".into(), "/C".into(), r#"if exist "{workspace}\done.txt" (echo {"passed":true,"score":1}) else (echo {"passed":false})"#.into()],
+            vec!["cmd".into(), "/C".into(), r#"echo done>done.txt & echo {"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}>"{trajectory_file}""#.into()],
+        );
+        #[cfg(not(windows))]
+        let (evaluator, agent) = (
+            vec!["sh".into(), "-c".into(), r#"test -f "$1/done.txt" && echo '{"passed":true,"score":1}' || echo '{"passed":false}'"#.into(), "test".into(), "{workspace}".into()],
+            vec!["sh".into(), "-c".into(), r#"echo done > done.txt; echo '{"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}' > "$1""#.into(), "test".into(), "{trajectory_file}".into()],
+        );
         let spec = MatrixSpec {
             name: "local smoke".into(),
             benchmarks: vec![BenchmarkSource {
@@ -717,11 +729,7 @@ mod tests {
                 path: bench,
                 tasks: vec![],
                 limit: None,
-                evaluator_command: Some(vec![
-                    "sh".into(),
-                    "-c".into(),
-                    "test -f {workspace}/done.txt && echo '{\"passed\": true, \"score\": 1}' || echo '{\"passed\": false}'".into(),
-                ]),
+                evaluator_command: Some(evaluator),
                 evaluator_result: None,
                 agent_timeout_ms: Some(10_000),
             }],
@@ -730,11 +738,7 @@ mod tests {
                 version: "1".into(),
                 model: None,
                 placement: Placement::Container,
-                command: vec![
-                    "sh".into(),
-                    "-c".into(),
-                    "echo done > done.txt; echo '{\"type\":\"usage\",\"input_tokens\":3,\"output_tokens\":4,\"cost_usd_micro\":5}' > {trajectory_file}".into(),
-                ],
+                command: agent,
                 pass_env: vec![],
                 env: BTreeMap::new(),
                 timeout_ms: None,
