@@ -17,10 +17,11 @@ Ogun is a local-first developer platform for data mining, data engineering and a
 | Path | What |
 |---|---|
 | `docs/VISION.md` | Product direction and object model. Not normative. |
-| `docs/adr/` | Decisions. ADR 0002 (the product boundary) is accepted. ADRs 0003 to 0008 are proposed. The maintainer asked for implementation to start on 2026-10-23, so `crates/` follows ADRs 0003, 0006, 0007 and 0008 ahead of their acceptance; if either changes, the code changes with it. Do not build on 0004 or 0005 until they are accepted. |
-| `docs/spec/` | Normative specs O-00 to O-14. O-00 to O-04 and O-09 to O-11 are drafted; the rest are planned (see `ROADMAP.md`). Prose wins over schema. |
+| `docs/adr/` | Decisions. ADR 0002 (the product boundary) is accepted. ADRs 0003 to 0012 are proposed. The maintainer asked for implementation to start on 2026-10-23, so `crates/` follows ADRs 0003, 0006, 0007, 0008, 0009 and 0011 ahead of their acceptance; if either changes, the code changes with it. Do not build on 0004 or 0005 until they are accepted. |
+| `docs/spec/` | Normative specs O-00 to O-14. O-00 to O-04, O-09 to O-12 and O-14 are drafted; the rest are planned (see `ROADMAP.md`). Prose wins over schema. |
 | `docs/research/` | Research corpus: OR1 to OR4 planned; OR5 (edge, streams, platforms, extensions) is a draft. Unverified unless the front matter says `verified`. |
-| `crates/` | Rust workspace: `ogun-types` (ids, errors), `ogun-ir` (workflow IR, validator, hash, plan diff), `ogun-run` (run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budget reservations), `ogun-store` (durable run store on redb, crash recovery), `ogun-stream` (event-time windows, watermarks, sealing, revisions), `ogun-edge` (durable ingest log, edge-to-hub sync protocol), `ogun-cli` (the `ogun` binary). |
+| `crates/` | Rust workspace: `ogun-types` (ids, errors), `ogun-ir` (workflow IR, validator, hash, plan diff), `ogun-run` (run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budget reservations), `ogun-store` (durable run store on redb, crash recovery), `ogun-stream` (event-time windows, watermarks, sealing, revisions), `ogun-edge` (durable ingest log, edge-to-hub sync protocol), `ogun-cli` (the `ogun` binary, including `ogun mcp`). |
+| `extensions/vscode/` | VS Code extension (plain JavaScript, no dependencies; `node --test`). Its bundled schema must equal `docs/spec/schema/`. |
 
 ## Constraints (do not violate)
 
@@ -32,5 +33,6 @@ Ogun is a local-first developer platform for data mining, data engineering and a
 6. **Models are optional.** A workflow without `llm.*` operators must run with no model access. Ogun has its own LLM provider ladder configuration and spend ledger.
 7. **Benchmark isolation** (ADR 0005): benchmark runs never touch the user's artifact stores, `zeusd` or browser sessions; network is denied by default.
 8. Shared conventions come from Zeus spec 00 (JSON `snake_case`, RFC 3339 UTC with milliseconds, `_ms` durations, prefixed ULIDs, error envelope, redaction). New id prefixes go in O-00's table first and then into Zeus 00 section 5.1 through a Zeus pull request; never reuse a Zeus prefix (`run_` is Zeus's workflow run).
-9. Rust: edition 2024, MSRV 1.90 (as `zeus-core`), `#![forbid(unsafe_code)]` outside isolated platform modules, thiserror in libraries, anyhow only in binaries, tracing for logs, no `todo!()` or `unimplemented!()` (return a typed error), doc comments on public items, dependencies declared once in the root `[workspace.dependencies]`, hermetic tests (loopback only), no telemetry, one local listener per daemon with HTTP surfaces as bridge processes (Zeus ADR 0010 pattern). Run `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` before committing.
-10. Do not run mutating git commands unless the user asks; the maintainer commits.
+9. Platform claims follow the O-12 matrix; do not claim a platform or feature it does not list.
+10. Rust: edition 2024, MSRV 1.90 (as `zeus-core`), `#![forbid(unsafe_code)]` outside isolated platform modules, thiserror in libraries, anyhow only in binaries, tracing for logs, no `todo!()` or `unimplemented!()` (return a typed error), doc comments on public items, dependencies declared once in the root `[workspace.dependencies]`, hermetic tests (loopback only), no telemetry, one local listener per daemon with HTTP surfaces as bridge processes (Zeus ADR 0010 pattern). Run `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` before committing.
+11. Do not run mutating git commands unless the user asks; the maintainer commits.

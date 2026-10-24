@@ -1,0 +1,28 @@
+{
+  "name": "ogun",
+  "displayName": "Ogun",
+  "description": "Ogun workflow IR in VS Code: schema completion and checking for *.workflow.json, diagnostics from the Ogun validator, workflow hashes.",
+  "version": "0.1.0",
+  "publisher": "verne",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/ArefinAlter/ogun" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Linters", "Data Science", "Other"],
+  "main": "./src/extension.js",
+  "activationEvents": ["workspaceContains:**/*.workflow.json", "onLanguage:json"],
+  "contributes": {
+    "jsonValidation": [{ "fileMatch": ["*.workflow.json"], "url": "./schemas/workflow-ir.v0.schema.json" }],
+    "commands": [
+      { "command": "ogun.validate", "title": "Ogun: Validate workflow" },
+      { "command": "ogun.copyHash", "title": "Ogun: Copy workflow hash" }
+    ],
+    "configuration": {
+      "title": "Ogun",
+      "properties": {
+        "ogun.path": { "type": "string", "default": "ogun", "description": "Path to the ogun command-line tool." },
+        "ogun.validateOnSave": { "type": "boolean", "default": true, "description": "Run the Ogun validator when a *.workflow.json file is saved." }
+      }
+    }
+  },
+  "scripts": { "test": "node --test" }
+}

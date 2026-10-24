@@ -52,6 +52,27 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
 
+## Streams, edge, platforms and extensions (added 2026-10-23)
+
+New requirements: continuous sensor and telemetry streams, edge devices, every desktop and mobile platform plus a self-hosted server, and extensions for editors, coding agents and data platforms. Research draft OR5 and proposed ADRs 0007 to 0012 cover them.
+
+- Done (pure logic, tested):
+  - `ogun-stream`: event-time windows, per-device watermarks, sealing, revisions and the `late` output.
+  - `ogun-edge`: the durable ingest log with backpressure, and the have/want sync protocol.
+  - IR stream members, `ogun mcp` (read-only tools), and the VS Code extension.
+  - The O-12 platform matrix, with the core crates type-checked for Android and iOS.
+- Next, in order:
+  1. The CI matrix passing (blocked on the account's Actions billing).
+  2. `ogund` and the `ogun-ingest` bridge with MQTT and HTTP push, after the O1 exit test.
+  3. Range-compressed partition status.
+  4. `ogun lsp`.
+  5. Server mode without remote approvals.
+  6. Edge-to-hub sync transport and enrolment.
+  7. Remote approvals with WebAuthn, after a security review.
+  8. The Android companion and gateway.
+  9. The iOS companion.
+- The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record.
+
 ## Phase O2: data and model operators
 
 - Python, SQL and dbt adapters with sandbox profiles; code-operator approvals on Ogun's trust surfaces (O-07).

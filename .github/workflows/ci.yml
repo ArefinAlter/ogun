@@ -54,3 +54,76 @@ jobs:
         with:
           workspaces: ogun
       - run: cargo build --workspace --all-targets
+
+  # Tier B (O-12 section 5): informational until each platform has passed an acceptance run.
+  platforms:
+    name: test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.tier == 'B' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04-arm, tier: A }
+          - { os: windows-latest, tier: A }
+          - { os: windows-11-arm, tier: B }
+          - { os: macos-13, tier: B }
+          - { os: macos-latest, tier: B }
+    defaults:
+      run:
+        working-directory: ogun
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/checkout@v5
+        with:
+          repository: ArefinAlter/zeus-core
+          path: zeus-core
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ogun
+      - run: cargo test --workspace
+
+  mobile-core:
+    name: type-check the core for Android and iOS
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: ogun
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/checkout@v5
+        with:
+          repository: ArefinAlter/zeus-core
+          path: zeus-core
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, aarch64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ogun
+      - run: |
+          for target in aarch64-linux-android aarch64-apple-ios; do
+            cargo check --target "$target" --features blake3/pure \
+              -p ogun-types -p ogun-ir -p ogun-run -p ogun-sched -p ogun-stream -p ogun-store -p ogun-edge
+          done
+
+  vscode-extension:
+    name: VS Code extension tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ogun/extensions/vscode
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node --test

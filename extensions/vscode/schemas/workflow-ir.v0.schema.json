@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArefinAlter/ogun/docs/spec/schema/workflow-ir.v0.schema.json",
+  "title": "Ogun workflow IR v0",
+  "description": "Structural schema for O-02. The prose of O-02 is normative; semantic rules (references, cycles, budgets, secrets, code) are checked by the validator, not by this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ir_version",
+    "workflow",
+    "version",
+    "nodes"
+  ],
+  "properties": {
+    "ir_version": {
+      "const": 0
+    },
+    "workflow": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "triggers": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "$ref": "#/$defs/Trigger"
+      }
+    },
+    "partitions": {
+      "$ref": "#/$defs/Partitions"
+    },
+    "budgets": {
+      "$ref": "#/$defs/Budgets"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1000,
+      "items": {
+        "$ref": "#/$defs/Node"
+      }
+    },
+    "streams": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,62}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/StreamBuffer"
+      }
+    }
+  },
+  "$defs": {
+    "UInt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "Trigger": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "manual"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cron"
+          ],
+          "properties": {
+            "kind": {
+              "const": "cron"
+            },
+            "cron": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "interval_ms"
+          ],
+          "properties": {
+            "kind": {
+              "const": "interval"
+            },
+            "interval_ms": {
+              "type": "integer",
+              "minimum": 60000,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "source"
+          ],
+          "properties": {
+            "kind": {
+              "const": "stream"
+            },
+            "source": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,62}$"
+            }
+          }
+        }
+      ]
+    },
+    "Partitions": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "granularity",
+            "start"
+          ],
+          "properties": {
+            "kind": {
+              "const": "time"
+            },
+            "granularity": {
+              "enum": [
+                "day",
+                "month"
+              ]
+            },
+            "start": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$"
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "keys"
+          ],
+          "properties": {
+            "kind": {
+              "const": "static"
+            },
+            "keys": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10000,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]{1,64}$"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "source",
+            "time_field",
+            "key_field",
+            "size_ms"
+          ],
+          "properties": {
+            "kind": {
+              "const": "window"
+            },
+            "source": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,62}$"
+            },
+            "time_field": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}(\\.[a-z][a-z0-9_]{0,63})*$"
+            },
+            "key_field": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}(\\.[a-z][a-z0-9_]{0,63})*$"
+            },
+            "size_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 86400000
+            },
+            "allowed_lateness_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 604800000,
+              "default": 0
+            },
+            "reseal_after_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 30000
+            },
+            "max_delay_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            },
+            "idle_timeout_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 600000
+            },
+            "max_future_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 300000
+            }
+          }
+        }
+      ]
+    },
+    "Budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "wall_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "llm_usd_micro": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "Node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "op"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,62}$"
+        },
+        "op": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*@[1-9][0-9]{0,5}$"
+        },
+        "inputs": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}\\.[a-z][a-z0-9_]*$"
+          }
+        },
+        "config": {
+          "type": "object"
+        },
+        "route": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/Route"
+          }
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "code": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blake3"
+          ],
+          "properties": {
+            "blake3": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "Route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "when",
+        "to"
+      ],
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,62}$"
+        }
+      }
+    },
+    "Scalar": {
+      "type": [
+        "string",
+        "integer",
+        "boolean",
+        "null"
+      ]
+    },
+    "Field": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}(\\.[a-z][a-z0-9_]{0,63})*$",
+      "maxLength": 128
+    },
+    "Predicate": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "all": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          }
+        },
+        "any": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          }
+        },
+        "not": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "eq": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "value"
+          ],
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/Field"
+            },
+            "value": {
+              "$ref": "#/$defs/Scalar"
+            }
+          }
+        },
+        "in": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "values"
+          ],
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/Field"
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {
+                "$ref": "#/$defs/Scalar"
+              }
+            }
+          }
+        },
+        "exists": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field"
+          ],
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/Field"
+            }
+          }
+        },
+        "media_type": {
+          "type": "string",
+          "pattern": "^[a-z0-9.+-]+/([a-z0-9.+-]+|\\*)$"
+        },
+        "size_bytes": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "gte": {
+              "$ref": "#/$defs/UInt"
+            },
+            "lt": {
+              "$ref": "#/$defs/UInt"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "default": 3
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 9007199254740991,
+          "default": 3600000
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 4
+        },
+        "approval": {
+          "enum": [
+            "none",
+            "always",
+            "over_budget"
+          ],
+          "default": "none"
+        },
+        "budgets": {
+          "$ref": "#/$defs/Budgets"
+        }
+      }
+    },
+    "StreamBuffer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_buffer_bytes"
+      ],
+      "properties": {
+        "max_buffer_bytes": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 9007199254740991
+        },
+        "when_full": {
+          "enum": [
+            "block",
+            "drop_oldest",
+            "drop_newest"
+          ],
+          "default": "block"
+        },
+        "dedupe_key": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}(\\.[a-z][a-z0-9_]{0,63})*$"
+          }
+        }
+      }
+    }
+  }
+}
