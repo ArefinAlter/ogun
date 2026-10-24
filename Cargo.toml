@@ -4,6 +4,7 @@ members = [
     "crates/ogun-types",
     "crates/ogun-ir",
     "crates/ogun-run",
+    "crates/ogun-sched",
     "crates/ogun-cli",
 ]
 
@@ -33,6 +34,7 @@ print_stderr = "warn"
 ogun-types = { path = "crates/ogun-types", version = "0.1.0" }
 ogun-ir = { path = "crates/ogun-ir", version = "0.1.0" }
 ogun-run = { path = "crates/ogun-run", version = "0.1.0" }
+ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
