@@ -89,8 +89,8 @@
         "classify.rows"
       ],
       "code": {
-        "blake3": "52ae0c6b1f3d9e8a7c4b2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a",
-        "path": "ops/flag_remote_sensing.py"
+        "blake3": "816659aa51c31e4cc0f51da7ce62db8663f146b77bea74aad678295c9676c3a2",
+        "path": "examples/ops/flag_remote_sensing.py"
       }
     },
     {

@@ -54,18 +54,24 @@ const INLINE_CODE_KEYS: &[&str] = &["code", "command", "query", "script", "sourc
 /// (`{"secret_ref": "name"}`) and resolved from Ogun's credential store at run time.
 const SECRET_KEYS: &[&str] = &[
     "access_key",
+    "access_token",
+    "api-key",
     "api_key",
     "apikey",
+    "auth_token",
     "authorization",
     "client_secret",
     "cookie",
     "cookies",
     "password",
     "private_key",
+    "refresh_token",
     "secret",
     "secret_key",
     "session_token",
     "token",
+    "x-api-key",
+    "x-auth-token",
 ];
 
 /// Operators that may start a DAG without inputs.

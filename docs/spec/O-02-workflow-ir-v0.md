@@ -112,7 +112,7 @@ Fields are dotted `snake_case` names of artifact metadata, at most 128 bytes. Pr
 `config` belongs to the operator, which validates it. The IR adds these rules for every operator:
 
 1. **No inline code.** Members named `code`, `command`, `query`, `script`, `source_code` or `sql` are rejected (`ir.inline_code`). Code is referenced by `code.blake3`.
-2. **No inline secrets.** A member named like a secret (`access_key`, `api_key`, `apikey`, `authorization`, `client_secret`, `cookie`, `cookies`, `password`, `private_key`, `secret`, `secret_key`, `session_token`, `token`; case-insensitive) at any depth MUST be a secret reference `{"secret_ref": "<name>"}`, resolved from Ogun's credential store at run time (`ir.secret_inline`).
+2. **No inline secrets.** A member named like a secret (`access_key`, `access_token`, `api-key`, `api_key`, `apikey`, `auth_token`, `authorization`, `client_secret`, `cookie`, `cookies`, `password`, `private_key`, `refresh_token`, `secret`, `secret_key`, `session_token`, `token`, `x-api-key`, `x-auth-token`; case-insensitive) at any depth MUST be a secret reference `{"secret_ref": "<name>"}`, resolved from Ogun's credential store at run time (`ir.secret_inline`).
 3. **No credentials in URLs.** A string of the form `scheme://user@host...` is rejected (`ir.url_credentials`).
 4. **Acquire never holds a session** (Zeus 08 section 12 item 3). `acquire` configuration has no `session` member and no `infinite_scroll` anywhere (`ir.session_in_acquire`). Sources behind a browser login use `zeus.session_acquire`, which runs through zeusd.
 

@@ -804,6 +804,7 @@ name = "ogun-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "clap",
  "ogun-ir",
  "ogun-sched",
@@ -830,6 +831,7 @@ dependencies = [
 name = "ogun-ir"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "jsonschema",
  "ogun-types",
  "serde",

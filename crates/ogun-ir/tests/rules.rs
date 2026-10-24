@@ -318,3 +318,13 @@ fn stream_rules() {
         d["nodes"][0]["config"]["password"] = json!("ZEUS-CANARY-6")
     });
 }
+
+#[test]
+fn secret_headers_are_caught() {
+    expect_error("ir.secret_inline", |d| {
+        d["nodes"][0]["config"]["headers"] = json!({ "X-API-Key": "ZEUS-CANARY-7" });
+    });
+    let mut doc = base();
+    doc["nodes"][0]["config"]["headers"] = json!({ "X-API-Key": { "secret_ref": "openaq" } });
+    assert!(codes(&doc, Severity::Error).is_empty());
+}
