@@ -160,6 +160,35 @@ impl IngestLog {
     ///
     /// [`LogError::Full`] under `block`, or a storage error (nothing is written then).
     pub fn append(&self, batch: Vec<Incoming>) -> Result<Appended, LogError> {
+        self.append_with_progress(batch, None)
+    }
+
+    /// Reads the next expected sequence for a producer, independent of released records.
+    ///
+    /// # Errors
+    /// A storage error or corrupt progress record.
+    pub fn producer_next(&self, producer: &str) -> Result<Option<u64>, LogError> {
+        let txn = self.db.begin_read().map_err(storage)?;
+        let table = txn.open_table(META).map_err(storage)?;
+        let key = format!("producer/{producer}");
+        table
+            .get(key.as_str())
+            .map_err(storage)?
+            .map(|v| serde_json::from_slice(v.value()).map_err(|_| LogError::Corrupt))
+            .transpose()
+    }
+
+    /// Appends records and advances a producer's next sequence in the same durable transaction.
+    /// Progress is not changed when the batch is refused. The caller serializes pushes from a
+    /// producer and removes already accepted records before invoking this method.
+    ///
+    /// # Errors
+    /// As [`Self::append`].
+    pub fn append_with_progress(
+        &self,
+        batch: Vec<Incoming>,
+        progress: Option<(&str, u64)>,
+    ) -> Result<Appended, LogError> {
         let encoded: Vec<Vec<u8>> = batch
             .iter()
             .map(|r| serde_json::to_vec(r).map_err(storage))
@@ -214,6 +243,12 @@ impl IngestLog {
             }
             let st_bytes = serde_json::to_vec(&st).map_err(storage)?;
             meta.insert("stats", st_bytes.as_slice()).map_err(storage)?;
+            if let Some((producer, next)) = progress {
+                let key = format!("producer/{producer}");
+                let bytes = serde_json::to_vec(&next).map_err(storage)?;
+                meta.insert(key.as_str(), bytes.as_slice())
+                    .map_err(storage)?;
+            }
         }
         txn.commit().map_err(storage)?;
         Ok(out)
@@ -292,5 +327,36 @@ impl IngestLog {
     /// A storage error.
     pub fn is_empty(&self) -> Result<bool, LogError> {
         self.len().map(|n| n == 0)
+    }
+}
+
+#[cfg(test)]
+mod progress_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn producer_progress_commits_with_batch_and_survives_release() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("log.redb");
+        let record = Incoming {
+            received_ms: 0,
+            origin: "producer".into(),
+            payload: json!({"x": 1}),
+        };
+        let log = IngestLog::open(&path, 1024, WhenFull::Block).unwrap();
+        log.append_with_progress(vec![record.clone()], Some(("producer", 1)))
+            .unwrap();
+        assert!(matches!(
+            log.append_with_progress(vec![record; 100], Some(("producer", 101))),
+            Err(LogError::Full { .. })
+        ));
+        assert_eq!(log.producer_next("producer").unwrap(), Some(1));
+        drop(log);
+        let log = IngestLog::open(&path, 1024, WhenFull::Block).unwrap();
+        assert_eq!(log.len().unwrap(), 1);
+        assert_eq!(log.producer_next("producer").unwrap(), Some(1));
+        log.release_through(0).unwrap();
+        assert_eq!(log.producer_next("producer").unwrap(), Some(1));
     }
 }
