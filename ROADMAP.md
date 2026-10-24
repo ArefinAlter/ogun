@@ -1,10 +1,12 @@
 # Roadmap
 
-Targets, not promises. Ogun is built on the `zeus-core` engine (ADR 0002). Its runtime starts when that engine passes its crash-and-resume test: kill the process mid-download, restart, and get a matching SHA-256 (Zeus segment I3). It does not wait for the Zeus extension or the consumer app. Until then the work here is contracts and research. They are cheap, and they decide whether the platform is reachable at all ([`docs/VISION.md`](docs/VISION.md) section 15).
+Targets, not promises. Ogun is built on the `zeus-core` engine (ADR 0002). Its runtime starts when that engine survives a crash and resumes. The Zeus daemon smoke test showed this on 2026-10-18: killed after 4 MiB of an 8 MiB transfer, restarted, resumed with the original validator, verified (proposed [ADR 0006](docs/adr/0006-zeus-boundary-update.md)). Fault injection at every crash point is still open Zeus phase 1 work, which Ogun tracks but does not wait for. It does not wait for the Zeus extension or the consumer app either. Contracts still come first, because they decide whether the platform is reachable at all ([`docs/VISION.md`](docs/VISION.md) section 15), so O0 and the first O1 crates proceed together.
 
-## Phase O0: contracts (now, alongside Zeus specs 05 to 08)
+## Phase O0: contracts (now; Zeus specs 00 to 14 are in Draft 1)
 
-ADR 0002 (product boundary) is accepted. ADRs 0003 to 0005 are proposed; the maintainer accepts or amends them before the specs that depend on them are written.
+ADR 0002 (product boundary) is accepted. ADRs 0003 to 0006 are proposed; the maintainer accepts or amends them. O-02 and O-03 are drafted against proposed ADR 0003 and stay Draft until it is accepted.
+
+Status on 2026-10-23: O-00 to O-03 are Draft 1 in `docs/spec/`, with a JSON Schema for the workflow IR and an example the test suite validates.
 
 Specs to write in `docs/spec/`, in this order. The first four are the contracts the vision calls decisive.
 
@@ -21,27 +23,31 @@ Specs to write in `docs/spec/`, in this order. The first four are the contracts 
 | O-08 | Session bridge: `service` credential, linking, write-root registration, importing Zeus jobs with provenance | Zeus 05 |
 
 Zeus-side work Ogun needs (tracked in Zeus ADR 0011):
-- **Spec 13:** the artifact and content-addressed store format as a `zeus-core` library.
-- **Spec 05:** the `service` client kind, write-root registration for service clients, a linking flow.
-- **`zeus-core` public API review:** the engine now has two first-party consumers.
-- **Crate moves:** `zeus-llm`, `zeus-a2a` and the pure parts of `zeus-workflow` move to `zeus-core` when Ogun first needs them.
+- **Done: spec 13.** The artifact and content-addressed store is Draft 1 and implemented as the `zeus-core` crate `zeus-artifact`.
+- **Done: spec 05.** The `service` client kind (section 7.1), its rules (7.6), `files.roots.register` (9.6) and the linking flow (15.2) are specified and implemented.
+- **Open: register Ogun's id prefixes** (O-00) in Zeus spec 00 section 5.1, through a Zeus pull request.
+- **Open: `zeus-core` public API review:** the engine now has two first-party consumers.
+- **Open: crate moves.** `zeus-llm`, `zeus-a2a` and the pure plan-IR parts of `zeus-workflow` are still in the app repository; they move to `zeus-core` when Ogun first needs them (Zeus spec 08 section 12 describes the shape).
+- **Open: a daemon-API client without app crates.** `zeus-api` depends on app crates, so proposed ADR 0006 has Ogun write its own spec 05 client.
 
 Research goes in `docs/research/`, using the same document structure as Zeus (front matter, TL;DR, "Implications for Ogun", open questions, references). Every document stays `draft` until it is verified.
 
-| # | Topic | Overlaps Zeus planned doc |
+| # | Topic | Overlaps Zeus doc (not yet written) |
 |---|---|---|
 | OR1 | Durable execution and asset orchestration: Temporal, Restate, DBOS, Dagster assets, Prefect, Kestra, Flyte, Hamilton; what "durable" costs in a single-user local daemon | 26 workflow-engine-dsl-and-durable-execution |
 | OR2 | Operator sandboxing and ABI: subprocess JSON protocols, WASI 0.2 and 0.3 components, containers, Windows job objects and AppContainer, Linux Landlock and seccomp, macOS sandbox | 17 conversion-parsing-and-sandboxed-pipelines |
 | OR3 | Agent benchmark harnesses and trajectory formats: Harbor and Terminal-Bench 2.0, ADE-bench, Spider 2.0, Inspect, SWE-bench harness, multi-benchmark harnesses for data agents; harness-optimization research | 23 testing-verification-and-benchmarking-methodology |
 | OR4 | Lineage, dataset formats and data quality: OpenLineage, W3C PROV, Croissant, Parquet, Arrow, Lance, Iceberg, Delta, DuckLake; Great Expectations, Soda, pandera | 27 llm-data-mining-pipelines-and-dataset-formats, 18 provenance standards |
 
-Zeus still writes docs 17, 18, 23, 26 and 27 for the consumer app. Ogun's versions go deeper for developer workflows and cite the Zeus docs instead of repeating them.
+Zeus research docs 17, 18, 23, 26 and 27 are planned but not written yet (the Zeus corpus has 01, 02, 03, 05, 06, 07, 08, 10, 12, 15 and 28, all draft). OR1 to OR4 cite them once they exist and go deeper for developer workflows.
 
 Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator checks (same tooling as `zeus/docs/spec/tools`).
 
-## Phase O1: runtime MVP (after the engine passes crash-and-resume)
+## Phase O1: runtime MVP (started 2026-10-23)
 
 - Cargo workspace (`ogun-*` crates; binaries `ogun` and `ogund`): IR types and validator, durable run store, run state machine, embedded `zeus-core` engine with the null session provider.
+  - Done: `ogun-types`, `ogun-ir` (types, validator, workflow hash, plan diff), `ogun-run` (table-driven run and node state machine), and `ogun validate`, `ogun hash` and `ogun diff`.
+  - Next: the durable run store, `ogund` with the embedded engine, and the core operators.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.

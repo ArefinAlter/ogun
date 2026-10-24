@@ -1,6 +1,6 @@
 # Ogun vision
 
-Status: direction, not a contract. Pre-alpha, 2026-10-06. Decisions are recorded in [`adr/`](adr/); normative contracts will live in `spec/` (none written yet). This document distills the product discussion of 2026-10-06. That discussion called the whole platform "Haul". The maintainer then split it into two products on one engine: **Zeus**, the consumer agentic download and file manager (`zeus`, `zeus-extension`), and **Ogun**, the developer platform described here. Both are built on the shared engine library `zeus-core` (ADR 0002).
+Status: direction, not a contract. Pre-alpha, 2026-10-06; Zeus references updated 2026-10-23. Decisions are recorded in [`adr/`](adr/); normative contracts will live in `spec/` (none written yet). This document distills the product discussion of 2026-10-06. That discussion called the whole platform "Haul". The maintainer then split it into two products on one engine: **Zeus**, the consumer agentic download and file manager (`zeus`, `zeus-extension`), and **Ogun**, the developer platform described here. Both are built on the shared engine library `zeus-core` (ADR 0002).
 
 ## 1. Thesis
 
@@ -70,7 +70,7 @@ Ogun is a separate product rather than a Zeus feature for three reasons. The aud
 | Environment | The isolated place a run executes: base image, fixtures, workspace, tool policy | Ogun |
 | Evaluator | Something that scores a run's outputs | Ogun |
 
-An artifact knows its id, content hash, size, MIME type, retrieval time, origin and source, licence, parent artifacts, producing operation, workflow and run, verification state and metadata. Zeus spec 04 already records most of these per file in the provenance manifest. Making them a first-class artifact with a stable id extends that ledger rather than redesigning it. The format becomes a `zeus-core` library (planned Zeus spec 13) that both products use.
+An artifact knows its id, content hash, size, MIME type, retrieval time, origin and source, licence, parent artifacts, producing operation, workflow and run, verification state and metadata. Zeus spec 04 already records most of these per file in the provenance manifest. Making them a first-class artifact with a stable id extends that ledger rather than redesigning it. The format is a `zeus-core` library (Zeus spec 13, implemented as `zeus-artifact`) that both products use.
 
 An asset groups versions, for example *WHO cholera surveillance dataset*: 2026-09-01, 2026-09-08, 2026-09-15. Dagster's asset-oriented model is the reference to study.
 
@@ -211,7 +211,7 @@ Provenance may become more strategically valuable than acquisition itself. Every
 
 That answers the questions serious ML data work asks: which model produced this record, which raw file and which site it came from, whether upstream changed, what was fetched with authenticated access, which transform created this column, and whether dataset version v18 can be reproduced.
 
-Physical blobs are stored by hash (`objects/sha256/ab/cd/abcdef...`), and logical projects reference them. Downloading the same 20 GB model twice does not duplicate storage, and a transformed dataset shares its unchanged parts. The path runs from file-level CAS to chunk-level CAS, then content-defined chunking, then a remote artifact cache (Zeus research doc 06 covers the mathematics). The store format is a `zeus-core` library; Ogun runs its own store instance (ADR 0002).
+Physical blobs are stored by hash (`objects/blake3/ab/cd/abcdef...`, Zeus spec 13), and logical projects reference them. Downloading the same 20 GB model twice does not duplicate storage, and a transformed dataset shares its unchanged parts. The path runs from file-level CAS to chunk-level CAS, then content-defined chunking, then a remote artifact cache (Zeus research doc 06 covers the mathematics). The store format is a `zeus-core` library; Ogun runs its own store instance (ADR 0002).
 
 ## 10. Agents
 
@@ -308,7 +308,7 @@ Candidate taglines, undecided: "From browser session to reproducible dataset". "
 
 The original research warned that building the GUI, workflows, A2A, a file manager and a downloader at once would mean catastrophic scope creep. That warning still holds, so the order is deliberate: `zeus-core` engine, then Ogun Workflows, then Ogun Studio. The Zeus consumer app proceeds on its own track.
 
-1. Ogun's runtime starts when the `zeus-core` engine passes its crash-and-resume test (kill the process mid-download, restart, matching SHA-256). It does not wait for the Zeus extension or the consumer app.
+1. Ogun's runtime starts when the `zeus-core` engine survives a crash and resumes (kill the process mid-download, restart, matching hash). The Zeus smoke test showed this on 2026-10-18, so runtime work has started (proposed ADR 0006). It does not wait for the Zeus extension or the consumer app.
 2. Before much implementation, design the four contracts that decide whether Ogun becomes this platform or gets trapped as a sophisticated downloader: the **workflow IR**, the **artifact and asset model**, the **run state machine** and the **operator ABI**.
 
 ## 16. Name
