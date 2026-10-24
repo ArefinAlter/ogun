@@ -95,15 +95,23 @@ fn ladder(base: &str) -> Value {
 
 /// Runs the binary with one start line; returns the stdout lines and stderr.
 async fn run(op: &str, scratch: &Path, start: Value) -> (Vec<Value>, String) {
-    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_ogun-op-llm"))
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_ogun-op-llm"));
+    command
         .arg(op)
         .current_dir(scratch)
         .env_clear()
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+        .stderr(Stdio::piped());
+    // Winsock resolves system providers through SystemRoot. Keep the rest of the
+    // environment empty so credentials and proxy settings cannot affect tests.
+    #[cfg(windows)]
+    for key in ["SystemRoot", "windir"] {
+        if let Some(value) = std::env::var_os(key) {
+            command.env(key, value);
+        }
+    }
+    let mut child = command.spawn().unwrap();
     let mut stdin = child.stdin.take().unwrap();
     stdin
         .write_all(format!("{start}\n").as_bytes())
