@@ -88,8 +88,9 @@ pub const METHODS: &[MethodPolicy] = &[
     row(name::APPROVALS_GET, PEOPLE_AND_AGENTS, false),
     // Kinds alone are not enough: the handler checks evidence against the connection (module docs).
     row(name::APPROVALS_DECIDE, HUMAN_OR_BRIDGE, true),
-    row(name::ARTIFACTS_LIST, PEOPLE_AND_AGENTS, false),
-    row(name::ARTIFACTS_GET, PEOPLE_AND_AGENTS, false),
+    // Services read artifacts too: edge sync uploads sealed windows it finds here (O-11).
+    row(name::ARTIFACTS_LIST, ALL, false),
+    row(name::ARTIFACTS_GET, ALL, false),
     row(name::LINEAGE_GET, PEOPLE_AND_AGENTS, false),
     row(name::STREAMS_PUSH, SERVICE, true),
     row(name::STREAMS_LIST, ALL, false),

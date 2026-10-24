@@ -439,7 +439,7 @@ mod tests {
     }
 
     fn cose(vk: &VerifyingKey) -> Vec<u8> {
-        let point = vk.to_encoded_point(false);
+        let point = vk.to_sec1_point(false);
         let v = Value::Map(vec![
             (Value::Integer(1.into()), Value::Integer(2.into())),
             (Value::Integer(3.into()), Value::Integer((-7).into())),
@@ -508,7 +508,7 @@ mod tests {
             &b64url(&none),
         )
         .unwrap();
-        assert_eq!(reg.sec1, vk.to_encoded_point(false).as_bytes());
+        assert_eq!(reg.sec1, vk.to_sec1_point(false).as_bytes());
         assert_eq!(reg.fmt, "none");
 
         let mut signed = auth.clone();

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# The Ogun container image: ogund, ogun, ogun-server and ogun-ingest, running as a non-root user.
+# The Ogun container image: daemon, CLI, server, ingest/sync and operator children, running as a non-root user.
 #
 # Build context: the directory that holds both checkouts side by side, because Ogun path-depends on zeus-core
 # (ADR 0002):
@@ -30,8 +30,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/ogun/target \
     cargo build --release --locked \
       --bin ogund --bin ogun --bin ogun-server --bin ogun-ingest \
+      --bin ogun-sync --bin ogun-op-llm --bin ogun-op-shim \
  && mkdir -p /out \
- && cp target/release/ogund target/release/ogun target/release/ogun-server target/release/ogun-ingest /out/
+ && cp target/release/ogund target/release/ogun target/release/ogun-server target/release/ogun-ingest \
+       target/release/ogun-sync target/release/ogun-op-llm target/release/ogun-op-shim /out/
 
 # ---- binaries the release workflow built ----
 FROM debian:bookworm-slim AS binaries-prebuilt

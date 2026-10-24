@@ -329,3 +329,25 @@ async fn the_built_in_page_is_served_without_studio_web() {
             .starts_with("text/html")
     );
 }
+
+#[tokio::test]
+async fn sync_chunks_are_capped_before_reaching_the_daemon() {
+    let f = fixture();
+    let request = json!({
+        "edge_id": "edg_01M45MN5M0PZ0D9W0APDCGRNZD",
+        "partition": "w20261023T081500Z",
+        "blake3": "a".repeat(64),
+        "index": 0,
+        "total": 1,
+        "data_base64": "A".repeat((512 * 1024usize).div_ceil(3) * 4 + 1)
+    });
+    let (status, _, value) = send(
+        &f,
+        post("/api/v1/sync/chunk")
+            .body(Body::from(request.to_string()))
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{value}");
+    assert_eq!(value["error"]["code"], "api.payload_too_large");
+}

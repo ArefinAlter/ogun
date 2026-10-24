@@ -325,7 +325,7 @@ async fn a_remote_approval_travels_with_webauthn_evidence() {
     let w = world().await;
     let sk = SigningKey::from_slice(&[11u8; 32]).unwrap();
     let vk = *sk.verifying_key();
-    let point = vk.to_encoded_point(false);
+    let point = vk.to_sec1_point(false);
 
     // Register a passkey.
     let (s, opts) = w

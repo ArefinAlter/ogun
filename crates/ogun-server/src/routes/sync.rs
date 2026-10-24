@@ -16,8 +16,9 @@ use crate::ratelimit::Class;
 use crate::routes::api::{St, body};
 use crate::security::ClientIp;
 
-/// Largest base64 payload of one chunk (O-15 section 5: 768 KiB per chunk on this transport, base64 included).
-const MAX_CHUNK_BASE64: usize = 1024 * 1024;
+/// Largest base64 payload of one chunk. Chunks are 512 KiB of bytes (O-11 section 6), 699 052 characters of
+/// base64; anything near the daemon's 1 MiB request line is refused here first.
+const MAX_CHUNK_BASE64: usize = (512 * 1024usize).div_ceil(3) * 4;
 
 async fn relay(
     s: &crate::routes::AppState,
@@ -68,7 +69,7 @@ pub async fn chunk(State(s): St, Extension(ip): Extension<ClientIp>, b: Bytes) -
         if p.data_base64.len() > MAX_CHUNK_BASE64 {
             return Err(ServerError::new(
                 "api.payload_too_large",
-                "a sync chunk is at most 1 MiB of base64",
+                "a sync chunk is at most 512 KiB before base64 encoding",
             ));
         }
         if p.total == 0 || p.index >= p.total || !crate::util::is_blake3_hex(&p.blake3) {

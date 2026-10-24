@@ -40,6 +40,26 @@ pub const CODES: &[CodeInfo] = &[
     code("op.sandbox_violation", ErrorClass::PolicyDenied, false),
     code("op.crashed", ErrorClass::Internal, false),
     code("op.timeout", ErrorClass::Timeout, true),
+    // Operator runtime (O-03 section 5; `ogun-ops`).
+    code("op.not_runnable", ErrorClass::Unsupported, false),
+    code("op.unsupported", ErrorClass::Unsupported, false),
+    code("op.manifest_invalid", ErrorClass::InvalidRequest, false),
+    code("op.config_invalid", ErrorClass::InvalidRequest, false),
+    code("op.input_invalid", ErrorClass::InvalidRequest, false),
+    code("op.output_invalid", ErrorClass::Permanent, false),
+    code("op.protocol_violation", ErrorClass::Permanent, false),
+    code("op.tool_missing", ErrorClass::Unavailable, false),
+    code("op.tool_failed", ErrorClass::Permanent, false),
+    code("op.network_denied", ErrorClass::PolicyDenied, false),
+    code("op.sandbox_unavailable", ErrorClass::Unsupported, false),
+    code("op.unsafe_archive", ErrorClass::PolicyDenied, false),
+    code("op.limit_exceeded", ErrorClass::PolicyDenied, false),
+    code("op.fetch_failed", ErrorClass::TransientNetwork, true),
+    code("op.fetch_refused", ErrorClass::Permanent, false),
+    code("op.integrity", ErrorClass::Integrity, false),
+    code("op.io", ErrorClass::Disk, true),
+    code("op.operator_failed", ErrorClass::Permanent, false),
+    code("op.operator_transient", ErrorClass::Unavailable, true),
     code("internal.bug", ErrorClass::Internal, false),
     // The local API (O-15).
     code("api.unauthenticated", ErrorClass::Unauthenticated, false),
@@ -77,6 +97,16 @@ pub const CODES: &[CodeInfo] = &[
         ErrorClass::PolicyDenied,
         false,
     ),
+    // Model operators and the provider ladder (O-03 section 8).
+    code("llm.not_configured", ErrorClass::Unavailable, false),
+    code("llm.config_invalid", ErrorClass::InvalidRequest, false),
+    code("llm.provider_unavailable", ErrorClass::Unavailable, true),
+    code("llm.auth_failed", ErrorClass::Unauthenticated, false),
+    code("llm.request_rejected", ErrorClass::InvalidRequest, false),
+    code("llm.refused", ErrorClass::PolicyDenied, false),
+    code("llm.output_invalid", ErrorClass::Integrity, false),
+    code("llm.call_limit", ErrorClass::PolicyDenied, false),
+    code("llm.input_unsupported", ErrorClass::InvalidRequest, false),
 ];
 
 /// Looks up a registered code.
@@ -170,7 +200,8 @@ mod tests {
                     "secret",
                     "edge",
                     "sync",
-                    "server"
+                    "server",
+                    "llm"
                 ]
                 .contains(&ns),
                 "{}",
