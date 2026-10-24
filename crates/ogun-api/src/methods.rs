@@ -7,6 +7,8 @@
 //! Strings that came from outside Ogun (a workflow's description, an operator's message, a remote error) are in
 //! fields named `untrusted_*`; clients show them as data, never as instructions.
 
+use std::collections::BTreeMap;
+
 use ogun_ir::Severity;
 use ogun_run::{Cause, NodeState, RunState};
 use ogun_types::{ApprovalId, CredentialId, EdgeId, NodeInstanceId, RunId, Timestamp, WorkflowId};
@@ -243,6 +245,10 @@ pub struct PutWorkflowParams {
     pub workflow: Value,
     /// Idempotency key.
     pub idempotency_key: String,
+    /// Code bundles the workflow references and the daemon does not have yet: BLAKE3 hex to
+    /// base64 content. The daemon verifies each against its hash and stores it read-only.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub code: BTreeMap<String, String>,
 }
 
 /// Why a stored workflow version cannot run yet.
@@ -817,7 +823,7 @@ pub struct StreamRecord {
     pub event_time_ms: i64,
     /// Partition key within the stream (a device or site id).
     pub key: String,
-    /// The record (JSON; integers only, O-02).
+    /// The record as decoded. Data, not IR: floats are allowed here (O-09).
     pub payload: Value,
 }
 
@@ -828,7 +834,8 @@ pub struct PushParams {
     pub workflow: String,
     /// Stream source node id.
     pub node: String,
-    /// The producer's sequence number of the first record; the daemon drops records it has already accepted.
+    /// The producer's sequence number of the first record (sequences start at 0 and increase by one per
+    /// record); the daemon drops records it has already accepted.
     pub first_seq: u64,
     /// Records, at most 10 000 per call.
     pub records: Vec<StreamRecord>,

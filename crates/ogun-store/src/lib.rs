@@ -39,6 +39,110 @@ const INSTANCES: Table = TableDefinition::new("instances");
 const RUN_INSTANCES: Table = TableDefinition::new("run_instances");
 const EVENTS: Table = TableDefinition::new("events");
 const DONE: Table = TableDefinition::new("partitions_done");
+const DOCS: Table = TableDefinition::new("docs");
+const ACTIVE: Table = TableDefinition::new("active");
+
+/// Daemon-owned documents kept beside the run state, in the same database and with the same
+/// durability, so a state change and the facts that go with it commit together.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Collection {
+    /// Workflow registry rows, by name.
+    Workflows,
+    /// Stored workflow versions, by `name/version` (zero-padded).
+    Versions,
+    /// Approvals, by approval id.
+    Approvals,
+    /// Idempotency records, by `credential/method/key`.
+    Idempotency,
+    /// Committed outputs of a node instance, by instance id.
+    Outputs,
+    /// Retry deadlines, by instance id.
+    Retries,
+    /// WebAuthn approver keys, by credential id.
+    Approvers,
+    /// Enrolled edges, by edge id.
+    Edges,
+    /// Stream state: window revisions and producer positions.
+    Streams,
+    /// Code hashes a person approved, by `workflow/blake3`.
+    CodeApprovals,
+    /// Model spend, by run id.
+    Spend,
+    /// Session-bridge requests, by instance id.
+    Sessions,
+    /// Verified code bundles known to the daemon, by BLAKE3.
+    Code,
+    /// Run-time approvals granted to a node instance, by instance id.
+    Granted,
+    /// The last error of a node instance (an O-00 envelope), by instance id.
+    Errors,
+}
+
+impl Collection {
+    const fn prefix(self) -> &'static str {
+        match self {
+            Self::Workflows => "wf/",
+            Self::Versions => "ver/",
+            Self::Approvals => "ap/",
+            Self::Idempotency => "idem/",
+            Self::Outputs => "out/",
+            Self::Retries => "retry/",
+            Self::Approvers => "apr/",
+            Self::Edges => "edge/",
+            Self::Streams => "stream/",
+            Self::CodeApprovals => "codeok/",
+            Self::Spend => "spend/",
+            Self::Sessions => "sess/",
+            Self::Code => "code/",
+            Self::Granted => "granted/",
+            Self::Errors => "err/",
+        }
+    }
+
+    fn key(self, key: &str) -> String {
+        format!("{}{key}", self.prefix())
+    }
+}
+
+/// One document write: `value: None` deletes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DocWrite {
+    /// Collection.
+    pub collection: Collection,
+    /// Key within the collection.
+    pub key: String,
+    /// New value, or `None` to delete.
+    pub value: Option<Value>,
+}
+
+impl DocWrite {
+    /// A put.
+    ///
+    /// # Errors
+    ///
+    /// A storage error when the value cannot be encoded.
+    pub fn put(
+        collection: Collection,
+        key: impl Into<String>,
+        value: &impl Serialize,
+    ) -> StoreResult<Self> {
+        Ok(Self {
+            collection,
+            key: key.into(),
+            value: Some(serde_json::to_value(value).map_err(storage)?),
+        })
+    }
+
+    /// A delete.
+    #[must_use]
+    pub fn delete(collection: Collection, key: impl Into<String>) -> Self {
+        Self {
+            collection,
+            key: key.into(),
+            value: None,
+        }
+    }
+}
 
 /// Store failures.
 #[derive(Debug, thiserror::Error)]
@@ -100,6 +204,9 @@ struct Meta {
     schema_version: u32,
     created_at: Timestamp,
     last_event_seq: u64,
+    /// The `active` index exists (stores created before it are indexed on open).
+    #[serde(default)]
+    active_index: bool,
 }
 
 /// A stored run.
@@ -252,6 +359,8 @@ impl Store {
                 RUN_INSTANCES,
                 EVENTS,
                 DONE,
+                DOCS,
+                ACTIVE,
             ] {
                 txn.open_table(t).map_err(storage)?;
             }
@@ -262,6 +371,22 @@ impl Store {
                         found: m.schema_version,
                     });
                 }
+                Some(mut m) if !m.active_index => {
+                    let instances = txn.open_table(INSTANCES).map_err(storage)?;
+                    let mut active = txn.open_table(ACTIVE).map_err(storage)?;
+                    for row in instances.iter().map_err(storage)? {
+                        let (k, v) = row.map_err(storage)?;
+                        let ni: NodeInstance = serde_json::from_slice(v.value())
+                            .map_err(|_| StoreError::Corrupt { table: "instances" })?;
+                        if !ni.state.is_terminal() {
+                            active
+                                .insert(k.value(), ni.run.to_string().as_bytes())
+                                .map_err(storage)?;
+                        }
+                    }
+                    m.active_index = true;
+                    put(&mut meta, "store", &m)?;
+                }
                 Some(_) => {}
                 None => put(
                     &mut meta,
@@ -270,6 +395,7 @@ impl Store {
                         schema_version: SCHEMA_VERSION,
                         created_at: Timestamp::now(),
                         last_event_seq: 0,
+                        active_index: true,
                     },
                 )?,
             }
@@ -326,6 +452,23 @@ impl Store {
         ids: &IdGenerator,
         now: Timestamp,
     ) -> StoreResult<RunRecord> {
+        self.create_run_with(wf, partitions, ids, now, |_| Ok(Vec::new()))
+    }
+
+    /// As [`Store::create_run`], and commits the documents `docs` returns for the new run in the
+    /// same transaction (an idempotency record, for example).
+    ///
+    /// # Errors
+    ///
+    /// As [`Store::create_run`], or the error `docs` returns.
+    pub fn create_run_with(
+        &self,
+        wf: &Workflow,
+        partitions: &[String],
+        ids: &IdGenerator,
+        now: Timestamp,
+        docs: impl FnOnce(&RunRecord) -> StoreResult<Vec<DocWrite>>,
+    ) -> StoreResult<RunRecord> {
         let hash = workflow_hash(wf)
             .map_err(|_| StoreError::Unhashable)?
             .to_string();
@@ -357,6 +500,8 @@ impl Store {
             )?;
             let mut instances = txn.open_table(INSTANCES).map_err(storage)?;
             let mut index = txn.open_table(RUN_INSTANCES).map_err(storage)?;
+            let mut active = txn.open_table(ACTIVE).map_err(storage)?;
+            let run_key = run.id.to_string();
             for partition in &partitions {
                 for node in &wf.nodes {
                     let ni = NodeInstance {
@@ -371,6 +516,9 @@ impl Store {
                         updated_at: now,
                     };
                     put(&mut instances, &ni.id.to_string(), &ni)?;
+                    active
+                        .insert(ni.id.to_string().as_str(), run_key.as_bytes())
+                        .map_err(storage)?;
                     index
                         .insert(format!("{}/{}", run.id, ni.id).as_str(), [].as_slice())
                         .map_err(storage)?;
@@ -378,6 +526,7 @@ impl Store {
                 }
             }
         }
+        Self::write_docs_in(&txn, &docs(&run)?)?;
         Self::append(
             &txn,
             now,
@@ -387,6 +536,121 @@ impl Store {
         )?;
         txn.commit().map_err(storage)?;
         Ok(run)
+    }
+
+    /// Stores a workflow's canonical form under its hash, with `docs`, in one transaction. Returns
+    /// the hash. Runs store their workflow too; this is for versions stored before any run.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::Unhashable`] or a storage error.
+    pub fn put_workflow(&self, wf: &Workflow, docs: &[DocWrite]) -> StoreResult<String> {
+        let hash = workflow_hash(wf)
+            .map_err(|_| StoreError::Unhashable)?
+            .to_string();
+        let canonical = canonical_bytes(wf).map_err(|_| StoreError::Unhashable)?;
+        let txn = self.write()?;
+        txn.open_table(WORKFLOWS)
+            .map_err(storage)?
+            .insert(hash.as_str(), canonical.as_slice())
+            .map_err(storage)?;
+        Self::write_docs_in(&txn, docs)?;
+        txn.commit().map_err(storage)?;
+        Ok(hash)
+    }
+
+    fn write_docs_in(txn: &redb::WriteTransaction, writes: &[DocWrite]) -> StoreResult<()> {
+        if writes.is_empty() {
+            return Ok(());
+        }
+        let mut t = txn.open_table(DOCS).map_err(storage)?;
+        for w in writes {
+            let key = w.collection.key(&w.key);
+            match &w.value {
+                Some(v) => put(&mut t, &key, v)?,
+                None => {
+                    t.remove(key.as_str()).map_err(storage)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes documents in one transaction.
+    ///
+    /// # Errors
+    ///
+    /// A storage error; nothing is written then.
+    pub fn write_docs(&self, writes: &[DocWrite]) -> StoreResult<()> {
+        let txn = self.write()?;
+        Self::write_docs_in(&txn, writes)?;
+        txn.commit().map_err(storage)
+    }
+
+    /// Stores one document.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
+    pub fn put_doc(
+        &self,
+        collection: Collection,
+        key: &str,
+        value: &impl Serialize,
+    ) -> StoreResult<()> {
+        self.write_docs(&[DocWrite::put(collection, key, value)?])
+    }
+
+    /// Deletes one document (absent is fine).
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
+    pub fn delete_doc(&self, collection: Collection, key: &str) -> StoreResult<()> {
+        self.write_docs(&[DocWrite::delete(collection, key)])
+    }
+
+    /// One document.
+    ///
+    /// # Errors
+    ///
+    /// A storage error, or [`StoreError::Corrupt`] when it does not decode as `T`.
+    pub fn get_doc<T: DeserializeOwned>(
+        &self,
+        collection: Collection,
+        key: &str,
+    ) -> StoreResult<Option<T>> {
+        let txn = self.db.begin_read().map_err(storage)?;
+        let t = txn.open_table(DOCS).map_err(storage)?;
+        get(&t, "docs", &collection.key(key))
+    }
+
+    /// Every document in a collection whose key starts with `prefix`, in key order.
+    ///
+    /// # Errors
+    ///
+    /// A storage error, or [`StoreError::Corrupt`] when one does not decode as `T`.
+    pub fn list_docs<T: DeserializeOwned>(
+        &self,
+        collection: Collection,
+        prefix: &str,
+    ) -> StoreResult<Vec<(String, T)>> {
+        let full = collection.key(prefix);
+        let strip = collection.prefix().len();
+        let txn = self.db.begin_read().map_err(storage)?;
+        let t = txn.open_table(DOCS).map_err(storage)?;
+        let mut out = Vec::new();
+        for row in t.range(full.as_str()..).map_err(storage)? {
+            let (k, v) = row.map_err(storage)?;
+            let key = k.value();
+            if !key.starts_with(&full) {
+                break;
+            }
+            let value = serde_json::from_slice(v.value())
+                .map_err(|_| StoreError::Corrupt { table: "docs" })?;
+            out.push((key[strip..].to_owned(), value));
+        }
+        Ok(out)
     }
 
     /// Applies one O-01 transition to a node instance, records the event and, when the last
@@ -410,10 +674,123 @@ impl Store {
         {
             return Err(StoreError::CheckpointTooLarge);
         }
+        self.transition_with(id, cause, actor, now, checkpoint, &[])
+    }
+
+    /// As [`Store::transition`], and writes `docs` in the same transaction: an operator's outputs
+    /// commit with `outputs_committed`, an approval's decision with `approval_granted`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Store::transition`]; nothing is written on error.
+    pub fn transition_with(
+        &self,
+        id: NodeInstanceId,
+        cause: Cause,
+        actor: Actor,
+        now: Timestamp,
+        checkpoint: Option<Value>,
+        docs: &[DocWrite],
+    ) -> StoreResult<NodeInstance> {
+        if let Some(c) = &checkpoint
+            && serde_json::to_vec(c).map_err(storage)?.len() > MAX_CHECKPOINT_BYTES
+        {
+            return Err(StoreError::CheckpointTooLarge);
+        }
         let txn = self.write()?;
         let updated = Self::apply(&txn, id, cause, actor, now, checkpoint)?;
+        Self::write_docs_in(&txn, docs)?;
         txn.commit().map_err(storage)?;
         Ok(updated)
+    }
+
+    /// Replaces an instance's checkpoint without a transition (operators checkpoint while running).
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::CheckpointTooLarge`], [`StoreError::NotFound`] or a storage error.
+    pub fn set_checkpoint(&self, id: NodeInstanceId, checkpoint: Value) -> StoreResult<()> {
+        if serde_json::to_vec(&checkpoint).map_err(storage)?.len() > MAX_CHECKPOINT_BYTES {
+            return Err(StoreError::CheckpointTooLarge);
+        }
+        let key = id.to_string();
+        let txn = self.write()?;
+        {
+            let mut t = txn.open_table(INSTANCES).map_err(storage)?;
+            let mut ni: NodeInstance =
+                get(&t, "instances", &key)?.ok_or_else(|| StoreError::NotFound(key.clone()))?;
+            ni.checkpoint = Some(checkpoint);
+            put(&mut t, &key, &ni)?;
+        }
+        txn.commit().map_err(storage)
+    }
+
+    /// One node instance.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::NotFound`] or a storage error.
+    pub fn instance(&self, id: NodeInstanceId) -> StoreResult<NodeInstance> {
+        let key = id.to_string();
+        let txn = self.db.begin_read().map_err(storage)?;
+        let t = txn.open_table(INSTANCES).map_err(storage)?;
+        get(&t, "instances", &key)?.ok_or(StoreError::NotFound(key))
+    }
+
+    /// Every node instance not in a terminal state, in id (creation) order.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
+    pub fn active_instances(&self) -> StoreResult<Vec<NodeInstance>> {
+        let txn = self.db.begin_read().map_err(storage)?;
+        let active = txn.open_table(ACTIVE).map_err(storage)?;
+        let t = txn.open_table(INSTANCES).map_err(storage)?;
+        let mut out = Vec::new();
+        for row in active.iter().map_err(storage)? {
+            let (k, _) = row.map_err(storage)?;
+            if let Some(ni) = get::<NodeInstance>(&t, "instances", k.value())? {
+                out.push(ni);
+            }
+        }
+        Ok(out)
+    }
+
+    /// Runs newest first, created before `before` when given, at most `limit`.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
+    pub fn list_runs(&self, before: Option<RunId>, limit: usize) -> StoreResult<Vec<RunRecord>> {
+        let txn = self.db.begin_read().map_err(storage)?;
+        let t = txn.open_table(RUNS).map_err(storage)?;
+        let mut out = Vec::new();
+        let rows: Box<dyn Iterator<Item = _>> = match before {
+            Some(b) => {
+                let end = b.to_string();
+                Box::new(t.range(..end.as_str()).map_err(storage)?.rev())
+            }
+            None => Box::new(t.iter().map_err(storage)?.rev()),
+        };
+        for row in rows.take(limit) {
+            let (_, v) = row.map_err(storage)?;
+            out.push(
+                serde_json::from_slice(v.value())
+                    .map_err(|_| StoreError::Corrupt { table: "runs" })?,
+            );
+        }
+        Ok(out)
+    }
+
+    /// The highest event sequence number.
+    ///
+    /// # Errors
+    ///
+    /// A storage error.
+    pub fn last_event_seq(&self) -> StoreResult<u64> {
+        let txn = self.db.begin_read().map_err(storage)?;
+        let t = txn.open_table(META).map_err(storage)?;
+        Ok(get::<Meta>(&t, "meta", "store")?.map_or(0, |m| m.last_event_seq))
     }
 
     fn apply(
@@ -441,6 +818,12 @@ impl Store {
             ni.checkpoint = checkpoint;
         }
         put(&mut txn.open_table(INSTANCES).map_err(storage)?, &key, &ni)?;
+        if to.is_terminal() {
+            txn.open_table(ACTIVE)
+                .map_err(storage)?
+                .remove(key.as_str())
+                .map_err(storage)?;
+        }
         Self::append(
             txn,
             now,
