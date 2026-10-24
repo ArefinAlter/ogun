@@ -278,7 +278,15 @@ impl Streams {
         let now = now_ms();
         self.with_source(d, &p.workflow, &p.node, |src| {
             // `next` is one past the producer's last accepted sequence number; 0 before any push.
-            let next = src.producers.get(&producer).copied().unwrap_or(0);
+            let producer_key = producer.to_string();
+            // New progress is in the ingest transaction; the run-store row is only a
+            // migration fallback for logs written before atomic producer progress.
+            let next = src
+                .log
+                .producer_next(&producer_key)
+                .map_err(|e| log_err(&e))?
+                .or_else(|| src.producers.get(&producer).copied())
+                .unwrap_or(0);
             let skip = usize::try_from(next.saturating_sub(p.first_seq)).unwrap_or(usize::MAX);
             let fresh: Vec<&StreamRecord> = p.records.iter().skip(skip).collect();
             let through = next_after_batch - 1;
@@ -298,7 +306,10 @@ impl Streams {
                     payload: serde_json::to_value(r).unwrap_or(Value::Null),
                 })
                 .collect();
-            let appended = match src.log.append(batch) {
+            let appended = match src
+                .log
+                .append_with_progress(batch, Some((&producer_key, next_after_batch)))
+            {
                 Ok(a) => a,
                 Err(LogError::Full { .. }) => {
                     return Ok(PushResult {
@@ -315,13 +326,23 @@ impl Streams {
             let mut late = 0u64;
             let mut late_lines = Vec::new();
             if let Some(first) = appended.first_seq {
-                for (i, r) in fresh
-                    .iter()
-                    .take(usize::try_from(appended.written).unwrap_or(usize::MAX))
-                    .enumerate()
+                // Drop policies may reject a middle record while admitting a later, smaller
+                // one. Feed exactly the committed rows, not a prefix of the submitted batch.
+                for logged in src
+                    .log
+                    .read(
+                        first,
+                        usize::try_from(appended.written).unwrap_or(usize::MAX),
+                    )
+                    .map_err(|e| log_err(&e))?
                 {
-                    let seq = first + i as u64;
-                    match src.windower.ingest(to_record(r, seq, &src.dedupe_key), now) {
+                    let seq = logged.seq;
+                    let r: StreamRecord = serde_json::from_value(logged.record.payload)
+                        .map_err(|_| ApiError::internal("invalid committed stream record"))?;
+                    match src
+                        .windower
+                        .ingest(to_record(&r, seq, &src.dedupe_key), now)
+                    {
                         Ingested::Accepted { window_start }
                         | Ingested::Revises { window_start } => {
                             let e = src.window_min_seq.entry(window_start).or_insert(seq);
@@ -340,13 +361,6 @@ impl Streams {
                 append_late(&src.late_file, &late_lines);
             }
             src.producers.insert(producer, next_after_batch);
-            d.store
-                .put_doc(
-                    Collection::Streams,
-                    &format!("{}/{}/producer/{producer}", p.workflow, p.node),
-                    &next_after_batch,
-                )
-                .map_err(store_err)?;
             Ok(PushResult {
                 accepted_through: through,
                 dropped,
