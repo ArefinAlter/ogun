@@ -57,16 +57,12 @@ pub fn to_record(
     let dedupe = if dedupe_key.is_empty() {
         None
     } else {
-        let parts: Option<Vec<String>> = dedupe_key
+        // JSON arrays retain component boundaries and scalar types, unlike delimiter joins.
+        let parts: Option<Vec<Value>> = dedupe_key
             .iter()
-            .map(|f| {
-                field(payload, f).map(|v| match v {
-                    Value::String(s) => s.clone(),
-                    other => other.to_string(),
-                })
-            })
+            .map(|f| field(payload, f).cloned())
             .collect();
-        parts.map(|p| p.join("/"))
+        parts.map(|p| Value::Array(p).to_string())
     };
     Ok(Record {
         key,

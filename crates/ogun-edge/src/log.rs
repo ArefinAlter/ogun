@@ -181,6 +181,12 @@ impl IngestLog {
             }
             for bytes in &encoded {
                 let size = bytes.len() as u64;
+                // A record that can never fit must not destroy the retained backlog.
+                if size > self.max_bytes {
+                    out.dropped_newest += 1;
+                    st.dropped_newest += 1;
+                    continue;
+                }
                 while st.bytes_used.saturating_add(size) > self.max_bytes
                     && self.when_full == WhenFull::DropOldest
                 {
