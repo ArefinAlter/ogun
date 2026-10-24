@@ -182,3 +182,43 @@ fn specs_outside_the_limits_are_refused() {
     s.allowed_lateness_ms = 8 * 86_400_000;
     assert!(Windower::new(s).is_err());
 }
+
+#[test]
+fn records_arriving_during_a_seal_are_included_in_the_next_revision() {
+    let mut w = Windower::new(spec()).unwrap();
+    let t0 = 100 * MIN;
+    w.ingest(rec("d1", t0 + 1_000, 1), t0 + 1_000);
+    w.ingest(rec("d1", t0 + 2 * MIN, 2), t0 + 2 * MIN);
+    let actions = w.poll(t0 + 2 * MIN);
+    let Action::Seal { records, .. } = &actions[0] else {
+        panic!()
+    };
+    let first = seal(records).unwrap();
+    w.ingest(rec("d1", t0 + 5_000, 3), t0 + 2 * MIN + 1);
+    assert!(w.seal_committed(t0, &first.blake3));
+    assert_eq!(w.state(t0), Some(WindowState::Dirty));
+    let checkpoint = serde_json::to_string(&w).unwrap();
+    let mut restarted: Windower = serde_json::from_str(&checkpoint).unwrap();
+    let actions = restarted.poll(t0 + 3 * MIN);
+    let Action::Seal {
+        records, revision, ..
+    } = &actions[0]
+    else {
+        panic!()
+    };
+    assert_eq!(*revision, 2);
+    assert_eq!(records.len(), 2);
+    assert!(records.iter().any(|r| r.seq == 3));
+}
+
+#[test]
+fn lateness_deadline_is_enforced_even_before_poll() {
+    let mut w = Windower::new(spec()).unwrap();
+    let t0 = 100 * MIN;
+    w.ingest(rec("d1", t0 + 1_000, 1), t0 + 1_000);
+    assert_eq!(
+        w.ingest(rec("d1", t0 + 2_000, 2), t0 + 11 * MIN),
+        Ingested::Late
+    );
+    assert_eq!(w.take_late().len(), 1);
+}
