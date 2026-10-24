@@ -113,5 +113,14 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
 | `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
 | `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |
+| `llm.not_configured` | `unavailable` | no | No provider in the ladder can serve a model operator (O-03 section 8.10). |
+| `llm.config_invalid` | `invalid_request` | no | `llm.json` or a model operator's configuration is invalid. |
+| `llm.provider_unavailable` | `unavailable` | yes | Every provider tried failed transiently (429, 5xx, timeout). |
+| `llm.auth_failed` | `unauthenticated` | no | A model provider rejected its API key. |
+| `llm.request_rejected` | `invalid_request` | no | A model provider rejected the request as invalid. |
+| `llm.refused` | `policy_denied` | no | A model or provider declined on policy grounds. |
+| `llm.output_invalid` | `integrity` | no | A model's answer failed schema validation after the repair request. |
+| `llm.call_limit` | `policy_denied` | no | A model operator's `max_calls` would be exceeded. |
+| `llm.input_unsupported` | `invalid_request` | no | A model operator's input is not text, too large or the wrong shape. |
 
 A code keeps its meaning and class forever; a replaced code is deprecated, never reused. Diagnostics (O-02 section 10) use the same lexical form in the `ir` namespace but are not errors.

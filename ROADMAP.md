@@ -47,7 +47,8 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
 
 - Cargo workspace (`ogun-*` crates; binaries `ogun` and `ogund`): IR types and validator, durable run store, run state machine, embedded `zeus-core` engine with the null session provider.
   - Done: `ogun-types`, `ogun-ir` (types, validator, workflow hash, plan diff), `ogun-run` (table-driven run and node state machine), `ogun-sched` (cron, partitions, backfill plans, budgets), `ogun-store` (durable run store with a kill-and-recover test), and `ogun validate`, `hash`, `diff`, `partitions` and `next`.
-  - Next: `ogund` with the embedded engine and its scheduling loop, and the core operators.
+  - Done: `ogun-api` (O-15) and `ogund` (`ogun-daemon`): the local API, executor, scheduler, stream driver and approvals (O-07), with `ogun daemon`, `put`, `run`, `backfill`, `partition-status`, `approve` and the other client commands. See `docs/IMPLEMENTATION_STATUS.md`.
+  - Next: the core operators behind `ogun-ops`, and the O1 exit test.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
   - Done (`ogun-ops`, `ogun-op-shims`): the operator registry; every core operator of O-03 section 7 (with `acquire` on the zeus-core engine and a no-session provider, and a robots-aware same-origin `crawl`); the `jsonl-stdio/0` runner with manifests, `config_schema` checks, secrets on stdin only and redacted stderr; the bubblewrap and `sandbox-exec` sandboxes; shims for DuckDB, SQL, dbt, shell, Poppler, Tesseract, PaddleOCR, ffmpeg, pandoc, yt-dlp, rclone, git and Hugging Face. The Smart Air Python operators run unchanged.
   - Next: wiring into `ogund`; a loopback test hook for `acquire` and `crawl`; Windows sandboxing.
@@ -63,13 +64,15 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   - `ogun-edge`: the durable ingest log with backpressure, and the have/want sync protocol.
   - IR stream members, `ogun mcp` (read-only tools), and the VS Code extension.
   - The O-12 platform matrix, with the core crates type-checked for Android and iOS.
+  - `ogun-ingest`, the ingest bridge: MQTT (TLS, QoS 1, persistent session, PUBACK after commit), HTTP push, LoRaWAN (ChirpStack v4, The Things Stack v3), Modbus TCP and RTU-over-TCP, and file tail, each with its own durable log and a `streams.push` forwarder. Unit-tested; not yet run against `ogund`.
+  - `ogun-sync`: edge keys, signed offers, the edge client (`ogun-sync keygen`, `once`, `run`), and the hub-side offer verification and chunk assembly. Unit-tested; the hub handlers and relay routes are not wired yet.
 - Next, in order:
   1. The CI matrix passing (blocked on the account's Actions billing).
-  2. `ogund` and the `ogun-ingest` bridge with MQTT and HTTP push, after the O1 exit test.
-  3. Range-compressed partition status.
+  2. Acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy).
+  3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
   4. `ogun lsp`.
   5. Server mode without remote approvals.
-  6. Edge-to-hub sync transport and enrolment.
+  6. Edge-to-hub sync on a hub: the `sync.offer` and `sync.chunk` handlers in `ogund`, the relay routes in `ogun-server`, and a soak test over a link that drops.
   7. Remote approvals with WebAuthn, after a security review.
   8. The Android companion and gateway.
   9. The iOS companion.
@@ -78,7 +81,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
 ## Phase O2: data and model operators
 
 - Python, SQL and dbt adapters with sandbox profiles; code-operator approvals on Ogun's trust surfaces (O-07).
-- Ogun's own LLM provider ladder; LLM operators (`llm.extract`, `llm.classify`, `embedding.generate`).
+- Ogun's own LLM provider ladder; LLM operators (`llm.extract`, `llm.classify`, `embedding.generate`). Built: `ogun-llm` (ladder, Anthropic, OpenAI, OpenAI-compatible, Ollama and Gemini clients, spend ledger) and `ogun-op-llm` (all eight model operators, O-03 section 8); the `ogund` runner side (injection, ledger writes) is next.
 - Assets, partitions and schedules with time, event and data triggers. The Python SDK and YAML authoring compile to IR.
 - Session bridge (O-08), once Zeus phase 1 has shipped the extension handoff.
 

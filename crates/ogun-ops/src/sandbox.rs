@@ -297,15 +297,9 @@ pub fn command(backend: &Backend, plan: &Plan) -> tokio::process::Command {
                 ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"].map(OsString::from),
             );
             let mut seen = std::collections::BTreeSet::new();
-            let binds: Vec<PathBuf> = if plan.read_only.len() > 2000 {
-                plan.read_only
-                    .iter()
-                    .filter_map(|p| p.parent().map(Path::to_path_buf))
-                    .collect()
-            } else {
-                plan.read_only.clone()
-            };
-            for path in binds {
+            // A large input set must not widen a file grant to its parent directory:
+            // sibling artifacts may belong to other workflows or contain secrets.
+            for path in plan.read_only.iter().cloned() {
                 if !seen.insert(path.clone()) || path.starts_with("/usr") {
                     continue;
                 }
@@ -380,6 +374,31 @@ pub async fn kill_tree(child: &mut tokio::process::Child) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn large_input_sets_never_expose_parent_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = dir.path().join("private-artifacts");
+        let plan = Plan {
+            program: "/bin/true".into(),
+            args: vec![],
+            scratch: dir.path().join("scratch"),
+            read_only: (0..2001)
+                .map(|i| parent.join(format!("input-{i}")))
+                .collect(),
+            network: false,
+            memory_bytes: None,
+            cpu_ms: None,
+            env: vec![],
+        };
+        let cmd = command(&Backend::Bwrap("bwrap".into()), &plan);
+        let args: Vec<_> = cmd.as_std().get_args().collect();
+        assert!(!args.contains(&parent.as_os_str()));
+        for input in &plan.read_only {
+            assert!(args.contains(&input.as_os_str()));
+        }
+    }
 
     #[test]
     fn profiles_quote_paths() {
