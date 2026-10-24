@@ -16,6 +16,8 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | O-07 | Approvals and trust surfaces | Planned | |
 | O-08 | Session bridge | Planned | |
 | [O-09](O-09-streams-and-windowed-partitions.md) | Streams and windowed partitions | Draft 1 (needs ADR 0007) | `ogun-stream`; IR rules in `ogun-ir` |
+| [O-10](O-10-edge-ingestion.md) | Edge ingestion and the ingest log | Draft 1 (needs ADR 0008) | `ogun-edge::log` |
+| [O-11](O-11-edge-hub-sync.md) | Edge-to-hub sync | Draft 1 (needs ADR 0008) | `ogun-edge::sync` |
 
 Draft 1 means: complete enough to implement against, not yet reviewed by the maintainer. O-02 and O-03 rest on ADR 0003, which is still proposed; if it changes, they change.
 
