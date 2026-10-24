@@ -42,6 +42,7 @@ fn field(text: &str, lo: u32, hi: u32) -> Result<(u64, bool), CronError> {
             Some((b, s)) => {
                 let s: u32 = s.parse().map_err(|_| CronError)?;
                 if s == 0
+                    || s > hi.max(1)
                     || !item
                         .rsplit('/')
                         .next()
@@ -71,7 +72,7 @@ fn field(text: &str, lo: u32, hi: u32) -> Result<(u64, bool), CronError> {
             v += step;
         }
     }
-    Ok((bits, text != "*"))
+    Ok((bits, !text.starts_with('*')))
 }
 
 impl Cron {
@@ -109,9 +110,7 @@ impl Cron {
         let dow = self.days_of_week & (1 << weekday(days)) != 0;
         match (self.dom_restricted, self.dow_restricted) {
             (true, true) => dom || dow,
-            (true, false) => dom,
-            (false, true) => dow,
-            (false, false) => true,
+            _ => dom && dow,
         }
     }
 
@@ -216,6 +215,24 @@ mod tests {
             Some(at(2028, 2, 29, 0, 0))
         );
         assert_eq!(Cron::parse("0 0 31 2 *").unwrap().next_after(0), None);
+    }
+
+    #[test]
+    fn rejects_steps_outside_the_ir_field_limits() {
+        for text in ["1/4294967295 * * * *", "*/60 * * * *", "0 */24 * * *"] {
+            assert!(Cron::parse(text).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn wildcard_day_steps_are_intersected_with_weekdays() {
+        // Vixie cron treats a field starting with '*' as wildcard even with a step.
+        let c = Cron::parse("0 0 */2 * 5").unwrap();
+        // October 25 is a selected (odd) day but not Friday; October 30 is Friday but even.
+        assert_eq!(
+            c.next_after(at(2026, 10, 23, 0, 0)),
+            Some(at(2026, 11, 13, 0, 0))
+        );
     }
 
     #[test]
