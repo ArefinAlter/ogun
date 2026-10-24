@@ -50,6 +50,8 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
   - Done: `ogun-api` (O-15) and `ogund` (`ogun-daemon`): the local API, executor, scheduler, stream driver and approvals (O-07), with `ogun daemon`, `put`, `run`, `backfill`, `partition-status`, `approve` and the other client commands. See `docs/IMPLEMENTATION_STATUS.md`.
   - Next: the core operators behind `ogun-ops`, and the O1 exit test.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
+  - Done (`ogun-ops`, `ogun-op-shims`): the operator registry; every core operator of O-03 section 7 (with `acquire` on the zeus-core engine and a no-session provider, and a robots-aware same-origin `crawl`); the `jsonl-stdio/0` runner with manifests, `config_schema` checks, secrets on stdin only and redacted stderr; the bubblewrap and `sandbox-exec` sandboxes; shims for DuckDB, SQL, dbt, shell, Poppler, Tesseract, PaddleOCR, ffmpeg, pandoc, yt-dlp, rclone, git and Hugging Face. The Smart Air Python operators run unchanged.
+  - Next: wiring into `ogund`; a loopback test hook for `acquire` and `crawl`; Windows sandboxing.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
 

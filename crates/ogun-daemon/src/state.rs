@@ -274,12 +274,11 @@ impl Daemon {
         .map_err(|e| DaemonError::Artifacts(e.to_string()))?;
         let mut operator_dirs = config.operator_dirs.clone();
         operator_dirs.push(paths.state_dir.join("operators"));
-        let registry = Registry::new(ogun_ops::Environment {
-            state_dir: paths.state_dir.clone(),
-            operator_dirs,
-            model_access: config.model_access,
-            allow_unsandboxed: config.allow_unsandboxed,
-        });
+        let mut environment = ogun_ops::Environment::new(paths.state_dir.clone());
+        environment.operator_dirs = operator_dirs;
+        environment.model_access = config.model_access;
+        environment.allow_unsandboxed = config.allow_unsandboxed;
+        let registry = Registry::new(environment);
         let secrets = Arc::new(SecretStore::open(paths.secrets_dir())?);
         let last = store.last_event_seq()?;
         let trusted = Trusted::discover(&config);

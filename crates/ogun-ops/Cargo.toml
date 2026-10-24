@@ -18,6 +18,34 @@ thiserror.workspace = true
 blake3.workspace = true
 tokio.workspace = true
 zeroize.workspace = true
+tracing.workspace = true
+jsonschema.workspace = true
+# zeus-core: the engine `acquire` runs on, its HTTP stack (`crawl`), names and archive limits.
+zeus-types.workspace = true
+zeus-verify.workspace = true
+zeus-engine.workspace = true
+zeus-http.workspace = true
+zeus-fs.workspace = true
+zeus-session.workspace = true
+zeus-journal.workspace = true
+zeus-control.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+bytes.workspace = true
+http.workspace = true
+url.workspace = true
+scraper.workspace = true
+jsonpath-rust.workspace = true
+regex.workspace = true
+zip.workspace = true
+tar.workspace = true
+flate2.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

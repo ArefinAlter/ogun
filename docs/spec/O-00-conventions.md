@@ -70,6 +70,25 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `op.sandbox_violation` | `policy_denied` | no | An operator tried something its manifest does not declare. |
 | `op.crashed` | `internal` | no | An operator process exited without a result. |
 | `op.timeout` | `timeout` | yes | An attempt exceeded `policy.timeout_ms`. |
+| `op.not_runnable` | `unsupported` | no | The operator exists but does not run in `ogund` (stream sources run in the ingest bridge, O-10). |
+| `op.unsupported` | `unsupported` | no | The operator does not support this configuration in this build. |
+| `op.manifest_invalid` | `invalid_request` | no | An operator's manifest is missing, unreadable or invalid (O-03 section 3). |
+| `op.config_invalid` | `invalid_request` | no | A node's `config` fails the operator's `config_schema` or its own checks. |
+| `op.input_invalid` | `invalid_request` | no | An input cannot be read, or does not have the form the operator needs. |
+| `op.output_invalid` | `permanent` | no | An operator reported an output that is missing, not a regular file or not well formed. |
+| `op.protocol_violation` | `permanent` | no | A child operator broke `jsonl-stdio/0` (malformed line, oversized checkpoint). |
+| `op.tool_missing` | `unavailable` | no | The external tool an adapter wraps, or its command, is not installed. |
+| `op.tool_failed` | `permanent` | no | The external tool exited unsuccessfully. |
+| `op.network_denied` | `policy_denied` | no | A request or manifest needs network that the environment or `allowed_domains` does not grant. |
+| `op.sandbox_unavailable` | `unsupported` | no | No OS sandbox is available and unsandboxed child operators are not allowed. |
+| `op.unsafe_archive` | `policy_denied` | no | An archive entry escapes the extraction root, is a link or device, or breaks a limit. |
+| `op.limit_exceeded` | `policy_denied` | no | An operator cap (bytes, files, pages, rows) was reached. |
+| `op.fetch_failed` | `transient_network` | yes | A network fetch failed in a way that may pass. |
+| `op.fetch_refused` | `permanent` | no | The server refused the request (4xx other than throttling), or robots.txt disallows it. |
+| `op.integrity` | `integrity` | no | Bytes do not match a declared digest or size. |
+| `op.io` | `disk` | yes | A local file operation in the scratch directory failed. |
+| `op.operator_failed` | `permanent` | no | A child operator reported an error whose code Ogun does not register; `details.operator_code` keeps it. |
+| `op.operator_transient` | `unavailable` | yes | As `op.operator_failed`, for an error the operator marked retryable. |
 | `internal.bug` | `internal` | no | An invariant was violated. |
 | `api.unauthenticated` | `unauthenticated` | no | The handshake failed, or a call came before it (O-15). |
 | `api.permission_denied` | `policy_denied` | no | The connection's kind or peer may not call the method (O-15 section 6). |

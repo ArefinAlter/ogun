@@ -5,7 +5,7 @@
 | Status | Draft 1 |
 | Depends on | O-00, O-01, O-02 |
 | Decided by | ADR 0003 decision 3; ADR 0004 |
-| Implemented by | Catalogue (section 7) in `ogun-ir`; model operators (section 8) in `ogun-llm` and `ogun-op-llm`; manifests and invocation are not implemented yet |
+| Implemented by | Catalogue (section 7) in `ogun-ir`; registry, core operators, manifests, `jsonl-stdio/0` runner and sandbox (sections 2 to 6) in `ogun-ops`; tool shims in `ogun-op-shims`; model operators (section 8) in `ogun-llm` and `ogun-op-llm` |
 
 ## 1. Purpose
 
@@ -54,6 +54,17 @@ Every non-core operator ships a manifest. `ogund` refuses to run an operator who
 
 The manifest's BLAKE3 over its JCS form is recorded in the lineage of every artifact the operator produces, together with the code hash for `code` operators.
 
+Two optional members extend the table:
+
+| Member | Meaning |
+|---|---|
+| `tools` | External programs the command drives: `[{"any_of": ["hf", "huggingface-cli"], "optional": false}]`. A missing required tool is `op.tool_missing`; the tools' directories are bound read-only into the sandbox. |
+| `code` | `{"bundle": "file"}` (default) or `{"bundle": "archive"}`: the verified code file is a zip or tar archive, extracted safely into the scratch directory before start. |
+
+`invocation.command` may use the placeholders `{code}`, `{code_dir}`, `{scratch}` and `{manifest_dir}`. File system grants are `inputs:ro`, `scratch:rw` (required), `code:ro` and `workspace:ro` (the daemon's read-only workspace directory). Every adapter, code and model operator of section 7 has a manifest compiled into `ogund`. An installed manifest (`<name>.manifest.json` in an operator directory) with the same name and major version replaces it; it MUST NOT change the kind or drop a catalogue output (`op.manifest_invalid`). This settles O-02 open issue 3.
+
+A `network` grant of `allowlist` cannot be enforced by the OS sandboxes of this version (they isolate the network namespace or share it); such a manifest is refused with `op.sandbox_unavailable` rather than run with more network than it declares.
+
 ## 4. Invocation: `jsonl-stdio/0`
 
 1. `ogund` starts the command in its sandbox with a clean environment, the working directory set to a fresh scratch directory, and no inherited handles except stdin, stdout and stderr.
@@ -62,6 +73,14 @@ The manifest's BLAKE3 over its JCS form is recorded in the lineage of every arti
 4. stderr is captured as diagnostics, size-limited and redacted before it is stored.
 5. `ogund` ingests every declared output into the artifact store and commits them before the node instance moves to `succeeded`.
 6. An exit without `result` or `error` is `op.crashed`; exceeding `policy.timeout_ms` is `op.timeout`.
+
+Details of version 0:
+
+- **Start line.** Besides the members above it carries `protocol`, `op`, `run_id`, `node_id`, `partition`, `window` (`start_ms`, `end_ms`, when the partition has one), `attempt`, `deadline_ms`, `run_start_ms`, `scratch`, `workspace` (with the `workspace:ro` grant), `code` (`path`, `blake3`, and `dir` for an archive bundle) and `checkpoint`. An input's `port` is the id of the producing node (`sales` for `sales.tables`) and `ref` the full reference. `config` keeps its `{"secret_ref"}` objects; `secrets` maps exactly the names the node uses to their values. Run-context placeholders (`{partition}`, `{partition.year}`, `{run.date}` and the rest of the closed set in `ogun_ops::context`) are expanded in `config` before the operator sees it.
+- **More lines.** `usage` (`provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd_micro`) from model operators, and `log` (`message`). Unknown line types are ignored. A line longer than 1 MiB, a line that is not JSON, or a checkpoint over 64 KiB is `op.protocol_violation`. An output on a port the manifest does not declare, or a path outside the scratch directory after resolving links, is `op.sandbox_violation`. Output metadata holds no floating-point numbers; the runner turns any into integers or decimal text.
+- **Errors.** A child's envelope keeps a registered `op.*`, `llm.*`, `secret.*` or `artifact.*` code (and `run.budget_exhausted`); any other code becomes `op.operator_failed`, or `op.operator_transient` when the child marked a transient class retryable, with the child's code in `details.operator_code`.
+- **stderr.** At most 64 KiB per attempt, lines cut at 2 KiB; every resolved secret value (raw and percent-encoded) and every URL query is removed before a line becomes a run log entry.
+- **Sandbox.** Linux: bubblewrap (new namespaces, network unshared unless granted, read-only system directories, inputs, code, workspace and tools, read-write scratch, private `/tmp`, no home directory, `--die-with-parent`, `--new-session`, capabilities dropped). macOS: `sandbox-exec` with a generated deny-by-default profile. `memory_bytes` and `cpu_ms` become address-space and CPU-time limits. Where no sandbox is available (Windows in this version), child operators are refused with `op.sandbox_unavailable` unless the daemon runs a development profile that allows unsandboxed operators; every such attempt is logged. Cancellation kills the child's process group.
 
 WASI components are under evaluation as a second protocol (research OR2).
 
