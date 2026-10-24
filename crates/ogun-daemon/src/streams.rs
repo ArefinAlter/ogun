@@ -610,6 +610,106 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    async fn stream_daemon(path: &std::path::Path, when_full: &str) -> std::sync::Arc<Daemon> {
+        let d = Daemon::open(ogun_api::OgunPaths::rooted(path, None)).unwrap();
+        let mut workflow: Value = serde_json::from_str(include_str!(
+            "../../../examples/air-quality-stream.workflow.json"
+        ))
+        .unwrap();
+        workflow["streams"]["sensors"]["dedupe_key"] = json!([]);
+        workflow["streams"]["sensors"]["when_full"] = json!(when_full);
+        workflow["streams"]["sensors"]["max_buffer_bytes"] = json!(1 << 20);
+        let conn = crate::server::Conn {
+            kind: ogun_api::ClientKind::Human,
+            credential: d.ids.credential_id(),
+            name: "test".into(),
+            peer: Default::default(),
+            interactive: false,
+        };
+        crate::handlers::dispatch(
+            &d,
+            &conn,
+            ogun_api::methods::name::WORKFLOWS_PUT,
+            json!({"workflow": workflow, "idempotency_key":"stream-test"}),
+        )
+        .await
+        .unwrap();
+        d
+    }
+
+    #[tokio::test]
+    async fn retry_after_restart_uses_ingest_progress_without_run_store_frontier() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = stream_daemon(dir.path(), "block").await;
+        let producer = d.ids.credential_id();
+        let p = PushParams {
+            workflow: "air-quality-stream".into(),
+            node: "sensors".into(),
+            first_seq: 0,
+            records: vec![StreamRecord {
+                event_time_ms: now_ms(),
+                key: "device".into(),
+                payload: json!({"value":1}),
+            }],
+        };
+        d.streams.push(&d, producer, &p).unwrap();
+        // The producer checkpoint is not in the separate run store. This is the state
+        // in which the previous two-database implementation duplicated a retry after a crash.
+        d.store
+            .delete_doc(
+                Collection::Streams,
+                &format!("air-quality-stream/sensors/producer/{producer}"),
+            )
+            .unwrap();
+        drop(d);
+        let d = Daemon::open(ogun_api::OgunPaths::rooted(dir.path(), None)).unwrap();
+        let retry = d.streams.push(&d, producer, &p).unwrap();
+        assert_eq!(retry.accepted_through, 0);
+        assert_eq!(
+            d.streams.status(&d, &p.workflow, &p.node).unwrap().buffered,
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn drop_newest_windows_only_records_actually_committed() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = stream_daemon(dir.path(), "drop_newest").await;
+        let producer = d.ids.credential_id();
+        let at = now_ms() - 10 * 60_000;
+        let p = PushParams {
+            workflow: "air-quality-stream".into(),
+            node: "sensors".into(),
+            first_seq: 0,
+            records: vec![
+                StreamRecord {
+                    event_time_ms: at,
+                    key: "device".into(),
+                    payload: json!({"value":"x".repeat(2 << 20)}),
+                },
+                StreamRecord {
+                    event_time_ms: at + 1,
+                    key: "device".into(),
+                    payload: json!({"value":"kept"}),
+                },
+            ],
+        };
+        let pushed = d.streams.push(&d, producer, &p).unwrap();
+        assert_eq!(pushed.dropped, 1);
+        let mut sources = lock(&d.streams.inner);
+        let source = sources.get_mut(&(p.workflow, p.node)).unwrap();
+        let actions = source.windower.poll(now_ms() + 3_600_001);
+        let records = actions
+            .iter()
+            .find_map(|action| match action {
+                Action::Seal { records, .. } => Some(records),
+                _ => None,
+            })
+            .expect("accepted record must seal");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].payload, json!({"value":"kept"}));
+    }
+
     #[test]
     fn dedupe_preserves_field_boundaries_and_json_types() {
         let key = vec!["a".into(), "b".into()];
