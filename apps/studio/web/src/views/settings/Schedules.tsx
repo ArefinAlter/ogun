@@ -171,7 +171,8 @@ export function SchedulesSettings() {
       setError(asOgunError(e))
     }
   }
-  const can = !!backend.setWorkflowEnabled && !!info?.canWrite
+  // On a server, pausing a workflow needs the admin role (O-13); elsewhere the connection's write access decides.
+  const can = !!backend.setWorkflowEnabled && !!info?.canWrite && (info.link !== 'server' || !!info.user?.roles.some((r) => r === 'admin' || r === 'owner'))
   return (
     <>
       <PageHead title="Schedules" sub="What starts runs on its own: cron triggers and continuous streams. Times are in UTC unless you choose otherwise under General.">

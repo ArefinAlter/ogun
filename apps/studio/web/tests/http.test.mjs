@@ -175,11 +175,20 @@ test('successful approval options and decision both retain the workspace and CSR
 })
 
 test('data and subscriptions cannot silently use an implicit workspace before discovery', async () => {
-  setup()
+  // Calls made before discovery wait for it; with no membership they fail, and nothing went out meanwhile.
+  setup({ ...me, workspaces: [] })
   const b = httpBackend()
-  await assert.rejects(b.status(), (e) => e.code === 'api.permission_denied')
-  assert.throws(() => b.subscribe({}, () => {}))
+  const early = b.status()
+  let subscriptionError = null
+  b.subscribe({}, () => {}, (e) => (subscriptionError = e))
+  await new Promise((r) => setTimeout(r, 20))
   assert.equal(calls.length, 0)
+  await b.info()
+  await assert.rejects(early, (e) => e.code === 'api.permission_denied')
+  await new Promise((r) => setTimeout(r, 20))
+  assert.equal(subscriptionError?.code, 'api.permission_denied')
+  assert.equal(calls.filter((c) => !c.url.endsWith('/me')).length, 0)
+  assert.equal(streams.length, 0)
   setup({ ...me, workspaces: [] })
   const info = await httpBackend().info()
   assert.equal(info.connected, false)

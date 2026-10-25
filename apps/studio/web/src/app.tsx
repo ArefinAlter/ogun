@@ -287,6 +287,7 @@ export function App({ backend }: { backend: Backend }) {
   }, [backend])
 
   const section = route.path[0] ?? ''
+  const signedOut = info?.link === 'server' && info.error?.code === 'api.unauthenticated'
   useEffect(() => {
     if (section !== 'settings') lastOutside = window.location.hash || '#/'
   }, [section, route])
@@ -413,7 +414,7 @@ export function App({ backend }: { backend: Backend }) {
         <a class="skip" href="#main">
           Skip to content
         </a>
-        <div class={`shell ${prefs.sidebarOpen ? '' : 'side-closed'}${chrome ? ` chrome-${chrome}` : ''}${section === 'agent' ? ' is-chat' : ''}`}>
+        <div class={`shell ${prefs.sidebarOpen ? '' : 'side-closed'}${chrome ? ` chrome-${chrome}` : ''}${section === 'agent' && !signedOut ? ' is-chat' : ''}`}>
           <aside class="side" aria-label={inSettings ? 'Settings sections' : 'Sections'}>
             <div class="brand" {...drag}>
               <button type="button" class="icon-btn brand-toggle" onClick={() => setPrefs({ sidebarOpen: false })} aria-label="Hide the sidebar" title={`Hide the sidebar (${formatCombo(bindingOf(prefs, 'sidebar.toggle')).join('+')})`}>
@@ -507,8 +508,8 @@ export function App({ backend }: { backend: Backend }) {
             {section === 'agent' && detail ? <DetailsToggle /> : null}
             {chrome === 'custom' ? <WindowControls /> : null}
           </header>
-          <main class={`main ${section === 'agent' ? 'chat' : ''}`} id="main">
-            {info?.link === 'server' && info.error?.code === 'api.unauthenticated' && section !== 'about' ? <SignIn /> : <Page path={route.path} query={route.query} />}
+          <main class={`main ${section === 'agent' && !signedOut ? 'chat' : ''}`} id="main">
+            {signedOut && section !== 'about' ? <SignIn /> : <Page path={route.path} query={route.query} />}
           </main>
         </div>
         <nav class="mobile-nav" aria-label="Sections">

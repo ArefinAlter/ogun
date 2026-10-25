@@ -108,14 +108,24 @@ export function httpBackend(selectedWorkspace?: string): Backend {
   const checkActive = () => {
     if (retired) throw asOgunError({ code: 'api.invalid_params', message: 'the workspace changed; reopen this page or review' })
   }
-  const get = <T>(url: string) => {
+  // Pages start loading while the first `info()` is still asking who is signed in; their calls wait for it (at
+  // most 15 s) instead of failing for want of a workspace.
+  let markReady: () => void = () => {}
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve
+    setTimeout(resolve, 15_000)
+  })
+  const noWorkspace = () => asOgunError({ code: 'api.permission_denied', message: 'select a workspace first' })
+  const get = async <T>(url: string): Promise<T> => {
     checkActive()
-    if (!workspace && url !== path('me')) return Promise.reject(asOgunError({ code: 'api.permission_denied', message: 'select a workspace first' }))
+    if (!workspace && url !== path('me')) await ready
+    if (!workspace && url !== path('me')) throw noWorkspace()
     return request<T>('GET', url, undefined, workspace)
   }
-  const post = <T>(url: string, body: unknown) => {
+  const post = async <T>(url: string, body: unknown): Promise<T> => {
     checkActive()
-    if (!workspace) return Promise.reject(asOgunError({ code: 'api.permission_denied', message: 'select a workspace first' }))
+    if (!workspace) await ready
+    if (!workspace) throw noWorkspace()
     return request<T>('POST', url, body, workspace)
   }
   return {
@@ -167,6 +177,8 @@ export function httpBackend(selectedWorkspace?: string): Backend {
         }
       } catch (e) {
         return { ...base, error: asOgunError(e) }
+      } finally {
+        markReady()
       }
     },
 
@@ -190,13 +202,21 @@ export function httpBackend(selectedWorkspace?: string): Backend {
 
     subscribe(opts, onEvent, onError): EventSubscription {
       checkActive()
-      if (!workspace) throw asOgunError({ code: 'api.permission_denied', message: 'select a workspace first' })
-      const subscribedWorkspace = workspace
+      let subscribedWorkspace = workspace
       let closed = false
       let source: EventSource | null = null
       let last = opts.after
       const open = async () => {
         if (closed) return
+        if (!subscribedWorkspace) {
+          // Opened before the first `info()` finished: wait for the workspace it selects.
+          await ready
+          subscribedWorkspace = workspace
+          if (!subscribedWorkspace) {
+            onError?.(noWorkspace())
+            return
+          }
+        }
         if (last === undefined) {
           try {
             last = (await get<StatusResult>(path('status'))).last_event_seq

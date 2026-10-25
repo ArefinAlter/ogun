@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'preact/hooks'
 
 import { asOgunError } from '../api'
+import { svcInfo } from '../api/svc'
 import type { OgunError, PartitionSelector, PutWorkflowResult, ValidateResult, WorkflowDoc } from '../api/types'
 import { fmtAgo, fmtTime, idempotencyKey } from '../lib/format'
 import { href, navigate, useAsync, useBackend, useInfo } from '../lib/hooks'
@@ -202,6 +203,7 @@ export function WorkflowDetail({ name, version }: { name: string; version?: numb
   const backend = useBackend()
   const { info } = useInfo()
   const wf = useAsync(() => backend.workflowsGet(name, version), [backend, name, version])
+  const sandboxless = useAsync(() => svcInfo().then((i) => !!i && !i.sandbox), []).data === true
   const [tab, setTab] = useState<'graph' | 'document' | 'diagnostics'>('graph')
   const [selected, setSelected] = useState<string | undefined>()
   const diag = useAsync(
@@ -223,6 +225,12 @@ export function WorkflowDetail({ name, version }: { name: string; version?: numb
       </PageHead>
       <ErrorBox error={wf.error} />
       {wf.loading && !d ? <Loading /> : null}
+      {doc && sandboxless && doc.nodes.some((n) => n.code) ? (
+        <Notice kind="warn">
+          This workflow has code nodes ({doc.nodes.filter((n) => n.code).map((n) => n.id).join(', ')}). This hub has no operator
+          sandbox, so they cannot run here, and their code approval stays pending. Run it on your own daemon instead.
+        </Notice>
+      ) : null}
       {d && doc ? (
         <>
           <div class="panel">
