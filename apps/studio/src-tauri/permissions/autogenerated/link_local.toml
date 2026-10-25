@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-local"
+description = "Enables the link_local command without any pre-configured scope."
+commands.allow = ["link_local"]
+
+[[permission]]
+identifier = "deny-link-local"
+description = "Denies the link_local command without any pre-configured scope."
+commands.deny = ["link_local"]

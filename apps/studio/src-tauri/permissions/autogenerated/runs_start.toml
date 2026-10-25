@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-runs-start"
+description = "Enables the runs_start command without any pre-configured scope."
+commands.allow = ["runs_start"]
+
+[[permission]]
+identifier = "deny-runs-start"
+description = "Denies the runs_start command without any pre-configured scope."
+commands.deny = ["runs_start"]

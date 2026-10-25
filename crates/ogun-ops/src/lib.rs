@@ -5,9 +5,41 @@
 //! process speaking `jsonl-stdio/0` (O-03 section 4). The daemon owns everything around it: the run store, the
 //! artifact store (outputs are ingested by the daemon after `Succeeded`), budgets, approvals and the session bridge.
 //!
-//! This module is the contract between the daemon and the operators; the operators themselves live in submodules.
+//! This module is the contract between the daemon and the operators; the operators themselves live in submodules:
+//!
+//! | Module | What |
+//! |---|---|
+//! | [`ops`] | The core operators (hash, dedupe, filter, manifest, file.copy, file.move, archive.extract, partition, map, join_metadata, window.rollup, zeus.session_acquire). |
+//! | [`crawl`], [`acquire`] | Bounded crawling and plain HTTP(S) acquisition through zeus-core, with no session material. |
+//! | [`manifest`], [`builtin`] | Operator manifests (O-03 section 3), discovery and the manifests compiled in. |
+//! | [`runner`], [`sandbox`] | The `jsonl-stdio/0` child runner and the OS sandbox (bubblewrap, sandbox-exec). |
+//! | [`context`], [`template`], [`metadata`], [`secrets`] | Run-context placeholders, the closed template and predicate sets, metadata rules and secret handling. |
+//!
+//! Before any operator runs, the registry expands run-context placeholders (`{partition}`, `{run.date}`, ...) in
+//! the configuration ([`context`]), resolves the `secret_ref`s the node uses, and, for child operators, checks the
+//! configuration against the manifest's `config_schema`. Core operators get a deadline of `timeout_ms`; every
+//! operator stops promptly on [`Context::cancel`].
 
 #![forbid(unsafe_code)]
+
+pub mod acquire;
+pub mod builtin;
+pub mod context;
+pub mod crawl;
+pub mod error;
+pub mod files;
+pub mod manifest;
+pub mod metadata;
+pub mod net;
+pub mod ops;
+mod registry;
+pub mod runner;
+pub mod sandbox;
+pub mod secrets;
+pub mod template;
+pub mod tools;
+
+pub use registry::ResolvedOp;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -139,7 +171,7 @@ pub enum OpEvent {
         /// Output tokens.
         output_tokens: u64,
         /// Cost in micro-US-dollars.
-        cost_microusd: u64,
+        cost_usd_micro: u64,
     },
     /// A diagnostic line (already redacted), for the run log.
     Log(String),
@@ -199,19 +231,47 @@ pub struct Environment {
     /// Whether child operators may run without an OS sandbox when none is available. Off by default; on only for
     /// development profiles, and then every such attempt is logged.
     pub allow_unsandboxed: bool,
+    /// Whether operators may use the network at all (`acquire`, `crawl`, manifests granting `network: any`).
+    /// Benchmark profiles set it to `false` (ADR 0005: network denied by default).
+    pub network_access: bool,
+    /// A read-only directory that adapters with the `workspace:ro` grant may read files from by relative name
+    /// (`duckdb` `read`, `pandoc` `template`). `None`: no workspace files.
+    pub workspace: Option<PathBuf>,
+}
+
+impl Environment {
+    /// An environment with defaults: no operator directories, no model access, sandbox required, network
+    /// allowed, no workspace.
+    #[must_use]
+    pub fn new(state_dir: PathBuf) -> Self {
+        Self {
+            state_dir,
+            operator_dirs: Vec::new(),
+            model_access: false,
+            allow_unsandboxed: false,
+            network_access: true,
+            workspace: None,
+        }
+    }
 }
 
 /// The operator registry.
 #[derive(Debug, Clone)]
 pub struct Registry {
     env: Arc<Environment>,
+    inner: Arc<registry::Inner>,
 }
 
 impl Registry {
-    /// A registry for this environment.
+    /// A registry for this environment. Reads the installed manifests of `operator_dirs` once; the
+    /// `acquire` engine starts on first use.
     #[must_use]
     pub fn new(env: Environment) -> Self {
-        Self { env: Arc::new(env) }
+        let inner = Arc::new(registry::Inner::load(&env));
+        Self {
+            env: Arc::new(env),
+            inner,
+        }
     }
 
     /// The environment.
@@ -220,19 +280,31 @@ impl Registry {
         &self.env
     }
 
-    /// Whether this build can run the operator.
+    /// Whether this build can run the operator: every core operator, and every adapter, code or model
+    /// operator with a valid manifest (model operators only with model access). Stream sources are run by the
+    /// ingest bridge, not here. A missing external tool is reported when the attempt runs (`op.tool_missing`).
     #[must_use]
     pub fn knows(&self, op: &str) -> bool {
-        let _ = op;
-        false
+        registry::knows(self, op)
+    }
+
+    /// What will run for an operator reference, for the run record and lineage (O-03 section 6).
+    ///
+    /// # Errors
+    ///
+    /// `op.unknown`, or `op.manifest_invalid` for an installed manifest that failed to load.
+    pub fn resolve(&self, op: &str) -> Result<ResolvedOp, OgunError> {
+        registry::resolve(self, op)
+    }
+
+    /// Installed manifest files that were refused, with the reason.
+    #[must_use]
+    pub fn refused_manifests(&self) -> Vec<(PathBuf, String)> {
+        self.inner.installed.refused.clone()
     }
 
     /// Runs one attempt.
     pub async fn run(&self, inv: Invocation, ctx: Context) -> Outcome {
-        let _ = ctx;
-        Outcome::Failed {
-            error: OgunError::new("op.unknown", format!("no implementation for {}", inv.op)),
-            retryable: false,
-        }
+        registry::run(self, inv, ctx).await
     }
 }

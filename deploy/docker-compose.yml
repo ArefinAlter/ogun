@@ -1,0 +1,99 @@
+# Ogun server profile with Docker Compose (O-13 section 13; docs/self-hosting.md).
+#
+#   ogund        the daemon, `ogund --profile server`; its one listener is a Unix socket in the shared volume
+#   ogun-server  the HTTPS bridge; reaches ogund through that socket with the `server` bridge credential
+#   ogun-ingest  optional, profile `ingest`: the stream ingest bridge
+#   caddy        optional, profile `caddy`: TLS with automatic certificates in front of ogun-server
+#
+# Both Ogun containers run as uid 10001 and mount the same volume, so the daemon's peer check (same uid) passes
+# and ogun-server can read the artifact store it streams downloads from.
+#
+# Without the caddy profile, ogun-server terminates TLS itself with compose/tls/{fullchain,privkey}.pem and
+# compose/server.tls.json. With it, set OGUN_SERVER_JSON=./compose/server.proxy.json and OGUN_DOMAIN.
+#
+# The build context is the directory that holds ogun/ and zeus-core/ side by side (ADR 0002).
+
+name: ogun
+
+x-ogun: &ogun
+  image: ${OGUN_IMAGE:-ghcr.io/arefinalter/ogun:latest}
+  build:
+    context: ../..
+    dockerfile: ogun/deploy/Dockerfile
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  environment:
+    OGUN_HOME: /var/lib/ogun
+    OGUN_LOG: ${OGUN_LOG:-info}
+  volumes:
+    - ogun-state:/var/lib/ogun
+
+services:
+  ogund:
+    <<: *ogun
+    command: ["ogund", "--profile", "server"]
+    networks: [ogun]
+
+  ogun-server:
+    <<: *ogun
+    command: ["ogun-server", "serve", "--init-if-empty"]
+    depends_on: [ogund]
+    environment:
+      OGUN_HOME: /var/lib/ogun
+      OGUN_SERVER_HOME: /var/lib/ogun/ogun-server
+      OGUN_SERVER_CONFIG: /etc/ogun/server.json
+      OGUN_LOG: ${OGUN_LOG:-info}
+    volumes:
+      - ogun-state:/var/lib/ogun
+      - ${OGUN_SERVER_JSON:-./compose/server.tls.json}:/etc/ogun/server.json:ro
+      - ./compose/secrets:/etc/ogun/secrets:ro
+      - ./compose/tls:/etc/ogun/tls:ro
+    ports:
+      - "${OGUN_HTTPS_PORT:-8443}:8443"
+    networks:
+      ogun:
+        ipv4_address: 172.30.0.20
+
+  ogun-ingest:
+    <<: *ogun
+    profiles: [ingest]
+    # The ingest bridge reads <state>/profiles/server/ingest.json and the `ingest` service credential.
+    command: ["ogun-ingest", "--profile", "server"]
+    depends_on: [ogund]
+    networks: [ogun]
+
+  caddy:
+    image: caddy:2
+    profiles: [caddy]
+    restart: unless-stopped
+    depends_on: [ogun-server]
+    environment:
+      OGUN_DOMAIN: ${OGUN_DOMAIN:-ogun.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./compose/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      ogun:
+        # server.proxy.json trusts exactly this address.
+        ipv4_address: 172.30.0.10
+
+networks:
+  ogun:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  ogun-state:
+  caddy-data:
+  caddy-config:

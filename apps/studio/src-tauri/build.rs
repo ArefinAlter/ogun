@@ -1,0 +1,49 @@
+//! Generates the closed Studio command permissions and the Tauri context.
+
+/// Every command the webview may invoke; `capabilities/studio.json` allows exactly these for the main window.
+const COMMANDS: &[&str] = &[
+    "studio_info",
+    "link_local",
+    "link_hub",
+    "link_forget",
+    "daemon_status",
+    "workflows_list",
+    "workflows_get",
+    "workflows_validate",
+    "workflows_put",
+    "runs_list",
+    "runs_get",
+    "runs_start",
+    "runs_cancel",
+    "partitions_status",
+    "backfills_plan",
+    "events_since",
+    "approvals_list",
+    "approvals_get",
+    "approvals_prepare",
+    "approvals_confirm",
+    "approvals_discard",
+    "artifacts_list",
+    "artifacts_get",
+    "lineage_get",
+    "streams_list",
+    "streams_status",
+    "edges_list",
+    "credentials_list",
+    "secrets_list",
+    "llm_ladder",
+];
+
+fn main() {
+    if let Err(e) = tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),
+    ) {
+        // A build script reports through Cargo's diagnostics; this is not runtime logging.
+        #[allow(clippy::print_stderr)]
+        {
+            eprintln!("ogun-studio: invalid Tauri configuration: {e:#}");
+        }
+        std::process::exit(1);
+    }
+}

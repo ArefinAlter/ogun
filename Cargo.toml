@@ -10,9 +10,18 @@ members = [
     "crates/ogun-edge",
     "crates/ogun-api",
     "crates/ogun-ops",
+    "crates/ogun-op-shims",
+    "crates/ogun-llm",
+    "crates/ogun-op-llm",
+    "crates/ogun-daemon",
     "crates/ogun-cli",
     "crates/ogun-lsp",
+    "crates/ogun-server",
+    "crates/ogun-ingest",
+    "crates/ogun-sync",
 ]
+# Ogun Studio (Tauri) is its own workspace (ADR 0009), so webview and mobile dependencies stay out of daemon builds.
+exclude = ["apps/studio"]
 
 [workspace.package]
 version = "0.1.0"
@@ -44,9 +53,12 @@ ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
 ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
 ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
+ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
 ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
 ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
-ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
+ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
+ogun-llm = { path = "crates/ogun-llm", version = "0.1.0" }
+ogun-daemon = { path = "crates/ogun-daemon", version = "0.1.0" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -54,6 +66,10 @@ zeus-verify = { path = "../zeus-core/crates/zeus-verify", version = "0.1.0" }
 zeus-artifact = { path = "../zeus-core/crates/zeus-artifact", version = "0.1.0" }
 zeus-engine = { path = "../zeus-core/crates/zeus-engine", version = "0.1.0" }
 zeus-fs = { path = "../zeus-core/crates/zeus-fs", version = "0.1.0" }
+zeus-http = { path = "../zeus-core/crates/zeus-http", version = "0.1.0" }
+zeus-session = { path = "../zeus-core/crates/zeus-session", version = "0.1.0" }
+zeus-journal = { path = "../zeus-core/crates/zeus-journal", version = "0.1.0" }
+zeus-control = { path = "../zeus-core/crates/zeus-control", version = "0.1.0" }
 
 # ---- third party, versions aligned with zeus-core and zeus ----
 serde = { version = "1", features = ["derive"] }
@@ -72,10 +88,52 @@ getrandom = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi"] }
 rustix = { version = "1", features = ["process", "fs"] }
+# ---- crypto for WebAuthn approver assertions (O-15 section 7); sha2 and base64 as in the zeus app ----
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std", "pkcs8"] }
+sha2 = "0.11"
+base64 = "0.23"
 jsonschema = { version = "0.58", default-features = false }
 anyhow = "1"
-clap = { version = "4.6", features = ["derive", "wrap_help"] }
-# ---- language server (ogun-lsp): synchronous scaffold and protocol types ----
+# ---- ogun-server: the HTTPS bridge (O-13); version lines as in the zeus workspace where it pins them ----
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+tower = "0.5"
+tower-http = { version = "0.6", default-features = false }
+hyper = { version = "1.11", default-features = false }
+hyper-util = { version = "0.1", default-features = false }
+http = "1.5"
+# TLS through rustls with the ring provider (no C build of aws-lc-sys; see zeus-core's "HTTP stack" note).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls-pki-types = { version = "1.12", features = ["std"] }
+jsonwebtoken = { version = "10.4", default-features = false, features = ["rust_crypto"] }
+url = { version = "2.5", features = ["serde"] }
+ciborium = "0.2"
+x509-cert = { version = "0.2", default-features = false }
+der = "0.7"
+tokio-util = { version = "0.7", default-features = false, features = ["io"] }
+# ---- operators (ogun-ops; versions as in zeus-core and the zeus app workspace where they pin one) ----
+async-trait = "0.1"
+futures = "0.3"
+bytes = "1.12"
+scraper = "0.27"
+jsonpath-rust = "1.0"
+regex = "1.13"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+tar = "0.4"
+flate2 = "1.1"
+# ---- ingest bridge and edge sync (O-10, O-11); versions as in the zeus app workspace where it pins them ----
+ed25519-dalek = { version = "3.0", features = ["zeroize"] }
+rumqttc = { version = "0.25", default-features = false, features = ["use-rustls"] }
+tokio-modbus = { version = "0.17", default-features = false, features = ["tcp", "rtu"] }
+# Platform trust roots for MQTT over TLS; already in the tree through rumqttc.
+rustls-native-certs = "0.8"
+# ---- model providers (ogun-llm; same version line and TLS stack as the zeus app) ----
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "json", "system-proxy"] }
+# Terminal input without echo for `ogun secrets set` (same version as the zeus TUI).
+crossterm = "0.29"
+clap = { version = "4.6", features = ["derive", "env", "wrap_help"] }
+
+# Language server protocol types and synchronous transport.
 lsp-server = "0.10"
 lsp-types = "0.97"
 

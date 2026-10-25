@@ -25,6 +25,11 @@ tokio.workspace = true
 anyhow.workspace = true
 blake3.workspace = true
 clap.workspace = true
+ogun-run.workspace = true
+base64.workspace = true
+crossterm.workspace = true
+getrandom.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
 ogun-types.workspace = true
