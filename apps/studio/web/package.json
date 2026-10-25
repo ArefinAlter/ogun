@@ -11,9 +11,17 @@
   },
   "scripts": {
     "dev": "vite",
+    "demo": "vite --mode demo",
     "typecheck": "tsc --noEmit -p .",
+    "test": "node --test src/api/identity.test.mjs src/lib/markdown.test.mjs src/lib/agentTools.test.mjs src/lib/duration.test.mjs",
     "build": "tsc --noEmit -p . && vite build",
-    "preview": "vite preview"
+    "build:demo": "tsc --noEmit -p . && vite build --mode demo --outDir dist-demo",
+    "preview": "vite preview",
+    "preview:demo": "vite preview --outDir dist-demo --port 4174",
+    "build:site": "tsc --noEmit -p . && vite build --mode site --outDir dist-site",
+    "build:desktop-demo": "tsc --noEmit -p . && vite build --mode desktop-demo --outDir dist-desktop-demo",
+    "build:desktop-demo:app": "node scripts/build-desktop-demo.mjs",
+    "check": "tsc --noEmit -p . && node scripts/sync-connectors.mjs && node ../../../connectors/tools/check.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",

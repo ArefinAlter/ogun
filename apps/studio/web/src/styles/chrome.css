@@ -1,0 +1,74 @@
+/* The window frame. Inside the Windows shell the main window has no native title bar, so the two top bars are the
+   title bar: they drag the window, a double click maximizes it, and the page draws minimize, maximize and close at the
+   right edge, as T3 Code does. On macOS the system draws the traffic lights over the page and the bars leave room. */
+
+/* The sidebar toggle sits in the sidebar's header while the sidebar is open and in the top bar while it is closed. */
+.top .top-toggle {
+  display: none;
+}
+.shell.side-closed .top .top-toggle {
+  display: inline-flex;
+}
+@media (max-width: 760px) {
+  .top .top-toggle {
+    display: none !important;
+  }
+}
+
+/* A bar that moves the window should not select text when it is pressed. */
+.chrome-custom .brand,
+.chrome-custom .top {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Controls sit flush with the right edge and fill the bar's height. */
+.chrome-custom .top {
+  padding-right: 0;
+}
+.chrome-custom .top > .menu-anchor {
+  margin-right: var(--space-2);
+}
+.winctl {
+  display: flex;
+  align-self: stretch;
+  flex: none;
+}
+.winctl button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  cursor: default;
+}
+.winctl button:hover {
+  background: var(--accent);
+}
+.winctl button:active {
+  background: var(--sidebar-row-selected);
+}
+.winctl .close:hover,
+.winctl .close:active {
+  background: #c42b1c;
+  color: #fff;
+}
+.winctl button:focus-visible {
+  outline-offset: -3px;
+}
+
+/* macOS: traffic lights over the top-left corner. */
+.chrome-overlay .brand {
+  padding-left: 76px;
+}
+.chrome-overlay .brand .brand-toggle {
+  display: none;
+}
+.chrome-overlay.side-closed .top {
+  padding-left: 82px;
+}
