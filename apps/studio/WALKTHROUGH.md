@@ -1,22 +1,33 @@
 # Ogun Studio: the walkthrough
 
-A scripted walk through Ogun Studio on a bike-share network's sample workflows (`examples/bikeshare`). Everything on
-screen is the real Studio frontend; the data comes from a script inside the page (`web/src/demo`), not from a daemon.
-The interface does not say so anywhere you look, so say it yourself at the start: the numbers are sample data, the
-agent's answers are prepared, and the connector catalogue is a list of what Ogun would reach, most of it not run yet
-(each card says "Manifest only" or "Built"). The About page states the same.
+Ogun Studio runs in three ways. The pre-alpha release (0.0.1a) uses the first two by default; the third is the offline
+showcase this walkthrough was first written for.
 
-## Start it
-
-| Where | How |
-|---|---|
-| Hosted, no install | `https://ogun-site.vercel.app/studio/`, served by the `ogun-site` project under its strict CSP. It is `noindex`, keeps nothing in the browser (preferences live in memory) and has no sign-in. To update it: `npm run build:site`, then `node scripts/publish-site.mjs ../../../../ogun-site`, then commit in `ogun-site`; Vercel deploys on push. |
-| Desktop app | `npm run build:desktop-demo:app` in `apps/studio/web` builds the Tauri shell on the scripted backend and copies it to `dist/desktop/ogun-studio.exe`. The window has no operating-system title bar: the top row is the title bar, with minimize, maximize and close at the right. Windows needs the WebView2 runtime, which Windows 11 has. `ogun-studio-daemon.exe` in the same folder is the build that links to a real daemon or hub. |
-| In a browser, locally | `npm run demo` (http://localhost:5173), or `npm run build:demo && npm run preview:demo` (http://localhost:4174). Reload to start the script again. |
-
-The scenario looks best after it has run for a minute or two.
+| Where | What answers | How to start |
+|---|---|---|
+| **Hosted hub** | The real `ogund` and `ogun-server` on sample data, plus the pre-alpha service for the screens `ogund` does not implement yet ([`deploy/pre-alpha`](../../deploy/pre-alpha/README.md)) | Open `https://ogun.103.191.50.32.sslip.io` and sign in with the sample account shown on the sign-in page. One shared workspace, reset every night at 03:00 UTC. |
+| **Desktop release** | The same hosted hub by default, over a public read-only token; or your own `ogund` | Install `ogun-studio-0.0.1a-windows-x64-setup.exe` or the Linux AppImage/.deb from the [release](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1a). Settings, Environments, "Use ogund on this machine" switches to the local daemon (start it with `ogund` from the same release). |
+| **Offline build** | A script inside the page (`web/src/demo`), no daemon | `npm run demo` in `apps/studio/web`, or the desktop build `npm run build:desktop-demo:app`. |
 
 ## What is real and what is prepared
+
+On the **hosted hub**:
+
+| Real | Prepared |
+|---|---|
+| Workflows, versions and hashes, runs, node instances, partitions and backfills, schedules, the event stream, approvals (read), artifacts and lineage: the daemon's own, from `ogund` through `ogun-server` | The sample data: the workflows in `deploy/pre-alpha/seed` fetch files from sample file servers inside the hub (`files.example.org`, `weather.example.org`; the weather service is down on purpose, so `ridership-forecast` fails the way an outage does) |
+| Sign-in (OIDC through Dex, sessions, CSRF), roles: the sample account is an editor | The agent's words: no model is called. Every tool it calls goes to the daemon with an API token that acts as an agent |
+| The approval rules: the two pending code changes (rebalance-plan v2, district-report) wait for a person at the host's terminal; no browser or token can decide them | Connections, run defaults, the provider ladder, sources, evidence, storage rules and the archive: kept by the pre-alpha service per browser for 24 hours; they do not change the daemon yet |
+
+What it cannot do: run code operators (no operator sandbox is installed, and the workflow page says so), reach the
+internet (workflows see only the sample file servers), or decide an approval from a browser (remote approvals are off,
+ADR 0010). Agent threads and settings are per browser; what you store on the daemon is visible to every visitor until
+the nightly reset.
+
+In the **offline build**, everything on screen is the real Studio frontend and the data comes from the script. The
+interface does not say so anywhere you look, so say it yourself: the numbers are sample data, the agent's answers are
+prepared, and the connector catalogue is a list of what Ogun would reach, most of it not run yet (each card says
+"Manifest only" or "Built"). The About page states the same.
 
 | Real | Prepared |
 |---|---|
@@ -27,10 +38,30 @@ The scenario looks best after it has run for a minute or two.
 
 The runtime itself is proven on Linux (`docs/IMPLEMENTATION_STATUS.md`): the O1 exit test kills `ogund` during a
 121-partition backfill and resumes only the unfinished partitions, and the stream twin re-seals a window with no lost
-or duplicated record. Two scenario controls, in the command palette (Ctrl+K, type "scenario"), replay exactly those two
-claims.
+or duplicated record. In the offline build two scenario controls, in the command palette (Ctrl+K, type "scenario"),
+replay exactly those two claims.
 
-## The twelve-minute flow
+## On the hosted hub (ten minutes)
+
+1. **Sign in.** The sign-in page shows the sample account. After Dex, Studio opens on the agent.
+2. **The agent.** "What is running, and what is waiting for a person?": the agent calls `status.get`, `runs.list`,
+   `approvals.list` on the real daemon (open "Worked, n tool calls" to see each answer) and lists the two pending code
+   approvals. It can read them; it cannot decide them. "Backfill trips-backfill since 2019": it reads the partitions
+   (36 months done since 2023-01) and plans the missing months; press the button and the backfill runs for real, as you.
+3. **Overview and Partitions.** Six workflows; `trips-backfill` shows the backfilled months green. Runs are real runs of
+   core operators fetching the sample archive.
+4. **A failure.** "Why did the ridership forecast fail last night?": the forecast node failed because the sample weather
+   service answered 503; the agent reads the run and offers a retry for you to press.
+5. **Approvals.** The `code change` for rebalance-plan v2 and district-report: facts first, the code digests, and a note
+   that a person decides at the host's terminal. Open the workflow: the page says this hub cannot run code nodes.
+6. **Artifacts and lineage.** The latest rebalance-plan run: the shortlist CSV preview and its OpenLineage events.
+   "Which stations are likely to run empty today?" reads the same artifact.
+7. **Settings.** Schedules are the stored triggers; Environments shows this hub and its bridges as they are (sandbox not
+   installed, remote approvals locked). Connections, Providers and Storage keep what you set for 24 hours.
+
+## The offline flow (twelve minutes)
+
+The scenario looks best after it has run for a minute or two.
 
 0. **The agent (2 min).** The app opens on a conversation. Click "What is running, and what is waiting for a person?":
    the agent calls tools one by one (a folded "Worked, 4 tool calls" line that opens to each call and what the daemon
@@ -84,21 +115,11 @@ the 15 `ogun-export` sinks, written from public documentation and checked agains
 `contract`: a manifest of what Ogun would connect to, with no operator behind it. None is `verified` against the real
 service. Say this before anyone asks. Vendor domains, ports and regions are claims to check (O-16 section 9).
 
-## Showing the real daemon, not the script
+## The hub on loopback
 
-`deploy/demo-hub` runs the real `ogund`, `ogun-server` and a sign-in provider on a Linux host, on loopback only. From the
-presenter's machine:
-
-1. Open the tunnel: `ssh -N -L 18443:127.0.0.1:18443 -L 18444:127.0.0.1:18444 <user>@<host>`.
-2. Browser: `http://localhost:18443/`, sign in with the account. This is Studio-web on a real daemon: the runs,
-   partitions and node instances are the daemon's own. `hub-backfill` is a 45-month backfill of core operators that
-   really ran; `hub-heartbeat` is a schedule that fires every 15 minutes.
-3. Desktop: create an API token in Studio-web, then Settings, Environments, "Add environment" in
-   `ogun-studio-daemon.exe`. The token acts as an agent, so the link is read-only.
-
-Say plainly what it is not: one machine, one static user, no operator sandbox in the image (so workflows with Python or
-SQL operators do not run there), and it is reached by a tunnel, not a public address. The hub does not run agent
-threads yet, so its Studio hides the Agent screen.
+`deploy/demo-hub` is the loopback-only variant of the hosted hub (no public address, one static user, reached by an SSH
+tunnel); `deploy/pre-alpha` replaced it on the shared host. Both run the real `ogund` and `ogun-server`, neither has an
+operator sandbox.
 
 ## If asked for proof on the command line
 
@@ -109,7 +130,7 @@ and the validator refusing a password typed into a workflow (`ir.secret_inline`)
 but Windows has no operator sandbox and no peer inspection yet, so terminal approvals are refused there; the live
 daemon story is a Linux (or WSL) story for now.
 
-## Known seams in the script
+## Known seams in the offline build
 
 - The scenario is in memory: a reload resets it, and two tabs see two different daemons.
 - The backfill finishes in about four minutes; after that only the stream keeps moving. Reload for a fresh run.

@@ -2,7 +2,12 @@
 
 Ogun is a local-first developer platform for data mining, data engineering and agent benchmarking, built on the Zeus download engine (`zeus-core`). It is for AI, LLM and data engineers who need to turn messy web and filesystem sources into verified, reproducible datasets on a schedule, and to let agents plan and operate that work.
 
-> **Status: pre-alpha.** The contracts O-00 to O-03 are in draft (`docs/spec/`) and the first crates are in `crates/`: the workflow IR with its validator, hash and plan diff, and the run state machine. Nothing runs workflows yet. The Zeus engine's kill-and-restart test passes, so runtime work has started (proposed [ADR 0006](docs/adr/0006-zeus-boundary-update.md), [`ROADMAP.md`](ROADMAP.md)).
+> **Status: pre-alpha.** `ogund` runs workflows end to end: durable runs and partitions, backfills that survive `kill -9`, schedules, streams as windowed partitions, approvals, artifacts and lineage, with `ogun-server` for a team hub (see [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for what runs and the known gaps). The specs O-00 to O-17 are drafts or proposals (`docs/spec/`).
+
+## Try the pre-alpha
+
+- **Hosted:** `https://ogun.103.191.50.32.sslip.io`, Ogun Studio on the real daemon with sample data; the sign-in page shows a shared sample account, and everything is reset every night. Code operators do not run there (no operator sandbox) and approvals are decided only at the host's terminal.
+- **Download:** [release v0.0.1a](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1a), Ogun Studio for Windows x64 and Linux x64 (links to the hosted hub by default) and the `ogun` CLI and `ogund` daemon. The binaries are unsigned. How the hosted hub is built: [`deploy/pre-alpha`](deploy/pre-alpha/README.md).
 
 ## Ogun and Zeus
 

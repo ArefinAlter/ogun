@@ -14,6 +14,16 @@ describe:
 A desktop Studio can also connect to a hub read-only (Settings, "Connect to a hub"); that is how an edge is viewed
 remotely.
 
+## The pre-alpha release (0.0.1a)
+
+| | |
+|---|---|
+| Hosted | `https://ogun.103.191.50.32.sslip.io`: Studio-web on the real `ogund` and `ogun-server` with sample data, a shared sample account shown on the sign-in page, reset every night. The screens `ogund` does not implement yet (agent threads, connections, provider and storage settings) are served by the pre-alpha service under `/svc/` ([`deploy/pre-alpha`](../../deploy/pre-alpha/README.md)); About says which is which. |
+| Desktop | [Release v0.0.1a](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1a): Windows x64 (NSIS installer, portable zip) and Linux x64 (AppImage, .deb). Unsigned. It links to the hosted hub by default with a public token that acts as an agent (read-only for workflows and runs; agent threads and settings go to the pre-alpha service); Settings, Environments, "Use ogund on this machine" switches to a local daemon, and "Connect to a hub" to your own. |
+| Built how | `OGUN_STUDIO_DEFAULT_HUB_URL` and `OGUN_STUDIO_DEFAULT_HUB_TOKEN` at build time set the default hub (`src-tauri/src/link.rs`); without them a build links to the local daemon as before. `deploy/pre-alpha/release/` holds the Linux build container and the packaging script; `.github/workflows/release-prealpha.yml` does the same on Actions when started by hand. |
+
+The scripted backend stays as a build option (`npm run demo`, `build:desktop-demo:app`) for offline use and tests.
+
 ## Layout
 
 | Path | What |
