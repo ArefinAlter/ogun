@@ -50,7 +50,7 @@ jobs:
           echo "CC_$(echo '${{ matrix.target }}' | tr '-' '_')=musl-gcc" >> "$GITHUB_ENV"
       - name: build
         run: |
-          bins="--bin ogund --bin ogun --bin ogun-ingest --bin ogun-lsp --bin ogun-sync --bin ogun-op-llm --bin ogun-op-shim"
+          bins="--bin ogund --bin ogun --bin ogun-ingest --bin ogun-bench --bin ogun-lsp --bin ogun-sync --bin ogun-op-llm --bin ogun-op-shim"
           if [ "${{ matrix.server }}" = "true" ]; then bins="$bins --bin ogun-server"; fi
           cargo build --release --locked --target '${{ matrix.target }}' $bins
       - name: package
@@ -59,7 +59,7 @@ jobs:
           ext=""
           if [ "${{ runner.os }}" = "Windows" ]; then ext=".exe"; fi
           mkdir -p "dist/$name"
-          for b in ogund ogun ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
+          for b in ogund ogun ogun-bench ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
             f="target/${{ matrix.target }}/release/$b$ext"
             if [ -f "$f" ]; then cp "$f" "dist/$name/"; fi
           done
@@ -133,7 +133,7 @@ jobs:
             t="${pair%%:*}"; a="${pair##*:}"
             mkdir -p "ctx/prebuilt/$a"
             tar -xzf "archives/ogun-${GITHUB_REF_NAME}-$t-unknown-linux-musl.tar.gz" -C archives
-            for b in ogund ogun ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
+            for b in ogund ogun ogun-bench ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
               cp "archives/ogun-${GITHUB_REF_NAME}-$t-unknown-linux-musl/$b" "ctx/prebuilt/$a/"
             done
           done

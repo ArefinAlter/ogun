@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ArefinAlter/ogun/main/docs/spec/schema/ogun-lineage-facets.v0.schema.json",
+  "title": "Ogun OpenLineage custom facets, version 0 (O-05 section 4.3)",
+  "description": "Every number is an integer. Members are snake_case. Prose in O-05 wins over this schema.",
+  "$defs": {
+    "OgunRunFacet": {
+      "type": "object",
+      "description": "An Ogun run (orun_).",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^orun_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "workflow": {
+          "type": "string"
+        },
+        "workflow_version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "workflow_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "partitions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "running",
+            "waiting",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "run_id",
+        "workflow",
+        "workflow_version",
+        "workflow_hash",
+        "partitions",
+        "state"
+      ],
+      "additionalProperties": true
+    },
+    "OgunNodeRunFacet": {
+      "type": "object",
+      "description": "One node instance (ni_).",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "node_instance": {
+          "type": "string",
+          "pattern": "^ni_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "workflow_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "node": {
+          "type": "string"
+        },
+        "partition": {
+          "type": "string"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "state": {
+          "type": "string"
+        },
+        "cause": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "node_instance",
+        "run_id",
+        "workflow_hash",
+        "node",
+        "partition",
+        "attempt",
+        "state",
+        "cause"
+      ],
+      "additionalProperties": true
+    },
+    "OgunOperatorRunFacet": {
+      "type": "object",
+      "description": "The exact operator a node ran with (O-03 section 6).",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "op": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "manifest_blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "code_blake3": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "op",
+        "version"
+      ],
+      "additionalProperties": true
+    },
+    "OgunPartitionRunFacet": {
+      "type": "object",
+      "description": "The partition and its window.",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "key": {
+          "type": "string"
+        },
+        "window_start_ms": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "window_end_ms": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "key"
+      ],
+      "additionalProperties": true
+    },
+    "OgunErrorRunFacet": {
+      "type": "object",
+      "description": "The final error of a failed node instance (O-00 section 5).",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "code": {
+          "type": "string"
+        },
+        "class": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "code",
+        "class",
+        "retryable"
+      ],
+      "additionalProperties": true
+    },
+    "OgunArtifactsDatasetFacet": {
+      "type": "object",
+      "description": "The artifacts one output port committed for one partition.",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "partition": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "artifacts": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "properties": {
+              "blake3": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "size_bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "media_type": {
+                "type": "string"
+              },
+              "artifact_id": {
+                "type": "string",
+                "pattern": "^art_"
+              },
+              "committed_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "blake3",
+              "size_bytes",
+              "media_type",
+              "committed_at"
+            ]
+          }
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "partition",
+        "count",
+        "total_bytes",
+        "truncated",
+        "artifacts"
+      ],
+      "additionalProperties": true
+    },
+    "OgunAgentRunFacet": {
+      "type": "object",
+      "description": "An agent-run record (O-05 section 6).",
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "_schemaURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^agr_"
+        },
+        "agent": {
+          "type": "object"
+        },
+        "task": {
+          "type": "object"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "failed",
+            "timed_out",
+            "cancelled",
+            "error"
+          ]
+        },
+        "totals": {
+          "type": "object"
+        },
+        "score": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "id",
+        "agent",
+        "task"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

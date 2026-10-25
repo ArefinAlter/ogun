@@ -20,9 +20,9 @@ This spec names Ogun's entities and defines how a run and its node instances cha
 | Artifact | `art_` | An immutable materialization in Ogun's `zeus-artifact` store (Zeus 13). Identity across stores is its BLAKE3 digest. |
 | Asset | `ast_` | A logical object with versions; each version points at artifacts. |
 | Approval | `oap_` | A human decision bound to a request hash (O-07, planned). |
-| Environment | `env_` | The isolated place a run executes (O-06, planned). |
-| Evaluator | `evl_` | Something that scores a run (O-06, planned). |
-| Agent run | `agr_` | A recorded agent run (O-05, planned). |
+| Environment | `env_` | The isolated place a run executes (O-06 section 4). |
+| Evaluator | `evl_` | Something that scores a run (O-06 section 6). |
+| Agent run | `agr_` | A recorded agent run (O-05 section 6, O-06 section 7). |
 
 A run is bound to exactly one workflow hash for its whole life. Changing the workflow produces a new version and, for a new run, a new hash.
 

@@ -15,6 +15,9 @@ members = [
     "crates/ogun-op-llm",
     "crates/ogun-daemon",
     "crates/ogun-cli",
+    "crates/ogun-lineage",
+    "crates/ogun-bench",
+    "crates/ogun-zeus-bridge",
     "crates/ogun-lsp",
     "crates/ogun-server",
     "crates/ogun-ingest",
@@ -54,6 +57,9 @@ ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
 ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
 ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
+ogun-lineage = { path = "crates/ogun-lineage", version = "0.1.0" }
+ogun-bench = { path = "crates/ogun-bench", version = "0.1.0" }
+ogun-zeus-bridge = { path = "crates/ogun-zeus-bridge", version = "0.1.0" }
 ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
 ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
 ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
@@ -136,6 +142,10 @@ clap = { version = "4.6", features = ["derive", "env", "wrap_help"] }
 # Language server protocol types and synchronous transport.
 lsp-server = "0.10"
 lsp-types = "0.97"
+
+# Benchmark task formats (O-06).
+toml = "1.1"
+serde_yaml = "0.9"
 
 [profile.dev]
 debug = "line-tables-only"

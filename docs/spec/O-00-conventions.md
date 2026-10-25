@@ -113,6 +113,27 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
 | `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
 | `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |
+| `lineage.io_failed` | `internal` | no | A lineage export file cannot be read or written (O-05). |
+| `lineage.endpoint_unsupported` | `invalid_request` | no | The configured OpenLineage endpoint is not an `http://` URL without user information (O-05). |
+| `lineage.endpoint_failed` | `unavailable` | yes | The OpenLineage endpoint could not be reached, timed out or refused an event (O-05). |
+| `lineage.trajectory_broken` | `conflict` | no | A trajectory has a sequence gap or a broken BLAKE3 chain (O-05). |
+| `bench.task_invalid` | `invalid_request` | no | A task directory does not match its adapter's format (O-06). |
+| `bench.task_unsupported` | `unsupported` | no | A task needs something this build does not do (O-06). |
+| `bench.isolation_unavailable` | `policy_denied` | no | Required benchmark isolation cannot be enforced, or the state overlaps Ogun's or Zeus's (O-06). |
+| `bench.environment_failed` | `unavailable` | yes | The container runtime or a local process failed (O-06). |
+| `bench.evaluator_failed` | `internal` | no | An evaluator produced no readable verdict (O-06). |
+| `bench.spec_invalid` | `invalid_request` | no | A matrix or agent specification is invalid (O-06). |
+| `zeus.not_linked` | `policy_denied` | no | No usable Zeus service credential, or `zeusd` refused it (O-08). |
+| `zeus.unavailable` | `unavailable` | yes | `zeusd` is not running, the connection broke or a request timed out (O-08). |
+| `zeus.server_unverified` | `unauthenticated` | no | The Zeus endpoint failed `server_proof` or the peer checks (O-08). |
+| `zeus.wrong_kind` | `policy_denied` | no | The Zeus credential is not a `service` credential (O-08). |
+| `zeus.call_failed` | `unavailable` | yes | `zeusd` answered with a retryable error; `details.zeus_code` (O-08). |
+| `zeus.refused` | `policy_denied` | no | `zeusd` answered with a non-retryable error; `details.zeus_code` (O-08). |
+| `zeus.protocol_error` | `internal` | no | A `zeusd` answer did not have the shape Zeus 05 specifies (O-08). |
+| `zeus.request_invalid` | `invalid_request` | no | A session request breaks O-08 section 6. |
+| `zeus.path_outside_root` | `policy_denied` | no | No Zeus root is registered, or a job's file is outside it (O-08). |
+| `zeus.job_not_completed` | `conflict` | no | Import of a Zeus job that has not completed (O-08). |
+| `zeus.import_failed` | `conflict` | no | Ogun's artifact store refused an import from Zeus (O-08). |
 | `server.rate_limited` | `throttled` | yes | `ogun-server` refused a request over a per-address or per-token rate limit; retry after `Retry-After` (O-13). |
 | `server.not_found` | `not_found` | no | No such server user, workspace, membership, invitation, API token or passkey (O-13). |
 | `server.sign_in_failed` | `unauthenticated` | no | An OIDC sign-in did not verify, or the identity has no account and no valid invitation (O-13). |
