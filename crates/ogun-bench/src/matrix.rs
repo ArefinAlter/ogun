@@ -773,7 +773,8 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
                 limit: None,
                 evaluator_command: Some(evaluator),
                 evaluator_result: None,
-                agent_timeout_ms: Some(10_000),
+                // Windows CI measured PowerShell cold starts around 27 seconds.
+                agent_timeout_ms: Some(if cfg!(windows) { 90_000 } else { 10_000 }),
             }],
             agents: vec![AgentSpec {
                 name: "echo-agent".into(),
