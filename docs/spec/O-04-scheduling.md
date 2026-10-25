@@ -84,6 +84,8 @@ Work reserves budget before it starts and commits the amount actually used when 
 4. **Releasing.** Releasing a reservation returns its amount unused.
 5. **Exhaustion.** A scope is exhausted when committed use of any limited resource reaches its limit.
 
+Model nodes require a workflow or node micro-dollar limit. The daemon injects the remaining reservation into the operator; workflow configuration cannot override it. Reservations and dispatch are committed together and survive restarts. If an interrupted request's bill is unknown, its reserved bound counts as used. A provider failure with an unknown bill also consumes its admitted bound before fallback, even if a later provider succeeds.
+
 ### 5.3 When a reservation is refused
 
 What happens depends on the node's `policy.approval`:

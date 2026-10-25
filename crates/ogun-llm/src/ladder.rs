@@ -110,11 +110,49 @@ impl Ladder {
         budget: &mut CallBudget,
         on_usage: &mut dyn FnMut(&Usage),
     ) -> Result<ChatResponse, LlmError> {
-        budget.admit(p.worst_case_chat(req))?;
-        let resp = p.chat(req).await?;
+        let bound = p.worst_case_chat(req);
+        budget.admit(bound)?;
+        let resp = match p.chat(req).await {
+            Ok(resp) => resp,
+            Err(error) => {
+                Self::record_failed_call(p, &error, bound, budget, on_usage);
+                return Err(error);
+            }
+        };
         budget.record(resp.usage.cost_usd_micro);
         on_usage(&resp.usage);
         Ok(resp)
+    }
+
+    // A timeout, lost/malformed response or model refusal can still have been billed. Account
+    // for its admitted bound before trying another provider, and report it to the daemon so
+    // a successful fallback cannot refund the unknown first bill. Rejected requests are free.
+    fn record_failed_call(
+        p: &Provider,
+        error: &LlmError,
+        bound: u64,
+        budget: &mut CallBudget,
+        on_usage: &mut dyn FnMut(&Usage),
+    ) {
+        if matches!(
+            error,
+            LlmError::NotConfigured(_)
+                | LlmError::ConfigInvalid { .. }
+                | LlmError::Throttled { .. }
+                | LlmError::AuthFailed { .. }
+                | LlmError::Rejected { .. }
+        ) {
+            return;
+        }
+        budget.record(bound);
+        on_usage(&Usage {
+            provider: p.name().to_owned(),
+            model: p.config().model.clone(),
+            // No token counts were returned; the monetary charge is a conservative bound.
+            input_tokens: 0,
+            output_tokens: 0,
+            cost_usd_micro: bound,
+        });
     }
 
     fn eligible(&self) -> impl Iterator<Item = (usize, &Provider)> {
@@ -221,7 +259,8 @@ impl Ladder {
         };
         let mut last = None;
         for (i, p) in candidates {
-            budget.admit(p.worst_case_embed(req))?;
+            let bound = p.worst_case_embed(req);
+            budget.admit(bound)?;
             match p.embed(req).await {
                 Ok(resp) => {
                     budget.record(resp.usage.cost_usd_micro);
@@ -229,15 +268,19 @@ impl Ladder {
                     *pinned = Some(i);
                     return Ok(resp);
                 }
-                Err(e) if e.falls_back() && pinned.is_none() => {
-                    tracing::warn!(
-                        provider = p.name(),
-                        code = e.code(),
-                        "provider failed; trying the next rung"
-                    );
-                    last = Some(e);
+                Err(e) => {
+                    Self::record_failed_call(p, &e, bound, budget, on_usage);
+                    if e.falls_back() && pinned.is_none() {
+                        tracing::warn!(
+                            provider = p.name(),
+                            code = e.code(),
+                            "provider failed; trying the next rung"
+                        );
+                        last = Some(e);
+                    } else {
+                        return Err(e);
+                    }
                 }
-                Err(e) => return Err(e),
             }
         }
         Err(last.unwrap_or_else(|| LlmError::NotConfigured("the ladder is empty".into())))

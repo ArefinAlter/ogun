@@ -14,6 +14,7 @@ pub mod error;
 pub mod exec;
 pub mod handlers;
 pub mod lineage;
+mod llm_budget;
 pub mod sched;
 pub mod secrets;
 pub mod server;

@@ -1,6 +1,6 @@
 //! The daemon's shared state and the documents it keeps in the run store.
 
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -11,7 +11,7 @@ use ogun_api::{ApiError, ApiResult, OgunPaths};
 use ogun_ir::{Catalogue, Workflow};
 use ogun_ops::Registry;
 use ogun_store::{Collection, Store};
-use ogun_types::{ApprovalId, IdGenerator, NodeInstanceId, RunId, Timestamp, WorkflowId};
+use ogun_types::{ApprovalId, IdGenerator, NodeInstanceId, Timestamp, WorkflowId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{Notify, watch};
@@ -212,8 +212,8 @@ pub struct Daemon {
     pub shutdown: watch::Sender<bool>,
     /// Pinned trust-surface binaries.
     pub trusted: Trusted,
-    /// Model spend per run, micro-USD (mirrors `Collection::Spend`).
-    pub spend: Mutex<BTreeMap<RunId, u64>>,
+    /// Serializes durable model-budget reservations and settlement.
+    pub llm_budget_lock: Mutex<()>,
     /// Chunks of objects edges are uploading (O-11), under `sync/incoming`.
     pub hub: ogun_sync::hub::ChunkAssembler,
 }
@@ -253,6 +253,7 @@ impl Daemon {
         let store = Store::open(&paths.run_store())?;
         let now = Timestamp::now();
         let recovered = store.recover(now)?;
+        crate::llm_budget::recover(&store)?;
         if !recovered.is_empty() {
             tracing::info!(
                 count = recovered.len(),
@@ -315,7 +316,7 @@ impl Daemon {
             decisions: Mutex::new(VecDeque::new()),
             shutdown: watch::Sender::new(false),
             trusted,
-            spend: Mutex::new(BTreeMap::new()),
+            llm_budget_lock: Mutex::new(()),
             hub,
         });
         Ok(daemon)

@@ -147,21 +147,12 @@ async fn step(
                 committed_at: now,
             };
             let commit = || -> Result<(), ogun_store::StoreError> {
-                d.store
-                    .transition(ni.id, Cause::SessionAvailable, Actor::Zeus, now, None)?;
                 let writes = [DocWrite::put(
                     Collection::Outputs,
                     &key,
                     &vec![out.clone()],
                 )?];
-                d.store.transition_with(
-                    ni.id,
-                    Cause::OutputsCommitted,
-                    Actor::Runtime,
-                    now,
-                    None,
-                    &writes,
-                )?;
+                d.store.complete_session(ni.id, now, &writes)?;
                 Ok(())
             };
             if let Err(e) = commit() {

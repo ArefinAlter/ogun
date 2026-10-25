@@ -245,10 +245,43 @@ fn ready(
     {
         return Ok(());
     }
-    let ni = d
-        .store
-        .transition(ni.id, Cause::Dispatched, Actor::Runtime, now, None)
-        .map_err(store_err)?;
+    let (ni, budget) = if kind(d, node) == Some(OpKind::Model) {
+        match crate::llm_budget::dispatch(d, wf, node, ni)? {
+            crate::llm_budget::Dispatch::Reserved(ni, amount) => (ni, Some(amount)),
+            crate::llm_budget::Dispatch::Busy => return Ok(()),
+            crate::llm_budget::Dispatch::Exhausted(limits) => {
+                if node.policy.approval == ApprovalPolicy::OverBudget {
+                    request_budget_approval(d, run, node, ni, &limits)?;
+                } else {
+                    // The state machine records failures from Running. No operator is launched.
+                    let ni = d
+                        .store
+                        .transition(ni.id, Cause::Dispatched, Actor::Runtime, now, None)
+                        .map_err(store_err)?;
+                    fail(
+                        d,
+                        node,
+                        &ni,
+                        ogun_types::OgunError::new(
+                            "run.budget_exhausted",
+                            "no model budget remains in this run partition",
+                        ),
+                        false,
+                        now,
+                    )
+                    .map_err(store_err)?;
+                }
+                return Ok(());
+            }
+        }
+    } else {
+        (
+            d.store
+                .transition(ni.id, Cause::Dispatched, Actor::Runtime, now, None)
+                .map_err(store_err)?,
+            None,
+        )
+    };
     *running.entry(node.id.clone()).or_default() += 1;
     let (tx, rx) = watch::channel(false);
     lock(&d.running).insert(ni.id, tx);
@@ -258,12 +291,54 @@ fn ready(
     let node_id = node.id.clone();
     tokio::spawn(async move {
         let id = ni.id;
-        if let Err(e) = attempt(&d2, &run, &wf, &node_id, ni, rx).await {
+        let partition = ni.partition.clone();
+        if let Err(e) = attempt(&d2, &run, &wf, &node_id, ni, rx, budget).await {
             tracing::error!(instance = %id, error = %e, "attempt bookkeeping failed");
+            // If execution or accounting failed unexpectedly, retain the worst-case bill.
+            if budget.is_some() {
+                let _ = crate::llm_budget::settle(&d2, run.id, &partition, id, None);
+            }
         }
         lock(&d2.running).remove(&id);
         d2.changed();
     });
+    Ok(())
+}
+
+fn request_budget_approval(
+    d: &Daemon,
+    run: &RunRecord,
+    node: &Node,
+    ni: &NodeInstance,
+    limits: &crate::llm_budget::Limits,
+) -> ApiResult<()> {
+    let (_, write) = crate::approvals::new_approval(
+        d,
+        crate::approvals::Request {
+            kind: ApprovalKind::Budget,
+            workflow: run.workflow.clone(),
+            workflow_hash: run.workflow_hash.clone(),
+            run_id: Some(run.id),
+            node: Some(node.id.clone()),
+            instance: Some(ni.id),
+            facts: vec![limits.fact()?, Fact {
+                label: "reason".into(),
+                value: "the next model call needs more budget; approve these raised micro-USD limits for this run partition".into(),
+            }],
+            code: vec![],
+            requested_by: "ogund (budget)".into(),
+        },
+    )?;
+    d.store
+        .transition_with(
+            ni.id,
+            Cause::ApprovalRequired,
+            Actor::Runtime,
+            Timestamp::now(),
+            None,
+            &[write],
+        )
+        .map_err(store_err)?;
     Ok(())
 }
 
@@ -387,6 +462,29 @@ fn backoff_ms(attempt: u32) -> u64 {
     (1_000u64 << attempt.min(8)).min(300_000)
 }
 
+/// Workflow configuration cannot forge a reservation, including on non-model operators.
+fn invocation_config(node: &Node, budget: Option<u64>) -> Value {
+    let mut config: serde_json::Map<String, Value> = node.config.clone().into_iter().collect();
+    config.remove("llm_budget_usd_micro");
+    if let Some(amount) = budget {
+        config.insert("llm_budget_usd_micro".into(), Value::from(amount));
+    }
+    Value::Object(config)
+}
+
+fn settlement_cost(outcome: &Outcome, reported: u64, reserved: u64) -> u64 {
+    let uncertain = matches!(outcome, Outcome::Cancelled)
+        || matches!(outcome, Outcome::Failed { error, .. } if matches!(error.code.as_str(),
+            "op.timeout" | "op.crashed" | "op.protocol_violation" | "op.sandbox_violation"
+                | "op.operator_failed" | "op.operator_transient" | "internal.bug"
+                | "llm.provider_unavailable"));
+    if uncertain {
+        reported.max(reserved)
+    } else {
+        reported
+    }
+}
+
 async fn attempt(
     d: &Arc<Daemon>,
     run: &RunRecord,
@@ -394,6 +492,7 @@ async fn attempt(
     node_id: &str,
     ni: NodeInstance,
     cancel: watch::Receiver<bool>,
+    budget: Option<u64>,
 ) -> ApiResult<()> {
     let node = wf
         .nodes
@@ -414,6 +513,7 @@ async fn attempt(
             let ok =
                 std::fs::read(&path).is_ok_and(|b| blake3::hash(&b).to_hex().as_str() == c.blake3);
             if !ok {
+                crate::llm_budget::settle(d, run.id, &ni.partition, ni.id, Some(0))?;
                 return finish(
                     d,
                     run,
@@ -445,7 +545,7 @@ async fn attempt(
         partition: ni.partition.clone(),
         window: window_of(wf, &ni.partition),
         op: node.op.clone(),
-        config: Value::Object(node.config.clone().into_iter().collect()),
+        config: invocation_config(node, budget),
         inputs,
         scratch: scratch.clone(),
         checkpoint: ni.checkpoint.clone(),
@@ -459,16 +559,12 @@ async fn attempt(
         events: tx,
         cancel,
     };
-    let budget = node
-        .policy
-        .budgets
-        .llm_usd_micro
-        .or(wf.budgets.llm_usd_micro);
     let events = {
         let d = d.clone();
         let id = ni.id;
         let run_id = run.id;
         tokio::spawn(async move {
+            let mut total = 0u64;
             while let Some(ev) = rx.recv().await {
                 match ev {
                     OpEvent::Checkpoint(v) => {
@@ -477,15 +573,7 @@ async fn attempt(
                         }
                     }
                     OpEvent::Usage { cost_usd_micro, .. } => {
-                        let total = {
-                            let mut spend = lock(&d.spend);
-                            let t = spend.entry(run_id).or_default();
-                            *t = t.saturating_add(cost_usd_micro);
-                            *t
-                        };
-                        let _ = d
-                            .store
-                            .put_doc(Collection::Spend, &run_id.to_string(), &total);
+                        total = total.saturating_add(cost_usd_micro);
                         if budget.is_some_and(|b| total > b)
                             && let Some(tx) = lock(&d.running).get(&id)
                         {
@@ -497,6 +585,7 @@ async fn attempt(
                     OpEvent::Progress { .. } => {}
                 }
             }
+            total
         })
     };
     let timeout = Duration::from_millis(node.policy.timeout_ms);
@@ -510,7 +599,29 @@ async fn attempt(
             retryable: true,
         },
     };
-    let _ = events.await;
+    let total = events
+        .await
+        .map_err(|_| ApiError::internal("model usage accounting task failed"))?;
+    let outcome = if budget.is_some_and(|limit| total > limit) {
+        Outcome::Failed {
+            error: ogun_types::OgunError::new(
+                "run.budget_exhausted",
+                "model usage exceeded the reserved budget",
+            ),
+            retryable: false,
+        }
+    } else {
+        outcome
+    };
+    if let Some(reserved) = budget {
+        crate::llm_budget::settle(
+            d,
+            run.id,
+            &ni.partition,
+            ni.id,
+            Some(settlement_cost(&outcome, total, reserved)),
+        )?;
+    }
     finish(d, run, node, &ni, &scratch, outcome).await
 }
 
@@ -559,6 +670,15 @@ async fn finish(
                 }
                 Err(e) => fail(d, node, ni, e.data, false, now),
             }
+        }
+        Outcome::Failed { error, .. }
+            if error.code == "run.budget_exhausted"
+                && node.policy.approval == ApprovalPolicy::OverBudget =>
+        {
+            let wf = d.workflow(&run.workflow_hash)?;
+            let limits = crate::llm_budget::raised_limits(d, &wf, node, ni)?;
+            request_budget_approval(d, run, node, ni, &limits)?;
+            Ok(())
         }
         Outcome::Failed { error, retryable } => fail(d, node, ni, error, retryable, now),
         Outcome::SessionRequired { request } => {
@@ -690,6 +810,56 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn interrupted_and_unknown_operator_bills_retain_the_reserved_bound() {
+        for code in [
+            "op.timeout",
+            "op.crashed",
+            "op.protocol_violation",
+            "op.sandbox_violation",
+            "op.operator_failed",
+            "op.operator_transient",
+            "internal.bug",
+            "llm.provider_unavailable",
+        ] {
+            let outcome = Outcome::Failed {
+                error: ogun_types::OgunError::new(code, "unknown bill"),
+                retryable: true,
+            };
+            assert_eq!(settlement_cost(&outcome, 20, 60), 60, "{code}");
+            assert_eq!(settlement_cost(&outcome, 80, 60), 80, "overrun: {code}");
+        }
+        assert_eq!(settlement_cost(&Outcome::Cancelled, 20, 60), 60);
+        assert_eq!(
+            settlement_cost(&Outcome::Succeeded { outputs: vec![] }, 20, 60),
+            20
+        );
+        let refused = Outcome::Failed {
+            error: ogun_types::OgunError::new("run.budget_exhausted", "call refused"),
+            retryable: false,
+        };
+        assert_eq!(settlement_cost(&refused, 20, 60), 20);
+    }
+
+    #[test]
+    fn invocation_budget_is_always_daemon_owned() {
+        let node: Node = serde_json::from_value(json!({
+            "id": "model", "op": "llm.extract@1",
+            "config": {"llm_budget_usd_micro": 999_999, "prompt": "hello"}
+        }))
+        .unwrap();
+        assert_eq!(
+            invocation_config(&node, Some(123))["llm_budget_usd_micro"],
+            123
+        );
+        assert_eq!(invocation_config(&node, Some(123))["prompt"], "hello");
+        assert!(
+            invocation_config(&node, None)
+                .get("llm_budget_usd_micro")
+                .is_none()
+        );
+    }
 
     #[test]
     fn predicates() {
