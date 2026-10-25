@@ -1,0 +1,65 @@
+{
+  "ir_version": 0,
+  "workflow": "ridership-forecast",
+  "version": 1,
+  "description": "Every Saturday: next week's trips per station from the same week last year, scaled by the weather forecast for the city. Ends in a table the planning team reads on Monday.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "20 23 * * 5"
+    }
+  ],
+  "budgets": {
+    "wall_ms": 600000
+  },
+  "nodes": [
+    {
+      "id": "forecast",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "api.open-meteo.com"
+        ],
+        "sources": [
+          {
+            "url": "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m,precipitation&forecast_days=7"
+          }
+        ],
+        "attribution": "Weather data by Open-Meteo.com"
+      }
+    },
+    {
+      "id": "trips",
+      "op": "duckdb@1",
+      "config": {
+        "read": "trips_daily.parquet"
+      }
+    },
+    {
+      "id": "model",
+      "op": "python@1",
+      "inputs": [
+        "forecast.artifacts",
+        "trips.tables"
+      ],
+      "config": {
+        "as_of": "{run.date}",
+        "last_year_week_temp_c": 14
+      },
+      "code": {
+        "blake3": "b1c4d3a5268585171e2a4f6acca271e0ad08b34512053a564880efb4f5ae6ddd",
+        "path": "examples/bikeshare/ops/ridership_forecast.py"
+      }
+    },
+    {
+      "id": "publish",
+      "op": "duckdb@1",
+      "inputs": [
+        "model.rows"
+      ],
+      "config": {
+        "write": "ridership_next_week.parquet"
+      }
+    }
+  ]
+}
