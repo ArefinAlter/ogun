@@ -52,6 +52,7 @@ pub fn run() {
             commands::link_local,
             commands::link_hub,
             commands::link_forget,
+            commands::prealpha_call,
             commands::daemon_status,
             commands::workflows_list,
             commands::workflows_get,

@@ -167,6 +167,52 @@ fn typed<T: DeserializeOwned>(params: Value) -> StudioResult<T> {
     serde_json::from_value(params).map_err(|e| StudioError::invalid(format!("bad parameters: {e}")))
 }
 
+/// The methods of the hosted pre-alpha service (`deploy/pre-alpha/svc`, under `/svc/v1/` on the hub's origin) the
+/// shell relays. The set is closed here as well as in the service: agent threads, connections and the settings the
+/// daemon does not implement yet. None of them reaches an approval or a secret value.
+pub const PREALPHA_METHODS: &[&str] = &[
+    "agent.models",
+    "agent.tools",
+    "agent.settings",
+    "agent.threads",
+    "agent.thread",
+    "agent.set_settings",
+    "agent.create",
+    "agent.send",
+    "agent.stop",
+    "agent.act",
+    "agent.set_access",
+    "agent.rename",
+    "agent.remove",
+    "connections.list",
+    "connections.put",
+    "connections.test",
+    "connections.remove",
+    "runtime.get",
+    "runtime.set",
+    "runtime.reset",
+    "environments",
+    "ladder.get",
+    "ladder.put",
+    "sources.get",
+    "sources.set_repo",
+    "sources.sync",
+    "sources.set_provider",
+    "sources.set_auto_pull",
+    "evidence.get",
+    "evidence.set",
+    "storage.info",
+    "storage.rules",
+    "storage.cleanup_plan",
+    "storage.set_retention",
+    "storage.clear_caches",
+    "storage.set_rules",
+    "storage.cleanup",
+    "archive.list",
+    "archive.restore",
+    "secrets.list",
+];
+
 impl HubLink {
     /// Builds a link. Nothing is sent until the first call.
     ///
@@ -259,6 +305,49 @@ impl HubLink {
             .header(ACCEPT, "application/json")
             .json(body)
             .timeout(Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| transport(&e))?;
+        self.read_json(resp).await
+    }
+
+    /// Calls one method of the hosted pre-alpha service with this link's token. `install` names this desktop
+    /// install (random, kept in the webview's preferences), so two installs sharing the built-in token keep
+    /// separate threads and settings.
+    ///
+    /// # Errors
+    ///
+    /// `api.method_not_found` for a method outside [`PREALPHA_METHODS`]; the service's envelope otherwise.
+    pub async fn prealpha_call(
+        &self,
+        method: &str,
+        params: Value,
+        install: &str,
+    ) -> StudioResult<Value> {
+        if !PREALPHA_METHODS.contains(&method) {
+            return Err(StudioError::new(
+                "api.method_not_found",
+                "not a method of the pre-alpha service",
+            ));
+        }
+        let install: String = install
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+            .take(64)
+            .collect();
+        let mut url = self.base.clone();
+        url.path_segments_mut()
+            .map_err(|()| StudioError::invalid("the hub URL cannot take a path"))?
+            .pop_if_empty()
+            .extend(["svc", "v1", "call"]);
+        let resp = self
+            .http
+            .post(url)
+            .header(AUTHORIZATION, self.auth()?)
+            .header(ACCEPT, "application/json")
+            .header("x-ogun-install", install)
+            .json(&json!({ "method": method, "params": params }))
+            .timeout(Duration::from_secs(40))
             .send()
             .await
             .map_err(|e| transport(&e))?;

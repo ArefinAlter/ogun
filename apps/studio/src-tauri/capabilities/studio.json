@@ -11,6 +11,7 @@
     "allow-link-local",
     "allow-link-hub",
     "allow-link-forget",
+    "allow-prealpha-call",
     "allow-daemon-status",
     "allow-workflows-list",
     "allow-workflows-get",
