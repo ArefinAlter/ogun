@@ -73,3 +73,24 @@ def test_no_daemon_is_unavailable():
         FakeDaemon(d, {}).close()
         with pytest.raises(OgunUnavailable):
             Client.connect("test", ogun_home=d)
+
+
+@pytest.mark.parametrize("failure", ["secret", "connect"])
+def test_connection_setup_failures_wipe_loaded_secrets(monkeypatch, failure):
+    from ogun_client import client as client_module
+    from ogun_client.auth import Credential, IpcSecret
+
+    cred = Credential.from_file_text("ocl_01J9Z3K4M5N6P7Q8R9S0T1V2W3 agent test ot1_" + "44" * 32)
+    secret = IpcSecret.from_file_text("11" * 32)
+    monkeypatch.setattr(Credential, "read", lambda path: cred)
+
+    def unavailable(*args):
+        raise OgunUnavailable("api.unavailable", "test setup failure")
+
+    monkeypatch.setattr(IpcSecret, "read", unavailable if failure == "secret" else lambda path: secret)
+    monkeypatch.setattr(client_module, "connect", unavailable)
+    with pytest.raises(OgunUnavailable):
+        Client.connect("test", ogun_home="/unused")
+    assert cred._token == bytes(32)
+    if failure == "connect":
+        assert secret._key == bytes(32)

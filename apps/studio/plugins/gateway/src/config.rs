@@ -34,7 +34,7 @@ fn default_segment_max_records() -> u64 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CoreConfig {
-    /// The gateway's label, `[a-z0-9_-]{1,64}`. Its segments are offered as asset `gateway/<name>`.
+    /// The gateway's label, `[a-z0-9_-]{1,64}`. Its segments are offered as asset `<edge_id>/gateway/<name>` after enrolment.
     pub name: String,
     /// The `edg_` id the hub assigned when a person enrolled this gateway's public key. Sync waits until it is set.
     #[serde(default, skip_serializing_if = "Option::is_none")]

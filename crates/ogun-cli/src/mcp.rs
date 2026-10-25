@@ -899,18 +899,19 @@ impl McpServer {
     }
 }
 
-/// Serves stdin to stdout until stdin closes, reaching `ogund` as the environment says
-/// ([`DaemonConfig::from_env`]). Malformed lines get a JSON-RPC parse error.
+/// Serves stdin to stdout until stdin closes, reaching `ogund` with the selected configuration.
+/// Malformed lines get a JSON-RPC parse error.
 ///
 /// # Errors
 ///
 /// I/O errors on stdout.
 pub fn serve(
+    config: DaemonConfig,
     input: impl BufRead,
     output: impl Write,
     now: impl Fn() -> i64,
 ) -> std::io::Result<()> {
-    serve_with(McpServer::new(DaemonConfig::from_env()), input, output, now)
+    serve_with(McpServer::new(config), input, output, now)
 }
 
 /// Serves with an explicit server.

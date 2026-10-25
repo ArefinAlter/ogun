@@ -376,6 +376,21 @@ impl ZeusBridge {
     }
 
     async fn call(&self, method: &str, params: Value, extra: Duration) -> BridgeResult<Value> {
+        // A lost response does not prove a mutation failed. Only replay mutations when
+        // Zeus can deduplicate them using the request's idempotency key.
+        let replay_safe = matches!(
+            method,
+            "daemon.ping"
+                | "daemon.status"
+                | "jobs.get"
+                | "jobs.wait"
+                | "approvals.get"
+                | "artifacts.list"
+                | "artifacts.get"
+        ) || params
+            .get("idempotency_key")
+            .and_then(Value::as_str)
+            .is_some();
         let mut guard = self.client.lock().await;
         for attempt in 0..2 {
             if guard.is_none() {
@@ -385,11 +400,12 @@ impl ZeusBridge {
                 continue;
             };
             match client.call_with_extra(method, params.clone(), extra).await {
-                // A broken connection is dropped and, once, re-established. Mutating calls carry idempotency keys,
-                // so repeating one cannot do the work twice.
-                Err(BridgeError::Unavailable(reason)) if attempt == 0 => {
-                    tracing::info!(%method, %reason, "zeusd connection lost; reconnecting");
+                Err(err @ BridgeError::Unavailable(_)) => {
                     *guard = None;
+                    if attempt != 0 || !replay_safe {
+                        return Err(err);
+                    }
+                    tracing::info!(%method, "zeusd connection lost; reconnecting");
                 }
                 other => return other,
             }

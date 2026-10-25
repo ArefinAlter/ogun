@@ -21,7 +21,7 @@
 //! (`unshare -r -n`) and refuses to run when it cannot, unless a person set `allow_unisolated_local`.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
@@ -294,8 +294,34 @@ pub fn protected_dirs() -> Vec<(&'static str, PathBuf)> {
     out
 }
 
-fn canonical_or_self(p: &Path) -> PathBuf {
-    std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())
+// Resolve existing symlink prefixes even when the requested directory does not exist yet.
+// Comparing raw paths after a failed canonicalize would miss `missing/../ogun` and relative paths.
+fn state_path(p: &Path) -> BenchResult<PathBuf> {
+    let absolute = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(BenchError::io("resolve the state directory"))?
+            .join(p)
+    };
+    let mut resolved = PathBuf::new();
+    for part in absolute.components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            _ => {
+                resolved.push(part.as_os_str());
+                match std::fs::canonicalize(&resolved) {
+                    Ok(path) => resolved = path,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(BenchError::io("resolve the state directory")(e)),
+                }
+            }
+        }
+    }
+    Ok(resolved)
 }
 
 /// Refuses a benchmark state directory that is inside, or contains, the user's Ogun or Zeus state.
@@ -304,9 +330,9 @@ fn canonical_or_self(p: &Path) -> PathBuf {
 ///
 /// [`BenchError::StoreOverlap`].
 pub fn check_isolated_state(state_root: &Path) -> BenchResult<()> {
-    let ours = canonical_or_self(state_root);
+    let ours = state_path(state_root)?;
     for (what, p) in protected_dirs() {
-        let theirs = canonical_or_self(&p);
+        let theirs = state_path(&p)?;
         if ours.starts_with(&theirs) || theirs.starts_with(&ours) {
             return Err(BenchError::StoreOverlap(what));
         }
@@ -458,6 +484,7 @@ async fn netns_available() -> bool {
 }
 
 fn local_env(record: &EnvRecord, opts: &ExecOptions) -> Vec<(String, String)> {
+    let tmp = record.logs.join("tmp").display().to_string();
     let mut vars = vec![
         (
             "PATH".to_owned(),
@@ -465,11 +492,20 @@ fn local_env(record: &EnvRecord, opts: &ExecOptions) -> Vec<(String, String)> {
         ),
         ("HOME".to_owned(), record.workspace.display().to_string()),
         ("LANG".to_owned(), "C.UTF-8".to_owned()),
-        (
-            "TMPDIR".to_owned(),
-            record.logs.join("tmp").display().to_string(),
-        ),
+        ("TMPDIR".to_owned(), tmp.clone()),
     ];
+    if cfg!(windows) {
+        // Windows runtimes need the OS location even in a cleared environment.
+        // Keep the same narrow platform defaults as the operator runner; Windows
+        // environment-variable lookups are case-insensitive.
+        for name in ["SystemRoot", "windir"] {
+            if let Ok(value) = std::env::var(name) {
+                vars.push((name.into(), value));
+            }
+        }
+        vars.push(("TEMP".into(), tmp.clone()));
+        vars.push(("TMP".into(), tmp));
+    }
     for name in &opts.pass_env {
         if let Ok(v) = std::env::var(name) {
             vars.push((name.clone(), v));
@@ -628,7 +664,7 @@ impl Environment {
                     || spec.evaluator_network == NetworkPolicy::Denied;
                 if need_netns {
                     if netns_available().await {
-                        me.local_netns = true;
+                        me.local_netns = spec.agent_network == NetworkPolicy::Denied;
                         me.isolation = "local_netns";
                     } else if spec.allow_unisolated_local {
                         tracing::warn!(env = %me.id, "local environment without a network namespace");
@@ -973,23 +1009,34 @@ impl Environment {
         }
     }
 
-    /// Opens the network for the evaluator when the spec allows it and the agent phase did not have it.
+    /// Applies the evaluator's network policy, including closing egress an agent was allowed.
     ///
     /// # Errors
     ///
     /// [`BenchError::Environment`].
-    pub async fn open_evaluator_network(&self) -> BenchResult<()> {
-        if self.spec.evaluator_network != NetworkPolicy::Allowed
-            || self.spec.agent_network == NetworkPolicy::Allowed
-        {
+    pub async fn open_evaluator_network(&mut self) -> BenchResult<()> {
+        if self.spec.runtime == Runtime::Local {
+            self.local_netns = self.isolation == "local_netns"
+                && self.spec.evaluator_network == NetworkPolicy::Denied;
             return Ok(());
         }
-        if let (Some(cli), Some(c), Some(_)) =
-            (self.spec.runtime.cli(), &self.container, &self.network)
-        {
+        if self.spec.agent_network == self.spec.evaluator_network {
+            return Ok(());
+        }
+        if let (Some(cli), Some(container)) = (self.spec.runtime.cli(), &self.container) {
+            let action = if self.spec.evaluator_network == NetworkPolicy::Allowed {
+                "connect"
+            } else {
+                "disconnect"
+            };
             must(
                 cli,
-                &["network", "connect", self.spec.runtime.default_network(), c],
+                &[
+                    "network",
+                    action,
+                    self.spec.runtime.default_network(),
+                    container,
+                ],
                 60_000,
             )
             .await?;
@@ -1049,6 +1096,102 @@ mod tests {
         );
         if let Some((_, ogun)) = protected_dirs().into_iter().next() {
             assert!(check_isolated_state(&ogun.join("bench")).is_err());
+        }
+    }
+
+    #[test]
+    fn nonexistent_state_paths_cannot_hide_protected_overlap() {
+        for (_, protected) in protected_dirs() {
+            let (Some(parent), Some(name)) = (protected.parent(), protected.file_name()) else {
+                continue;
+            };
+            let disguised = parent
+                .join("not-created")
+                .join("..")
+                .join(name)
+                .join("bench");
+            assert!(matches!(
+                check_isolated_state(&disguised),
+                Err(BenchError::StoreOverlap(_))
+            ));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nonexistent_paths_resolve_existing_symlink_prefixes() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("target");
+        std::fs::create_dir(&target).unwrap();
+        std::os::unix::fs::symlink(&target, dir.path().join("link")).unwrap();
+        let disguised = dir.path().join("link/not-created/../bench");
+        assert_eq!(
+            state_path(&disguised).unwrap(),
+            std::fs::canonicalize(target).unwrap().join("bench")
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Podman and OGUN_BENCH_PODMAN_IMAGE naming a local Linux image with sh and awk"]
+    async fn podman_enforces_both_phase_network_policies() {
+        let image = std::env::var("OGUN_BENCH_PODMAN_IMAGE").expect("set the test image");
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("benchmark");
+        std::fs::create_dir_all(root.join("examples/t1")).unwrap();
+        std::fs::create_dir_all(root.join("evaluation_suite")).unwrap();
+        std::fs::write(
+            root.join("examples/spider2-dbt.jsonl"),
+            "{\"instance_id\":\"t1\",\"instruction\":\"network smoke\"}\n",
+        )
+        .unwrap();
+        let task = crate::adapters::spider2::load(&root).unwrap().remove(0);
+        for (agent, evaluator) in [
+            (NetworkPolicy::Denied, NetworkPolicy::Denied),
+            (NetworkPolicy::Denied, NetworkPolicy::Allowed),
+            (NetworkPolicy::Allowed, NetworkPolicy::Denied),
+        ] {
+            let spec = EnvironmentSpec {
+                runtime: Runtime::Podman,
+                image: Some(image.clone()),
+                agent_network: agent,
+                evaluator_network: evaluator,
+                ..EnvironmentSpec::default()
+            };
+            let mut env =
+                Environment::create(&spec, &task, &dir.path().join("state"), &IdGenerator::new())
+                    .await
+                    .unwrap();
+            let route = vec![
+                "awk".into(),
+                "$2 == \"00000000\" { found=1 } END { exit !found }".into(),
+                "/proc/net/route".into(),
+            ];
+            let opts = ExecOptions {
+                timeout_ms: 10_000,
+                ..Default::default()
+            };
+            let before = env.exec(&route, &opts).await;
+            let transition = env.open_evaluator_network().await;
+            let after = env.exec(&route, &opts).await;
+            env.teardown().await;
+            env.remove_dir();
+            transition.unwrap();
+            assert_eq!(
+                before.unwrap().exit_code,
+                Some(if agent == NetworkPolicy::Allowed {
+                    0
+                } else {
+                    1
+                })
+            );
+            assert_eq!(
+                after.unwrap().exit_code,
+                Some(if evaluator == NetworkPolicy::Allowed {
+                    0
+                } else {
+                    1
+                })
+            );
         }
     }
 

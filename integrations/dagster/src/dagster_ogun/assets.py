@@ -42,12 +42,13 @@ def _digests(artifacts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def _selector(context: AssetExecutionContext) -> Dict[str, Any]:
-    if not context.has_partition_key:
-        return latest()
     if getattr(context, "has_partition_key_range", False):
         r = context.partition_key_range
         if r.start != r.end:
             return key_range(r.start, r.end)
+        return keys([r.start])
+    if not context.has_partition_key:
+        return latest()
     return keys([context.partition_key])
 
 

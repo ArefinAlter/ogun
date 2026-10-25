@@ -86,16 +86,6 @@ pub const CODES: &[CodeInfo] = &[
     code("edge.not_enrolled", ErrorClass::PolicyDenied, false),
     code("sync.bad_signature", ErrorClass::PolicyDenied, false),
     code("sync.digest_mismatch", ErrorClass::Conflict, false),
-    // Model operators and the provider ladder (O-03 section 8).
-    code("llm.not_configured", ErrorClass::Unavailable, false),
-    code("llm.config_invalid", ErrorClass::InvalidRequest, false),
-    code("llm.provider_unavailable", ErrorClass::Unavailable, true),
-    code("llm.auth_failed", ErrorClass::Unauthenticated, false),
-    code("llm.request_rejected", ErrorClass::InvalidRequest, false),
-    code("llm.refused", ErrorClass::PolicyDenied, false),
-    code("llm.output_invalid", ErrorClass::Integrity, false),
-    code("llm.call_limit", ErrorClass::PolicyDenied, false),
-    code("llm.input_unsupported", ErrorClass::InvalidRequest, false),
     // Lineage export (O-05).
     code("lineage.io_failed", ErrorClass::Internal, false),
     code(
@@ -139,6 +129,16 @@ pub const CODES: &[CodeInfo] = &[
         ErrorClass::PolicyDenied,
         false,
     ),
+    // Model operators and the provider ladder (O-03 section 8).
+    code("llm.not_configured", ErrorClass::Unavailable, false),
+    code("llm.config_invalid", ErrorClass::InvalidRequest, false),
+    code("llm.provider_unavailable", ErrorClass::Unavailable, true),
+    code("llm.auth_failed", ErrorClass::Unauthenticated, false),
+    code("llm.request_rejected", ErrorClass::InvalidRequest, false),
+    code("llm.refused", ErrorClass::PolicyDenied, false),
+    code("llm.output_invalid", ErrorClass::Integrity, false),
+    code("llm.call_limit", ErrorClass::PolicyDenied, false),
+    code("llm.input_unsupported", ErrorClass::InvalidRequest, false),
 ];
 
 /// Looks up a registered code.
@@ -232,11 +232,11 @@ mod tests {
                     "secret",
                     "edge",
                     "sync",
-                    "llm",
                     "lineage",
                     "bench",
                     "zeus",
-                    "server"
+                    "server",
+                    "llm"
                 ]
                 .contains(&ns),
                 "{}",

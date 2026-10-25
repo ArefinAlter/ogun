@@ -39,4 +39,4 @@ What runs today, what is only built, and the known gaps. Updated with every runt
 7. **Edge acknowledgements** reach the edge's daemon through `sync/acked.jsonl`, not a daemon method; a deleted bridge log restarts its producer sequence at 0 and needs a producer epoch.
 8. **Remote approvals** (Studio-web with WebAuthn) are implemented behind `remote_approvals`, off by default, until the external security review ADR 0010 requires.
 9. **The relayed caller**: the daemon sees every call from `ogun-server` as the bridge credential; an `acting_for` member would put the person in the daemon's log (O-13 open issue 1).
-10. **CI does not run**: GitHub Actions jobs do not start on this account (billing).
+10. **CI** runs the workspace checks and tests on Linux, macOS and Windows; live external integrations listed above still need counterpart validation.

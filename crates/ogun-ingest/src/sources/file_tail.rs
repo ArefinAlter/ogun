@@ -2,8 +2,9 @@
 //!
 //! * The byte offset of the last committed line is durable: it is written (atomically, after the
 //!   append commits) to `<log_dir>/<workflow>/<node>.tail.json` together with the file's identity
-//!   (device and inode on Unix) and the CSV header. A crash between the commit and the offset
-//!   write re-reads those lines; the stream's `dedupe_key` removes the copies.
+//!   (device and inode on Unix, volume and file index on Windows) and the CSV header. A crash
+//!   between the commit and the offset write re-reads those lines; the stream's `dedupe_key`
+//!   removes the copies.
 //! * **Rotation:** when the path names another file than the one being read, the old file is read
 //!   to its end and then the new one from offset 0.
 //! * **Truncation:** when the file is shorter than the offset, it is read again from 0.
@@ -14,7 +15,7 @@
 //! (default 1 000), `start` (`beginning` or `end`, for a file seen for the first time; default
 //! `beginning`).
 
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -34,7 +35,7 @@ const MAX_LINES_PER_APPEND: usize = 1_000;
 /// The durable position.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Position {
-    /// File identity: `dev:ino` on Unix, empty elsewhere.
+    /// File identity: `dev:ino` on Unix, `windows:volume:index` on Windows.
     pub identity: String,
     /// Bytes consumed.
     pub offset: u64,
@@ -43,20 +44,34 @@ pub struct Position {
     pub header: Option<Vec<String>>,
 }
 
-/// A file's identity.
-pub fn identity(meta: &std::fs::Metadata) -> String {
+/// A file's identity, queried from the same open handle used for reading.
+///
+/// # Errors
+///
+/// Returns an error if the identity cannot be read or the platform is unsupported.
+pub fn identity(file: &std::fs::File) -> std::io::Result<String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        format!("{}:{}", meta.dev(), meta.ino())
+        let meta = file.metadata()?;
+        Ok(format!("{}:{}", meta.dev(), meta.ino()))
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
-        meta.created()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_millis().to_string())
-            .unwrap_or_default()
+        let info = winapi_util::file::information(file)?;
+        Ok(format!(
+            "windows:{}:{}",
+            info.volume_serial_number(),
+            info.file_index()
+        ))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = file;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "file identity is unsupported on this platform",
+        ))
     }
 }
 
@@ -67,8 +82,11 @@ fn load_position(path: &Path) -> Option<Position> {
 fn save_position(path: &Path, pos: &Position) -> Result<(), String> {
     let bytes = serde_json::to_vec(pos).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, &bytes)
-        .and_then(|()| std::fs::File::open(&tmp)?.sync_all())
+    std::fs::File::create(&tmp)
+        .and_then(|mut file| {
+            file.write_all(&bytes)?;
+            file.sync_all()
+        })
         .and_then(|()| std::fs::rename(&tmp, path))
         .map_err(|e| format!("cannot save the tail offset: {:?}", e.kind()))
 }
@@ -108,28 +126,34 @@ impl Tail {
     /// Opens the file when none is open, follows a rotation once the current file has been read
     /// to its end (`at_end`), and restarts a truncated file from 0.
     fn check_rotation(&mut self, at_end: bool) {
-        let Ok(meta) = std::fs::metadata(&self.path) else {
+        // Identify the opened candidate, so a rename between metadata and open cannot pair
+        // one file's identity/offset with another file's contents.
+        let Ok(f) = std::fs::File::open(&self.path) else {
             return;
         };
-        let id = identity(&meta);
+        let Ok(meta) = f.metadata() else {
+            return;
+        };
+        let Ok(id) = identity(&f) else {
+            // Preserve the current handle and committed position until identity is available.
+            return;
+        };
         if self.file.is_none() {
-            if let Ok(f) = std::fs::File::open(&self.path) {
-                if id != self.pos.identity {
-                    self.pos = Position {
-                        identity: id,
-                        offset: 0,
-                        header: None,
-                    };
-                } else if meta.len() < self.pos.offset {
-                    self.pos.offset = 0;
-                    self.pos.header = None;
-                }
-                self.file = Some(f);
+            if id != self.pos.identity {
+                self.pos = Position {
+                    identity: id,
+                    offset: 0,
+                    header: None,
+                };
+            } else if meta.len() < self.pos.offset {
+                self.pos.offset = 0;
+                self.pos.header = None;
             }
+            self.file = Some(f);
             return;
         }
         if id != self.pos.identity {
-            if at_end && let Ok(f) = std::fs::File::open(&self.path) {
+            if at_end {
                 tracing::info!(file = %self.path.display(), "file rotated; following the new file");
                 self.file = Some(f);
                 self.pos = Position {
@@ -177,11 +201,13 @@ pub async fn run(ctx: Ctx) -> Result<(), String> {
     let pos_file = ctx.state_dir.join(format!("{}.tail.json", ctx.spec.node));
     let pos = match load_position(&pos_file) {
         Some(p) => p,
-        None if from_end => std::fs::metadata(&path)
-            .map(|m| Position {
-                identity: identity(&m),
-                offset: m.len(),
-                header: None,
+        None if from_end => std::fs::File::open(&path)
+            .and_then(|file| {
+                Ok(Position {
+                    identity: identity(&file)?,
+                    offset: file.metadata()?.len(),
+                    header: None,
+                })
             })
             .unwrap_or_default(),
         None => Position::default(),
@@ -290,6 +316,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn tail_position_is_durable_and_can_be_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sensor.tail.json");
+        let mut position = Position {
+            identity: "sensor".into(),
+            offset: 10,
+            header: Some(vec!["time".into(), "value".into()]),
+        };
+        save_position(&path, &position).unwrap();
+        assert_eq!(load_position(&path), Some(position.clone()));
+        position.offset = 20;
+        save_position(&path, &position).unwrap();
+        assert_eq!(load_position(&path), Some(position));
+    }
+
+    #[test]
     fn only_complete_lines_are_consumed() {
         let (lines, n) = complete_lines(b"a\nb\nparti");
         assert_eq!(lines, vec![&b"a"[..], &b"b"[..]]);
@@ -297,6 +339,75 @@ mod tests {
         let (lines, n) = complete_lines(b"partial");
         assert!(lines.is_empty());
         assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn identity_is_stable_for_a_file_and_distinguishes_its_replacement() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("log.jsonl");
+        std::fs::write(&path, b"one\n").unwrap();
+        let original = std::fs::File::open(&path).unwrap();
+        let original_id = identity(&original).unwrap();
+
+        // Appends and truncations must not change the durable identity.
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap()
+            .write_all(b"two\n")
+            .unwrap();
+        assert_eq!(identity(&original).unwrap(), original_id);
+        std::fs::write(&path, b"x\n").unwrap();
+        assert_eq!(identity(&original).unwrap(), original_id);
+
+        let rotated = dir.path().join("log.jsonl.1");
+        std::fs::rename(&path, &rotated).unwrap();
+        assert_eq!(
+            identity(&std::fs::File::open(&rotated).unwrap()).unwrap(),
+            original_id
+        );
+        let replacement = std::fs::File::create(&path).unwrap();
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileTimesExt;
+
+            // Force the exact collision that timestamp-based identities cannot distinguish.
+            let created = original.metadata().unwrap().created().unwrap();
+            replacement
+                .set_times(std::fs::FileTimes::new().set_created(created))
+                .unwrap();
+            assert_eq!(replacement.metadata().unwrap().created().unwrap(), created);
+        }
+        assert_ne!(identity(&replacement).unwrap(), original_id);
+        assert_eq!(identity(&original).unwrap(), original_id);
+    }
+
+    #[test]
+    fn restart_resumes_the_saved_offset_and_csv_header() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("log.csv");
+        std::fs::write(&path, b"value\none\ntwo\n").unwrap();
+        let mut tail = Tail {
+            path: path.clone(),
+            file: None,
+            pos: Position::default(),
+        };
+        tail.check_rotation(false);
+        tail.pos.offset = 10;
+        tail.pos.header = Some(vec!["value".into()]);
+        let saved = tail.pos.clone();
+        let pos_file = dir.path().join("sensor.tail.json");
+        save_position(&pos_file, &saved).unwrap();
+        drop(tail);
+
+        let mut restarted = Tail {
+            path,
+            file: None,
+            pos: load_position(&pos_file).unwrap(),
+        };
+        restarted.check_rotation(false);
+        assert_eq!(restarted.pos, saved);
+        assert_eq!(restarted.read_chunk().unwrap(), b"two\n");
     }
 
     #[test]

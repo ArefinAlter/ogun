@@ -98,8 +98,7 @@ function Page({ path, query }: { path: string[]; query: URLSearchParams }) {
   }
 }
 
-function PendingCount() {
-  const backend = useMemoBackend()
+function PendingCount({ backend }: { backend: ReturnType<typeof createBackend> }) {
   const status = useAsync(() => backend.status(), [backend])
   useLive(() => status.reload())
   const n = status.data?.approvals_pending ?? 0
@@ -113,12 +112,14 @@ function useMemoBackend() {
 }
 
 export function App() {
-  const backend = useMemoBackend()
+  const [backend, setBackend] = useState(useMemoBackend)
   const route = useRoute()
   const [info, setInfo] = useState<ShellInfo | null>(null)
   const [theme, setTheme] = useState<Theme>('auto')
   const refresh = useCallback(() => {
-    backend.info().then(setInfo, () => setInfo(null))
+    let current = true
+    backend.info().then((value) => { if (current) setInfo(value) }, () => { if (current) setInfo(null) })
+    return () => { current = false }
   }, [backend])
   useEffect(refresh, [refresh])
   useEffect(() => {
@@ -153,7 +154,7 @@ export function App() {
                 <a href={href(...(n.id ? [n.id] : []))} aria-current={current === n.id ? 'page' : undefined}>
                   <Icon name={n.icon} />
                   {n.label}
-                  {n.id === 'approvals' && info?.connected ? <PendingCount /> : null}
+                  {n.id === 'approvals' && info?.connected ? <PendingCount key={info.workspaceId ?? 'local'} backend={backend} /> : null}
                 </a>
               ))}
             </nav>
@@ -161,6 +162,19 @@ export function App() {
           </aside>
           <header class="top">
             <ConnectionBadge info={info} />
+            {info?.workspaces && info.workspaces.length > 1 ? (
+              <label>
+                Workspace{' '}
+                <select aria-label="Workspace" value={info.workspaceId} onChange={(e) => {
+                  if (!backend.selectWorkspace) return
+                  const next = backend.selectWorkspace(e.currentTarget.value)
+                  setInfo(null)
+                  setBackend(next)
+                }}>
+                  {info.workspaces.map((w) => <option key={w.workspace_id} value={w.workspace_id}>{w.name} · {w.role}</option>)}
+                </select>
+              </label>
+            ) : null}
             <span class="spacer" />
             <button
               type="button"
@@ -172,7 +186,7 @@ export function App() {
             </button>
           </header>
           <main class="main" id="main">
-            <Page path={route.path} query={route.query} />
+            {backend.kind === 'tauri' || info?.connected ? <Page key={info?.workspaceId ?? 'local'} path={route.path} query={route.query} /> : <div class="empty">{info?.error?.message ?? 'Connecting…'}</div>}
           </main>
         </div>
         <nav class="mobile-nav" aria-label="Sections">

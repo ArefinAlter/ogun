@@ -48,6 +48,8 @@ export interface ShellInfo {
   decideChannel: 'studio' | 'webauthn' | null
   canReadSettings: boolean
   gateway: boolean
+  workspaceId?: string
+  workspaces?: { workspace_id: string; name: string; role: string; approver: boolean }[]
   /** Studio-web: the signed-in user. */
   user?: { id: string; name: string; roles: string[]; approver: boolean }
 }
@@ -72,6 +74,8 @@ export interface EventSubscription {
 export interface Backend {
   readonly kind: 'tauri' | 'http'
   info(): Promise<ShellInfo>
+  /** Retires this HTTP connection and closes its streams before changing workspace. */
+  selectWorkspace?(workspaceId: string): Backend
 
   status(): Promise<StatusResult>
   workflowsList(): Promise<ListWorkflowsResult>

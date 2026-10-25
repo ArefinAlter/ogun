@@ -53,6 +53,7 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): Async<T> {
         setLoading(false)
       },
     )
+    return () => { ++gen.current }
   }, [...deps, tick])
   const reload = useCallback(() => setTick((t) => t + 1), [])
   return { data, error, loading, reload }

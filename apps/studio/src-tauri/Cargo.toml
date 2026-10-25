@@ -33,6 +33,7 @@ ogun-api = { path = "../../../crates/ogun-api" }
 ogun-types = { path = "../../../crates/ogun-types" }
 ogun-ir = { path = "../../../crates/ogun-ir" }
 ogun-edge = { path = "../../../crates/ogun-edge" }
+ogun-sync = { path = "../../../crates/ogun-sync" }
 zeus-verify = { path = "../../../../zeus-core/crates/zeus-verify" }
 tauri-plugin-ogun-gateway = { path = "../plugins/gateway" }
 

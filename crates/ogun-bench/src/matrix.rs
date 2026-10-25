@@ -457,10 +457,11 @@ async fn run_one(cx: &Ctx<'_>, task: &Task, agent_spec: &AgentSpec, seed: u64) -
             "none",
         );
     }
-    let env = match Environment::create(&cx.spec.environment, task, cx.state_root, &cx.ids).await {
-        Ok(env) => env,
-        Err(e) => return fail(record, &e, "none"),
-    };
+    let mut env =
+        match Environment::create(&cx.spec.environment, task, cx.state_root, &cx.ids).await {
+            Ok(env) => env,
+            Err(e) => return fail(record, &e, "none"),
+        };
     record.environment = Some(env.id);
     record.environment_blake3 = Some(env.digest.clone());
     let isolation = env.isolation;
@@ -484,7 +485,7 @@ async fn run_one(cx: &Ctx<'_>, task: &Task, agent_spec: &AgentSpec, seed: u64) -
         return row_of(&cached, isolation, 0, 0);
     }
 
-    let result = drive(cx, task, agent_spec, seed, &env, &mut record, &run_dir).await;
+    let result = drive(cx, task, agent_spec, seed, &mut env, &mut record, &run_dir).await;
     let _ = workspace::copy_dir(&env.logs, &run_dir.join("logs"));
     env.teardown().await;
     if !cx.spec.keep_environments {
@@ -512,7 +513,7 @@ async fn drive(
     task: &Task,
     agent_spec: &AgentSpec,
     seed: u64,
-    env: &Environment,
+    env: &mut Environment,
     record: &mut AgentRunRecord,
     run_dir: &Path,
 ) -> BenchResult<(u64, u64)> {
@@ -710,13 +711,54 @@ mod tests {
             "{\"instance_id\":\"t1\",\"instruction\":\"Write done.txt\"}\n",
         )
         .unwrap();
-        // Use the native shell on Windows; passing a native path through an unquoted sh
-        // script strips backslashes and makes the evaluator look for the wrong file.
+        // Keep Windows scripts in files so JSON quotes never pass through cmd /C's
+        // command-line parser. Pass paths as separate arguments to preserve spaces
+        // and backslashes, and write usage as UTF-8 without a BOM.
         #[cfg(windows)]
-        let (evaluator, agent) = (
-            vec!["cmd".into(), "/C".into(), r#"if exist "{workspace}\done.txt" (echo {"passed":true,"score":1}) else (echo {"passed":false})"#.into()],
-            vec!["cmd".into(), "/C".into(), r#"echo done>done.txt & echo {"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}>"{trajectory_file}""#.into()],
-        );
+        let (evaluator, agent) = {
+            let scripts = dir.path().join("fixture scripts");
+            std::fs::create_dir_all(&scripts).unwrap();
+            let evaluator_script = scripts.join("evaluate.ps1");
+            let agent_script = scripts.join("agent.ps1");
+            std::fs::write(
+                &evaluator_script,
+                r#"param([string]$Workspace)
+$ErrorActionPreference = 'Stop'
+if ([System.IO.File]::Exists([System.IO.Path]::Combine($Workspace, 'done.txt'))) {
+    Write-Output '{"passed":true,"score":1}'
+} else {
+    Write-Output '{"passed":false}'
+}
+"#,
+            )
+            .unwrap();
+            std::fs::write(
+                &agent_script,
+                r#"param([string]$Workspace, [string]$TrajectoryFile)
+$ErrorActionPreference = 'Stop'
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText([System.IO.Path]::Combine($Workspace, 'done.txt'), "done`n", $utf8)
+[System.IO.File]::WriteAllText($TrajectoryFile, '{"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}' + "`n", $utf8)
+"#,
+            )
+            .unwrap();
+            let script_command = |script: &Path| {
+                vec![
+                    "powershell.exe".into(),
+                    "-NoProfile".into(),
+                    "-NonInteractive".into(),
+                    "-ExecutionPolicy".into(),
+                    "Bypass".into(),
+                    "-File".into(),
+                    script.display().to_string(),
+                    "{workspace}".into(),
+                ]
+            };
+            let evaluator = script_command(&evaluator_script);
+            let mut agent = script_command(&agent_script);
+            agent.push("{trajectory_file}".into());
+            (evaluator, agent)
+        };
         #[cfg(not(windows))]
         let (evaluator, agent) = (
             vec!["sh".into(), "-c".into(), r#"test -f "$1/done.txt" && echo '{"passed":true,"score":1}' || echo '{"passed":false}'"#.into(), "test".into(), "{workspace}".into()],
@@ -731,7 +773,8 @@ mod tests {
                 limit: None,
                 evaluator_command: Some(evaluator),
                 evaluator_result: None,
-                agent_timeout_ms: Some(10_000),
+                // Windows CI measured PowerShell cold starts around 27 seconds.
+                agent_timeout_ms: Some(if cfg!(windows) { 90_000 } else { 10_000 }),
             }],
             agents: vec![AgentSpec {
                 name: "echo-agent".into(),
@@ -762,18 +805,22 @@ mod tests {
         let results = run_matrix(&spec, &state, &out).await.unwrap();
         assert_eq!(results.rows.len(), 1);
         let row = &results.rows[0];
-        assert_eq!(row.outcome, AgentRunOutcome::Completed, "{row:?}");
+        let run_dir = out.join("runs").join(row.agent_run.to_string());
+        assert_eq!(
+            row.outcome,
+            AgentRunOutcome::Completed,
+            "{row:?}\nrecord.json:\n{}\ntrajectory.jsonl (includes agent stdout/stderr):\n{}",
+            std::fs::read_to_string(run_dir.join("record.json"))
+                .unwrap_or_else(|error| error.to_string()),
+            std::fs::read_to_string(run_dir.join("trajectory.jsonl"))
+                .unwrap_or_else(|error| error.to_string()),
+        );
         assert!(row.passed);
         assert_eq!(row.totals.cost_usd_micro, 5);
         assert_eq!(row.files_touched, 1);
         assert_eq!(results.agents[0].pass_rate_ppm, 1_000_000);
         assert!(out.join("results.md").is_file());
-        let traj = std::fs::read(
-            out.join("runs")
-                .join(row.agent_run.to_string())
-                .join("trajectory.jsonl"),
-        )
-        .unwrap();
+        let traj = std::fs::read(run_dir.join("trajectory.jsonl")).unwrap();
         verify_trajectory(traj.as_slice()).unwrap();
         assert_eq!(
             std::fs::read_to_string(out.join("lineage.jsonl"))

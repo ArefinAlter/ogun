@@ -36,8 +36,10 @@ async fn workflow_run_and_policy() {
     let mut cli = Client::connect(&paths, "cli", info()).await.unwrap();
     assert_eq!(cli.kind(), ClientKind::Human);
 
-    let doc: Value =
+    let mut doc: Value =
         serde_json::from_str(include_str!("../../../examples/noaa-daily.workflow.json")).unwrap();
+    // Keep partition/lifecycle coverage local now that acquire executes real requests.
+    doc["nodes"] = json!([{ "id": "manifest", "op": "manifest@1" }]);
     let put: m::PutWorkflowResult = cli
         .call(
             name::WORKFLOWS_PUT,
@@ -79,7 +81,7 @@ async fn workflow_run_and_policy() {
         )
         .await
         .unwrap();
-    // Operators are not linked in this build's contract crate, so the run fails, cleanly.
+    // The native manifest operator runs through the daemon and commits its output.
     let mut state = run.state;
     for _ in 0..50 {
         let v: m::RunView = cli
@@ -95,10 +97,7 @@ async fn workflow_run_and_policy() {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    assert!(matches!(
-        state,
-        ogun_run::RunState::Failed | ogun_run::RunState::Succeeded
-    ));
+    assert_eq!(state, ogun_run::RunState::Succeeded);
     let status: m::PartitionStatusResult = cli
         .call(
             name::PARTITIONS_STATUS,
