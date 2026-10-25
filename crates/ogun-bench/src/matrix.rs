@@ -804,18 +804,22 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
         let results = run_matrix(&spec, &state, &out).await.unwrap();
         assert_eq!(results.rows.len(), 1);
         let row = &results.rows[0];
-        assert_eq!(row.outcome, AgentRunOutcome::Completed, "{row:?}");
+        let run_dir = out.join("runs").join(row.agent_run.to_string());
+        assert_eq!(
+            row.outcome,
+            AgentRunOutcome::Completed,
+            "{row:?}\nrecord.json:\n{}\ntrajectory.jsonl (includes agent stdout/stderr):\n{}",
+            std::fs::read_to_string(run_dir.join("record.json"))
+                .unwrap_or_else(|error| error.to_string()),
+            std::fs::read_to_string(run_dir.join("trajectory.jsonl"))
+                .unwrap_or_else(|error| error.to_string()),
+        );
         assert!(row.passed);
         assert_eq!(row.totals.cost_usd_micro, 5);
         assert_eq!(row.files_touched, 1);
         assert_eq!(results.agents[0].pass_rate_ppm, 1_000_000);
         assert!(out.join("results.md").is_file());
-        let traj = std::fs::read(
-            out.join("runs")
-                .join(row.agent_run.to_string())
-                .join("trajectory.jsonl"),
-        )
-        .unwrap();
+        let traj = std::fs::read(run_dir.join("trajectory.jsonl")).unwrap();
         verify_trajectory(traj.as_slice()).unwrap();
         assert_eq!(
             std::fs::read_to_string(out.join("lineage.jsonl"))

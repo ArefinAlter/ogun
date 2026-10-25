@@ -484,6 +484,7 @@ async fn netns_available() -> bool {
 }
 
 fn local_env(record: &EnvRecord, opts: &ExecOptions) -> Vec<(String, String)> {
+    let tmp = record.logs.join("tmp").display().to_string();
     let mut vars = vec![
         (
             "PATH".to_owned(),
@@ -491,11 +492,20 @@ fn local_env(record: &EnvRecord, opts: &ExecOptions) -> Vec<(String, String)> {
         ),
         ("HOME".to_owned(), record.workspace.display().to_string()),
         ("LANG".to_owned(), "C.UTF-8".to_owned()),
-        (
-            "TMPDIR".to_owned(),
-            record.logs.join("tmp").display().to_string(),
-        ),
+        ("TMPDIR".to_owned(), tmp.clone()),
     ];
+    if cfg!(windows) {
+        // Windows runtimes need the OS location even in a cleared environment.
+        // Keep the same narrow platform defaults as the operator runner; Windows
+        // environment-variable lookups are case-insensitive.
+        for name in ["SystemRoot", "windir"] {
+            if let Ok(value) = std::env::var(name) {
+                vars.push((name.into(), value));
+            }
+        }
+        vars.push(("TEMP".into(), tmp.clone()));
+        vars.push(("TMP".into(), tmp));
+    }
     for name in &opts.pass_env {
         if let Ok(v) = std::env::var(name) {
             vars.push((name.clone(), v));
