@@ -457,10 +457,11 @@ async fn run_one(cx: &Ctx<'_>, task: &Task, agent_spec: &AgentSpec, seed: u64) -
             "none",
         );
     }
-    let env = match Environment::create(&cx.spec.environment, task, cx.state_root, &cx.ids).await {
-        Ok(env) => env,
-        Err(e) => return fail(record, &e, "none"),
-    };
+    let mut env =
+        match Environment::create(&cx.spec.environment, task, cx.state_root, &cx.ids).await {
+            Ok(env) => env,
+            Err(e) => return fail(record, &e, "none"),
+        };
     record.environment = Some(env.id);
     record.environment_blake3 = Some(env.digest.clone());
     let isolation = env.isolation;
@@ -484,7 +485,7 @@ async fn run_one(cx: &Ctx<'_>, task: &Task, agent_spec: &AgentSpec, seed: u64) -
         return row_of(&cached, isolation, 0, 0);
     }
 
-    let result = drive(cx, task, agent_spec, seed, &env, &mut record, &run_dir).await;
+    let result = drive(cx, task, agent_spec, seed, &mut env, &mut record, &run_dir).await;
     let _ = workspace::copy_dir(&env.logs, &run_dir.join("logs"));
     env.teardown().await;
     if !cx.spec.keep_environments {
@@ -512,7 +513,7 @@ async fn drive(
     task: &Task,
     agent_spec: &AgentSpec,
     seed: u64,
-    env: &Environment,
+    env: &mut Environment,
     record: &mut AgentRunRecord,
     run_dir: &Path,
 ) -> BenchResult<(u64, u64)> {
@@ -710,6 +711,18 @@ mod tests {
             "{\"instance_id\":\"t1\",\"instruction\":\"Write done.txt\"}\n",
         )
         .unwrap();
+        // Use the native shell on Windows; passing a native path through an unquoted sh
+        // script strips backslashes and makes the evaluator look for the wrong file.
+        #[cfg(windows)]
+        let (evaluator, agent) = (
+            vec!["cmd".into(), "/C".into(), r#"if exist "{workspace}\done.txt" (echo {"passed":true,"score":1}) else (echo {"passed":false})"#.into()],
+            vec!["cmd".into(), "/C".into(), r#"echo done>done.txt & echo {"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}>"{trajectory_file}""#.into()],
+        );
+        #[cfg(not(windows))]
+        let (evaluator, agent) = (
+            vec!["sh".into(), "-c".into(), r#"test -f "$1/done.txt" && echo '{"passed":true,"score":1}' || echo '{"passed":false}'"#.into(), "test".into(), "{workspace}".into()],
+            vec!["sh".into(), "-c".into(), r#"echo done > done.txt; echo '{"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}' > "$1""#.into(), "test".into(), "{trajectory_file}".into()],
+        );
         let spec = MatrixSpec {
             name: "local smoke".into(),
             benchmarks: vec![BenchmarkSource {
@@ -717,11 +730,7 @@ mod tests {
                 path: bench,
                 tasks: vec![],
                 limit: None,
-                evaluator_command: Some(vec![
-                    "sh".into(),
-                    "-c".into(),
-                    "test -f {workspace}/done.txt && echo '{\"passed\": true, \"score\": 1}' || echo '{\"passed\": false}'".into(),
-                ]),
+                evaluator_command: Some(evaluator),
                 evaluator_result: None,
                 agent_timeout_ms: Some(10_000),
             }],
@@ -730,11 +739,7 @@ mod tests {
                 version: "1".into(),
                 model: None,
                 placement: Placement::Container,
-                command: vec![
-                    "sh".into(),
-                    "-c".into(),
-                    "echo done > done.txt; echo '{\"type\":\"usage\",\"input_tokens\":3,\"output_tokens\":4,\"cost_usd_micro\":5}' > {trajectory_file}".into(),
-                ],
+                command: agent,
                 pass_env: vec![],
                 env: BTreeMap::new(),
                 timeout_ms: None,

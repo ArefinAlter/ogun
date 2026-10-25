@@ -55,7 +55,7 @@ Every agent run gets a new environment (`env_`) under the benchmark state direct
 2. Seed the workspace with the image's working directory (Harbor images put the task's files there), then copy the task's fixtures over it.
 3. Start the container (or prepare the local directory), run the task's setup script if it has one (copied in, run, removed), and snapshot the workspace.
 4. Run the agent (section 7), snapshot again, record the differences as `file.created`, `file.patch` and `file.deleted`, and the digests of DuckDB files before and after as `db.state`.
-5. Remove any `/tests` the agent created, stage the evaluator's files there, open the evaluator network when allowed, run the evaluator (section 6).
+5. Remove any `/tests` the agent created, stage the evaluator's files there, apply the evaluator network policy (open egress when allowed, close it when denied), run the evaluator (section 6).
 6. Copy `logs/` into the results, remove the container and its network, and delete the environment directory unless `keep_environments` is set.
 
 A command that exceeds its time limit is killed; in a container every process is stopped by restarting the container, which keeps its file system for the evaluator.

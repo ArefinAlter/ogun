@@ -30,10 +30,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/ogun/target \
     cargo build --release --locked \
       --bin ogund --bin ogun --bin ogun-server --bin ogun-ingest \
-      --bin ogun-lsp --bin ogun-sync --bin ogun-op-llm --bin ogun-op-shim \
+      --bin ogun-bench --bin ogun-lsp --bin ogun-sync --bin ogun-op-llm --bin ogun-op-shim \
  && mkdir -p /out \
  && cp target/release/ogund target/release/ogun target/release/ogun-server target/release/ogun-ingest \
-       target/release/ogun-lsp target/release/ogun-sync target/release/ogun-op-llm target/release/ogun-op-shim /out/
+       target/release/ogun-bench target/release/ogun-lsp target/release/ogun-sync target/release/ogun-op-llm target/release/ogun-op-shim /out/
 
 # ---- binaries the release workflow built ----
 FROM debian:bookworm-slim AS binaries-prebuilt
