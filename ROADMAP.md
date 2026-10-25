@@ -74,8 +74,8 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   5. Server mode without remote approvals. Started 2026-10-23: O-13 is Draft 1 and `ogun-server` (OIDC, workspaces, roles, API tokens, Studio-web REST and events, MCP over HTTP, the sync relay) builds; deployment assets are in `deploy/`. It waits for `ogund` to run end to end.
   6. Edge-to-hub sync on a hub: daemon handlers, relay routes and a soak test over a link that drops.
   7. Remote approvals with WebAuthn, after a security review. The passkey registration and decision relay are implemented behind `remote_approvals` (off by default); the external review (O-13 section 12) is open.
-  8. The Android companion and gateway.
-  9. The iOS companion.
+  8. The Android companion and gateway. Code in `apps/studio` (companion over a hub's REST routes; gateway with MQTT, LAN HTTP push, the ingest log and signed O-11 sync); not yet built for Android or run on a device.
+  9. The iOS companion. Code in `apps/studio` (read-only hub link); not yet built with Xcode.
 - The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record.
 
 ## Phase O2: data and model operators
@@ -93,6 +93,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
 ## Phase O4: Studio and A2A
 
 - Ogun Studio (Tauri): Runs, Workflows, Artifacts, Sources, Datasets, Agents, Schedules, Benchmarks, Connections; the approval inbox; lineage and trajectory timelines.
+  - Started 2026-10-23 in `apps/studio`: overview, workflows (normal form, diagnostics, DAG, versions, import), runs with live node states, partitions and backfill plans, the approval inbox (Studio evidence on the desktop, passkeys on Studio-web), artifacts with previews and lineage, streams, edges and settings. Waits for `ogund` and `ogun-server` for end-to-end runs.
 - Ogun's A2A agent card and bridge endpoint, off by default.
 
 ## Not planned

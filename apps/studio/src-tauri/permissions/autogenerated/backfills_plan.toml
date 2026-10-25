@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-backfills-plan"
+description = "Enables the backfills_plan command without any pre-configured scope."
+commands.allow = ["backfills_plan"]
+
+[[permission]]
+identifier = "deny-backfills-plan"
+description = "Denies the backfills_plan command without any pre-configured scope."
+commands.deny = ["backfills_plan"]

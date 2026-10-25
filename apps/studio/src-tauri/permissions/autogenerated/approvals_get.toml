@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-approvals-get"
+description = "Enables the approvals_get command without any pre-configured scope."
+commands.allow = ["approvals_get"]
+
+[[permission]]
+identifier = "deny-approvals-get"
+description = "Denies the approvals_get command without any pre-configured scope."
+commands.deny = ["approvals_get"]

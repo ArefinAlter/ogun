@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "gateway-android",
+  "description": "The Android field gateway commands (status, configure, start, stop, sync now), for the bundled main window on Android only.",
+  "local": true,
+  "windows": ["main"],
+  "platforms": ["android"],
+  "permissions": ["ogun-gateway:default"]
+}
