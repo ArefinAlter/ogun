@@ -27,3 +27,6 @@ Thumbs.db
 # Build and run outputs
 dist/
 *.redb
+
+# Local UI reference captures (screenshots of third-party apps); never committed.
+.design-reference/

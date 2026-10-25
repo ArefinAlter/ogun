@@ -33,9 +33,52 @@ npm run dev          # http://localhost:5173 (for Studio-web work: OGUN_SERVER=h
 
 `dist/` is what every shell loads: the Tauri shells embed it, and `ogun-server` serves it as Studio-web. Asset URLs
 are relative and the app routes by URL hash, so it works under any mount point and needs no server rewrites. It
-uses no inline script or style, so it runs under a strict CSP (`script-src 'self'; style-src 'self'`). Fonts (IBM
-Plex Sans and Mono, EB Garamond; SIL OFL 1.1, licences in `public/licenses/`) are bundled; nothing is fetched from
-a third party.
+uses no inline script or style, so it runs under a strict CSP (`script-src 'self'; style-src 'self'`). The
+interface follows T3 Code's conventions (`web/DESIGN.md`): system fonts, zinc surfaces, one ember accent, a
+grouped sidebar, a breadcrumb bar and a Ctrl+K command palette; nothing is fetched from a third party.
+
+### Scripted build
+
+```sh
+npm run demo                 # http://localhost:5173 on the scripted bike-share scenario (web/src/demo)
+npm run build:demo           # the same as a static build in dist-demo/; `npm run preview:demo` serves it on :4174
+npm run build:site           # the build the ogun-site project serves at /studio/ (no browser storage, strict CSP)
+npm run build:desktop-demo:app   # the Tauri shell on the scripted backend, copied to <repo>/dist/desktop/
+```
+
+`vite --mode demo` sets `VITE_OGUN_DEMO=1`; any Studio build also answers to `?demo` in the URL, except inside a
+Tauri shell, where only the `desktop-demo` mode (`VITE_OGUN_DESKTOP_DEMO=1`) turns it on. The demo backend is a
+separate chunk that a normal desktop build never loads. `WALKTHROUGH.md` (beside this file) is the walkthrough and says
+what is real and what is scripted. `scripts/sync-sample-docs.mjs` refreshes the scripted daemon's workflow documents and
+hashes from the repository's examples with the built `ogun` CLI. `scripts/sync-connectors.mjs` copies the
+connector catalog (`connectors/`) into the bundle that Settings, Connectors reads.
+
+### The agent screen and the window frame
+
+The first screen is a conversation (O-17, proposed): `src/views/Agent.tsx` and `src/views/agent`. It needs a daemon that
+offers `backend.agent`; only the scripted demo (`src/demo/agent.ts`) does today, and every other backend shows the
+screen as unavailable with the MCP commands that work now. In the Windows shell the main window has no native frame:
+the page draws its own controls (`src/ui/WindowControls.tsx`, `src/lib/shell.ts`) and the capability grants only the
+window commands they need. `DESIGN.md` lists both conventions.
+
+```sh
+npm test                                                           # tool table, Markdown reader, identity, durations
+python tools/ui-reference/smoke_studio.py --base http://localhost:4174   # includes the agent flows
+python tools/ui-reference/chrome_check.py --title "Ogun Studio" --exe ogun-studio   # real mouse input on the frame
+```
+
+### Settings
+
+Settings follow T3 Code's sections (General, Appearance, Keybindings, Evidence, Providers, Connectors,
+Connections, Schedules, Workflow sources, Storage, Environments, Security, Archive). Appearance, keybindings and
+notification choices are device preferences (`ogun-studio:prefs:v1` in the webview's storage; memory only when
+`VITE_OGUN_NO_STORAGE=1`, as on the hosted demo). Everything that belongs to the daemon (run defaults, schedules,
+connections, storage rules) goes through optional methods of the `Backend` interface; a daemon that lacks one is
+shown read-only with the words "this daemon does not ...". The contract is O-16.
+
+The Tauri shell sets `freezePrototype`, which makes `{}.constructor = x` throw. `vite.config.ts` patches the one
+place Preact does that, and `python tools/ui-reference/smoke_studio.py --freeze-prototype` checks the whole app
+under a frozen `Object.prototype`.
 
 ## Desktop
 

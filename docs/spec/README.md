@@ -22,7 +22,9 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | [O-13](O-13-server-mode.md) | Server mode: users, workspaces, roles, OIDC, WebAuthn approvals | Draft 1 | `ogun-server`; `deploy/` |
 | [O-14](O-14-extension-and-integration-surfaces.md) | Extension and integration surfaces | Draft 2 | `ogun-lsp`, `ogun mcp`, `extensions/vscode`, `integrations/` |
 | [O-15](O-15-daemon-api.md) | The `ogund` local API | Draft 1 | `ogun-api`, `ogun-daemon` |
+| [O-16](O-16-connectors-and-connections.md) | Connectors, connections and exporters | Draft 1 | `connectors/`, `integrations/export`, `apps/studio/web` (Settings) |
+| [O-17](O-17-agent-threads.md) | Agent threads: a conversation over a closed tool set | Draft 1 | `apps/studio/web` (the scripted demo only; no daemon yet) |
 
-Draft 1 means: complete enough to implement against, not yet reviewed line by line by the maintainer. The ADRs they rest on (0002 to 0012) are accepted.
+Draft 1 means: complete enough to implement against, not yet reviewed line by line by the maintainer. The ADRs they rest on (0002 to 0012) are accepted; ADRs 0013 (connectors) and 0014 (agent threads) are Proposed, so O-16 and O-17 are recommendations, not contracts to build on.
 
 Conformance: `cargo test --workspace` validates every example in `examples/` against the JSON Schema and the validator, and checks that the O-01 transition table in prose matches the table in code.
