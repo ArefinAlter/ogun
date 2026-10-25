@@ -1,0 +1,42 @@
+[package]
+name = "ogun-sync"
+description = "Edge-to-hub sync for Ogun (spec O-11): edge keys, the signed offer and chunk upload client, and the hub-side verification and chunk assembly."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "ogun-sync"
+path = "src/bin/ogun-sync.rs"
+
+[dependencies]
+ogun-types.workspace = true
+ogun-edge.workspace = true
+ogun-api.workspace = true
+ogun-ir.workspace = true
+zeus-types.workspace = true
+zeus-verify.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+blake3.workspace = true
+base64.workspace = true
+ed25519-dalek.workspace = true
+zeroize.workspace = true
+getrandom.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

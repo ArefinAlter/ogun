@@ -238,10 +238,11 @@ impl Windower {
             .end_of(start)
             .saturating_add(WindowSpec::ms(self.spec.allowed_lateness_ms));
         // A window that is final, or that would be final the moment it opened, takes no records.
-        let is_final = match self.windows.get(&start) {
-            Some(w) => w.state == WindowState::Final,
-            None => now_ms >= final_at,
-        };
+        let is_final = now_ms >= final_at
+            || self
+                .windows
+                .get(&start)
+                .is_some_and(|w| w.state == WindowState::Final);
         if is_final {
             self.counters.late += 1;
             self.late.push(record);
@@ -272,7 +273,15 @@ impl Windower {
                     window_start: start,
                 }
             }
-            WindowState::Dirty | WindowState::Sealing => Ingested::Revises {
+            WindowState::Sealing => {
+                // The in-flight seal contains the snapshot returned by poll, not this record.
+                // Preserve the arrival time so its commit schedules another revision.
+                window.dirty_since.get_or_insert(now_ms);
+                Ingested::Revises {
+                    window_start: start,
+                }
+            }
+            WindowState::Dirty => Ingested::Revises {
                 window_start: start,
             },
             _ => Ingested::Accepted {
@@ -310,6 +319,7 @@ impl Windower {
             w.state = next;
             match next {
                 WindowState::Sealing => {
+                    w.dirty_since = None;
                     let mut records = w.records.clone();
                     records.sort_by(|a, b| {
                         (&a.key, a.event_ms, a.seq).cmp(&(&b.key, b.event_ms, b.seq))
@@ -343,8 +353,11 @@ impl Windower {
         let Some(next) = window_transition(w.state, WindowCause::SealCommitted) else {
             return false;
         };
-        w.state = next;
-        w.dirty_since = None;
+        w.state = if w.dirty_since.is_some() {
+            window_transition(next, WindowCause::LateRecord).unwrap_or(next)
+        } else {
+            next
+        };
         if w.digest.as_deref() == Some(digest) {
             return false;
         }

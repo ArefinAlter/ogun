@@ -1,0 +1,31 @@
+[package]
+name = "ogun-op-llm"
+description = "The Ogun model operators (llm.*, embedding.generate) as a jsonl-stdio/0 child operator (O-03 section 8)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "ogun-op-llm"
+path = "src/main.rs"
+
+[dependencies]
+ogun-llm = { workspace = true, features = ["http"] }
+ogun-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+blake3.workspace = true
+zeroize.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

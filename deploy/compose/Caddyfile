@@ -1,0 +1,8 @@
+# Caddy in front of ogun-server (compose profile `caddy`). Caddy obtains the certificate for OGUN_DOMAIN,
+# terminates TLS and forwards to ogun-server's plain HTTP listener, keeping the Host header.
+{$OGUN_DOMAIN} {
+	reverse_proxy ogun-server:8080 {
+		# Server-Sent Events (/api/v1/events) must not be buffered.
+		flush_interval -1
+	}
+}

@@ -1,0 +1,172 @@
+{{- $sock := "/var/lib/ogun/profiles/server/run" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ogun.fullname" . }}
+  labels:
+    {{- include "ogun.labels" . | nindent 4 }}
+spec:
+  # Exactly one: the run store is single-writer (ADR 0010 point 5). Not configurable on purpose.
+  replicas: 1
+  serviceName: {{ include "ogun.fullname" . }}-headless
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "ogun.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ogun.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include "ogun.serverJson" . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        # Create the state directories as the ogun user before the socket volume is mounted inside them;
+        # otherwise the container runtime would create the mount point directories owned by root.
+        - name: prepare
+          image: {{ include "ogun.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-c", "mkdir -p {{ $sock }} /var/lib/ogun/ogun-server && chmod 0700 /var/lib/ogun/profiles/server /var/lib/ogun/ogun-server"]
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/ogun
+      containers:
+        - name: ogund
+          image: {{ include "ogun.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["ogund", "--profile", "server"]
+          env:
+            - name: OGUN_HOME
+              value: /var/lib/ogun
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "test -S {{ $sock }}/ogun/ogund-server.sock"]
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.daemon.resources | nindent 12 }}
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/ogun
+            # The socket directory is shared through memory, not through the persistent volume.
+            - name: socket
+              mountPath: {{ $sock }}
+            - name: tmp
+              mountPath: /tmp
+        - name: ogun-server
+          image: {{ include "ogun.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["ogun-server", "serve", "--init-if-empty"]
+          env:
+            - name: OGUN_HOME
+              value: /var/lib/ogun
+            - name: OGUN_SERVER_HOME
+              value: /var/lib/ogun/ogun-server
+            - name: OGUN_SERVER_CONFIG
+              value: /etc/ogun/server.json
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # A TCP probe: kubelet is not a trusted proxy, so HTTP probes would be refused by design.
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/ogun
+            - name: socket
+              mountPath: {{ $sock }}
+            - name: config
+              mountPath: /etc/ogun/server.json
+              subPath: server.json
+              readOnly: true
+            - name: oidc
+              mountPath: /etc/ogun/oidc
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+        {{- if .Values.ingest.enabled }}
+        - name: ogun-ingest
+          image: {{ include "ogun.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["ogun-ingest", "--profile", "server"]
+          env:
+            - name: OGUN_HOME
+              value: /var/lib/ogun
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.ingest.resources | nindent 12 }}
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/ogun
+            - name: socket
+              mountPath: {{ $sock }}
+            - name: tmp
+              mountPath: /tmp
+        {{- end }}
+      volumes:
+        - name: socket
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "ogun.fullname" . }}-config
+        - name: oidc
+          secret:
+            secretName: {{ include "ogun.oidcSecret" . }}
+            optional: true
+            defaultMode: 0400
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        accessModes: [{{ .Values.persistence.accessMode }}]
+        {{- with .Values.persistence.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

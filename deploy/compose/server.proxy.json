@@ -1,0 +1,22 @@
+{
+  "public_url": "https://ogun.example.com",
+  "listen": "0.0.0.0:8080",
+  "behind_proxy": true,
+  "trusted_proxies": ["172.30.0.10/32"],
+  "daemons": {
+    "default": { "ogun_home": "/var/lib/ogun", "profile": "server", "credential": "server" }
+  },
+  "oidc": {
+    "providers": [
+      {
+        "id": "sso",
+        "display_name": "Company sign-in",
+        "issuer": "https://login.example.com/realms/main",
+        "client_id": "ogun",
+        "client_secret_file": "/etc/ogun/secrets/oidc-client-secret"
+      }
+    ]
+  },
+  "remote_approvals": false,
+  "sync": { "enabled": false }
+}
