@@ -103,7 +103,8 @@ pub enum ConfigError {
         /// Why.
         kind: std::io::ErrorKind,
     },
-    /// A secret file is accessible to other users.
+    /// A secret file is accessible to other users (checked on Unix only).
+    #[cfg_attr(not(unix), allow(dead_code))]
     #[error("{0} is accessible to other users; it must be mode 0600")]
     Permissions(String),
     /// A setting is missing or invalid.

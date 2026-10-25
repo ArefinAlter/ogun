@@ -72,6 +72,8 @@ export interface ShellInfo {
   gateway: boolean
   /** The daemon runs agent threads (O-17). */
   agent?: boolean
+  workspaceId?: string
+  workspaces?: { workspace_id: string; name: string; role: string; approver: boolean }[]
   /** Studio-web: the signed-in user. */
   user?: { id: string; name: string; roles: string[]; approver: boolean }
 }
@@ -182,6 +184,8 @@ export interface Backend {
     restore(id: string, idempotencyKey: string): Promise<void>
   }
   info(): Promise<ShellInfo>
+  /** Retires this HTTP connection and closes its streams before changing workspace. */
+  selectWorkspace?(workspaceId: string): Backend
 
   status(): Promise<StatusResult>
   workflowsList(): Promise<ListWorkflowsResult>

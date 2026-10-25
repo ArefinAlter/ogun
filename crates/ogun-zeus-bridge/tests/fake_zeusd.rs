@@ -5,6 +5,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ogun_zeus_bridge::{BridgeConfig, BridgeError, JobStatus, SubmitOptions, ZeusBridge};
 use serde_json::{Value, json};
@@ -21,6 +22,7 @@ enum Mode {
     Normal,
     HumanCredential,
     WrongProof,
+    DropEnqueueResponse,
 }
 
 fn hex(b: &[u8]) -> String {
@@ -52,10 +54,15 @@ fn setup(dir: &Path) -> (BridgeConfig, PathBuf, PathBuf) {
 }
 
 async fn serve(listener: UnixListener, mode: Mode) {
+    serve_with_count(listener, mode, Arc::new(AtomicUsize::new(0))).await;
+}
+
+async fn serve_with_count(listener: UnixListener, mode: Mode, enqueues: Arc<AtomicUsize>) {
     loop {
         let Ok((stream, _)) = listener.accept().await else {
             return;
         };
+        let enqueues = enqueues.clone();
         tokio::spawn(async move {
             let (r, mut w) = tokio::io::split(stream);
             let mut lines = BufReader::new(r).lines();
@@ -112,6 +119,11 @@ async fn serve(listener: UnixListener, mode: Mode) {
                         let f = dest.join("annual-report.pdf");
                         std::fs::write(&f, CONTENT).unwrap();
                         file = Some(f);
+                        let attempt = enqueues.fetch_add(1, Ordering::SeqCst);
+                        if mode == Mode::DropEnqueueResponse && attempt == 0 {
+                            // The daemon accepted the mutation, but its response was lost.
+                            return;
+                        }
                         json!({"jobs":[{"job_id":"job_01M45R71NDA5B7C9E1F3G5H7J9","state":"awaiting_approval","approval_id":"ap_01M45R71NE2K4M6P8R0T2V4X6Z"}],"dry_run":false,"replayed":false})
                     }
                     "jobs.get" => {
@@ -218,5 +230,42 @@ async fn a_human_credential_or_a_wrong_server_proof_is_refused() {
         tokio::spawn(serve(listener, mode));
         let err: BridgeError = ZeusBridge::connect(cfg).await.unwrap_err();
         assert_eq!(err.code(), want);
+    }
+}
+
+#[tokio::test]
+async fn a_lost_enqueue_response_is_replayed_only_with_an_idempotency_key() {
+    for keyed in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let (cfg, sock, _) = setup(dir.path());
+        let listener = UnixListener::bind(&sock).unwrap();
+        let enqueues = Arc::new(AtomicUsize::new(0));
+        tokio::spawn(serve_with_count(
+            listener,
+            Mode::DropEnqueueResponse,
+            enqueues.clone(),
+        ));
+        let bridge = ZeusBridge::connect(cfg).await.unwrap();
+        bridge.register_import_root().await.unwrap();
+        let request = json!({
+            "url": "https://portal.example.org/report.pdf",
+            "session_origin": "https://portal.example.org"
+        });
+        let opts = SubmitOptions {
+            idempotency_key: keyed.then(|| "ni_x:1".to_owned()),
+            ..SubmitOptions::default()
+        };
+        let submitted = bridge.submit_with(&request, &opts).await;
+        if keyed {
+            submitted.unwrap();
+            assert_eq!(enqueues.load(Ordering::SeqCst), 2);
+        } else {
+            assert!(matches!(submitted, Err(BridgeError::Unavailable(_))));
+            assert_eq!(enqueues.load(Ordering::SeqCst), 1);
+            // A later explicit request reconnects successfully, without silently
+            // retrying the earlier unkeyed mutation.
+            bridge.submit_with(&request, &opts).await.unwrap();
+            assert_eq!(enqueues.load(Ordering::SeqCst), 2);
+        }
     }
 }

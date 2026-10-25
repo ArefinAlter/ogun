@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 ogun-api.workspace = true
 ogun-ir.workspace = true
+ogun-lsp.workspace = true
 ogun-sched.workspace = true
 ogun-store.workspace = true
 zeus-types.workspace = true
@@ -30,7 +31,6 @@ base64.workspace = true
 crossterm.workspace = true
 getrandom.workspace = true
 zeroize.workspace = true
-ogun-lsp.workspace = true
 
 [dev-dependencies]
 ogun-types.workspace = true

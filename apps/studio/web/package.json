@@ -1,7 +1,7 @@
 {
   "name": "ogun-studio-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.1-alpha",
   "description": "Ogun Studio frontend, shared by the Tauri shells (desktop, Android, iOS) and Studio-web.",
   "license": "Apache-2.0",
   "author": "Verne Ltd.",
@@ -13,7 +13,7 @@
     "dev": "vite",
     "demo": "vite --mode demo",
     "typecheck": "tsc --noEmit -p .",
-    "test": "node --test src/api/identity.test.mjs src/lib/markdown.test.mjs src/lib/agentTools.test.mjs src/lib/duration.test.mjs",
+    "test": "node --test src/api/identity.test.mjs src/lib/markdown.test.mjs src/lib/agentTools.test.mjs src/lib/duration.test.mjs tests/*.test.mjs",
     "build": "tsc --noEmit -p . && vite build",
     "build:demo": "tsc --noEmit -p . && vite build --mode demo --outDir dist-demo",
     "preview": "vite preview",

@@ -24,6 +24,7 @@ import { Gateway } from './views/Gateway'
 import { Agent, DetailsToggle } from './views/Agent'
 import { Overview } from './views/Overview'
 import { Partitions } from './views/Partitions'
+import { SignIn } from './views/SignIn'
 import { RunDetail, Runs } from './views/Runs'
 import { SETTINGS_SECTIONS, Settings } from './views/settings'
 import { StreamDetail, Streams } from './views/Streams'
@@ -260,7 +261,9 @@ export function App({ backend }: { backend: Backend }) {
   // `deep`: a press anywhere in the bar moves the window, except on a button or a link.
   const drag = chrome === 'custom' ? { 'data-tauri-drag-region': 'deep' } : {}
   const refresh = useCallback(() => {
-    backend.info().then(setInfo, () => setInfo(null))
+    let current = true
+    backend.info().then((value) => { if (current) setInfo(value) }, () => { if (current) setInfo(null) })
+    return () => { current = false }
   }, [backend])
   useEffect(refresh, [refresh])
 
@@ -505,7 +508,7 @@ export function App({ backend }: { backend: Backend }) {
             {chrome === 'custom' ? <WindowControls /> : null}
           </header>
           <main class={`main ${section === 'agent' ? 'chat' : ''}`} id="main">
-            <Page path={route.path} query={route.query} />
+            {info?.link === 'server' && info.error?.code === 'api.unauthenticated' && section !== 'about' ? <SignIn /> : <Page path={route.path} query={route.query} />}
           </main>
         </div>
         <nav class="mobile-nav" aria-label="Sections">

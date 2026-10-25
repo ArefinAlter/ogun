@@ -41,10 +41,14 @@ class Transport:
         while True:
             nl = self._buffer.find(b"\n")
             if nl >= 0:
+                if nl > limit:
+                    self.close()
+                    raise OgunError("api.payload_too_large", "response longer than the line limit")
                 line = bytes(self._buffer[:nl])
                 del self._buffer[: nl + 1]
                 return line
             if len(self._buffer) > limit:
+                self.close()
                 raise OgunError("api.payload_too_large", "response longer than the line limit")
             try:
                 chunk = self._read(_CHUNK)

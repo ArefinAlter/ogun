@@ -27,7 +27,7 @@ members = [
 exclude = ["apps/studio"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.1-alpha"
 edition = "2024"
 rust-version = "1.90"
 license = "Apache-2.0"
@@ -49,22 +49,22 @@ print_stderr = "warn"
 
 [workspace.dependencies]
 # ---- this workspace ----
-ogun-types = { path = "crates/ogun-types", version = "0.1.0" }
-ogun-ir = { path = "crates/ogun-ir", version = "0.1.0" }
-ogun-run = { path = "crates/ogun-run", version = "0.1.0" }
-ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
-ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
-ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
-ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
-ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
-ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
-ogun-daemon = { path = "crates/ogun-daemon", version = "0.1.0" }
-ogun-llm = { path = "crates/ogun-llm", version = "0.1.0" }
-ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
-ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
-ogun-lineage = { path = "crates/ogun-lineage", version = "0.1.0" }
-ogun-bench = { path = "crates/ogun-bench", version = "0.1.0" }
-ogun-zeus-bridge = { path = "crates/ogun-zeus-bridge", version = "0.1.0" }
+ogun-types = { path = "crates/ogun-types", version = "0.0.1-alpha" }
+ogun-ir = { path = "crates/ogun-ir", version = "0.0.1-alpha" }
+ogun-run = { path = "crates/ogun-run", version = "0.0.1-alpha" }
+ogun-sched = { path = "crates/ogun-sched", version = "0.0.1-alpha" }
+ogun-store = { path = "crates/ogun-store", version = "0.0.1-alpha" }
+ogun-stream = { path = "crates/ogun-stream", version = "0.0.1-alpha" }
+ogun-edge = { path = "crates/ogun-edge", version = "0.0.1-alpha" }
+ogun-api = { path = "crates/ogun-api", version = "0.0.1-alpha" }
+ogun-ops = { path = "crates/ogun-ops", version = "0.0.1-alpha" }
+ogun-daemon = { path = "crates/ogun-daemon", version = "0.0.1-alpha" }
+ogun-llm = { path = "crates/ogun-llm", version = "0.0.1-alpha" }
+ogun-sync = { path = "crates/ogun-sync", version = "0.0.1-alpha" }
+ogun-lsp = { path = "crates/ogun-lsp", version = "0.0.1-alpha" }
+ogun-lineage = { path = "crates/ogun-lineage", version = "0.0.1-alpha" }
+ogun-bench = { path = "crates/ogun-bench", version = "0.0.1-alpha" }
+ogun-zeus-bridge = { path = "crates/ogun-zeus-bridge", version = "0.0.1-alpha" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -134,10 +134,10 @@ jsonwebtoken = { version = "10.4", default-features = false, features = ["rust_c
 ciborium = "0.2"
 x509-cert = { version = "0.2", default-features = false }
 der = "0.7"
-futures = { version = "0.3", default-features = false, features = ["std"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
 # ---- operators (ogun-ops; versions as in zeus-core and the zeus app workspace where they pin one) ----
 async-trait = "0.1"
+futures = "0.3"
 bytes = "1.12"
 scraper = "0.27"
 jsonpath-rust = "1.0"
@@ -150,3 +150,4 @@ flate2 = "1.1"
 debug = "line-tables-only"
 
 [profile.test]
+debug = "line-tables-only"

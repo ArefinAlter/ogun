@@ -450,7 +450,7 @@ impl Gateway {
     }
 
     /// The signed `sync.offer` body (`ogun_api::methods::SyncOfferParams`), oldest segments first, or `None`
-    /// when nothing waits. The signature is Ed25519 over the JCS form of `offer`.
+    /// when nothing waits. The signature binds the O-11 domain prefix and canonical `offer`.
     ///
     /// # Errors
     ///
@@ -471,12 +471,21 @@ impl Gateway {
             items: segments
                 .into_iter()
                 .take(MAX_OFFER_ITEMS)
-                .map(|s| s.item.clone())
+                .map(|s| {
+                    let mut item = s.item.clone();
+                    // Segments sealed before enrolment carry a local gateway/<name> asset.
+                    if item.asset.starts_with("gateway/") {
+                        item.asset = format!("{edge_id}/{}", item.asset);
+                    }
+                    item
+                })
                 .collect(),
         };
         let jcs = zeus_verify::canonical::to_jcs_bytes(&offer)
             .map_err(|e| GatewayError::Storage(e.to_string()))?;
-        let signature = self.key.sign(&jcs);
+        let mut message = b"ogun-sync-offer-v1\0".to_vec();
+        message.extend_from_slice(&jcs);
+        let signature = self.key.sign(&message);
         Ok(Some(serde_json::json!({
             "edge_id": edge_id,
             "offer": offer,
@@ -702,6 +711,62 @@ mod tests {
         assert_eq!((plan.acked, plan.released), (1, 2));
         assert!(g.offer().unwrap().is_none());
         assert_eq!(g.status().unwrap().stored_records, 0);
+    }
+
+    #[test]
+    fn hub_accepts_gateway_offers_and_multiple_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut gateway = enrolled(dir.path());
+        let t0 = 1_792_743_300_000;
+        let mut record = rec(t0, 1);
+        record.payload = serde_json::json!({"data": "x".repeat(200 * 1024)}).to_string();
+        gateway.append(vec![record; 3]).unwrap();
+        gateway.seal(t0 + 400_000).unwrap();
+        assert_eq!(CHUNK_BYTES, ogun_sync::CHUNK_BYTES);
+        let params: ogun_api::methods::SyncOfferParams =
+            serde_json::from_value(gateway.offer().unwrap().unwrap()).unwrap();
+        let verified =
+            ogun_sync::hub::verify_offer_params(&params, Some(&gateway.key.public_key())).unwrap();
+        let hub_dir = tempfile::tempdir().unwrap();
+        let assembler = ogun_sync::hub::ChunkAssembler::open(hub_dir.path()).unwrap();
+        let want = ogun_sync::hub::answer_offer(&assembler, &verified, &BTreeSet::new()).unwrap();
+        let upload = gateway.apply_want(&want).unwrap().uploads.remove(0);
+        assert!(upload.total > 1);
+        for index in 0..upload.total {
+            let chunk =
+                serde_json::from_value(gateway.chunk(&upload.blake3, index).unwrap()).unwrap();
+            let outcome = assembler.put(&chunk).unwrap();
+            if index + 1 == upload.total {
+                assert!(matches!(
+                    outcome,
+                    ogun_sync::hub::ChunkOutcome::Complete { .. }
+                ));
+            } else {
+                assert!(matches!(
+                    outcome,
+                    ogun_sync::hub::ChunkOutcome::Partial { .. }
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn segments_sealed_before_enrolment_gain_the_edges_namespace() {
+        let dir = tempfile::tempdir().unwrap();
+        let t0 = 1_792_743_300_000;
+        {
+            let mut gateway = Gateway::open(dir.path(), CoreConfig::named("phone")).unwrap();
+            gateway.append(vec![rec(t0, 1)]).unwrap();
+            gateway.seal(t0 + 400_000).unwrap();
+        }
+        let gateway = enrolled(dir.path());
+        let params = serde_json::from_value(gateway.offer().unwrap().unwrap()).unwrap();
+        let offer =
+            ogun_sync::hub::verify_offer_params(&params, Some(&gateway.key.public_key())).unwrap();
+        assert_eq!(
+            offer.items[0].asset,
+            format!("{}/gateway/phone", offer.edge_id)
+        );
     }
 
     #[test]

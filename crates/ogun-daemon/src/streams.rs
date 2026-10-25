@@ -92,16 +92,11 @@ fn to_record(r: &StreamRecord, seq: u64, dedupe_key: &[String]) -> Record {
     let dedupe = if dedupe_key.is_empty() {
         None
     } else {
-        let parts: Option<Vec<String>> = dedupe_key
+        let parts: Option<Vec<Value>> = dedupe_key
             .iter()
-            .map(|f| {
-                field(&r.payload, f).map(|v| match v {
-                    Value::String(s) => s.clone(),
-                    other => other.to_string(),
-                })
-            })
+            .map(|f| field(&r.payload, f).cloned())
             .collect();
-        parts.map(|p| p.join("/"))
+        parts.map(|p| Value::Array(p).to_string())
     };
     Record {
         key: r.key.clone(),
@@ -275,13 +270,26 @@ impl Streams {
                 "a push carries at least one record",
             ));
         }
+        // Keep the next frontier representable as well as the inclusive last sequence.
+        let next_after_batch = p
+            .first_seq
+            .checked_add(p.records.len() as u64)
+            .ok_or_else(|| ApiError::invalid_params("producer sequence range overflows"))?;
         let now = now_ms();
         self.with_source(d, &p.workflow, &p.node, |src| {
             // `next` is one past the producer's last accepted sequence number; 0 before any push.
-            let next = src.producers.get(&producer).copied().unwrap_or(0);
+            let producer_key = producer.to_string();
+            // New progress is in the ingest transaction; the run-store row is only a
+            // migration fallback for logs written before atomic producer progress.
+            let next = src
+                .log
+                .producer_next(&producer_key)
+                .map_err(|e| log_err(&e))?
+                .or_else(|| src.producers.get(&producer).copied())
+                .unwrap_or(0);
             let skip = usize::try_from(next.saturating_sub(p.first_seq)).unwrap_or(usize::MAX);
             let fresh: Vec<&StreamRecord> = p.records.iter().skip(skip).collect();
-            let through = p.first_seq + p.records.len() as u64 - 1;
+            let through = next_after_batch - 1;
             if fresh.is_empty() {
                 return Ok(PushResult {
                     accepted_through: through,
@@ -298,7 +306,10 @@ impl Streams {
                     payload: serde_json::to_value(r).unwrap_or(Value::Null),
                 })
                 .collect();
-            let appended = match src.log.append(batch) {
+            let appended = match src
+                .log
+                .append_with_progress(batch, Some((&producer_key, next_after_batch)))
+            {
                 Ok(a) => a,
                 Err(LogError::Full { .. }) => {
                     return Ok(PushResult {
@@ -315,13 +326,23 @@ impl Streams {
             let mut late = 0u64;
             let mut late_lines = Vec::new();
             if let Some(first) = appended.first_seq {
-                for (i, r) in fresh
-                    .iter()
-                    .take(usize::try_from(appended.written).unwrap_or(usize::MAX))
-                    .enumerate()
+                // Drop policies may reject a middle record while admitting a later, smaller
+                // one. Feed exactly the committed rows, not a prefix of the submitted batch.
+                for logged in src
+                    .log
+                    .read(
+                        first,
+                        usize::try_from(appended.written).unwrap_or(usize::MAX),
+                    )
+                    .map_err(|e| log_err(&e))?
                 {
-                    let seq = first + i as u64;
-                    match src.windower.ingest(to_record(r, seq, &src.dedupe_key), now) {
+                    let seq = logged.seq;
+                    let r: StreamRecord = serde_json::from_value(logged.record.payload)
+                        .map_err(|_| ApiError::internal("invalid committed stream record"))?;
+                    match src
+                        .windower
+                        .ingest(to_record(&r, seq, &src.dedupe_key), now)
+                    {
                         Ingested::Accepted { window_start }
                         | Ingested::Revises { window_start } => {
                             let e = src.window_min_seq.entry(window_start).or_insert(seq);
@@ -339,14 +360,7 @@ impl Streams {
             if !late_lines.is_empty() {
                 append_late(&src.late_file, &late_lines);
             }
-            src.producers.insert(producer, through + 1);
-            d.store
-                .put_doc(
-                    Collection::Streams,
-                    &format!("{}/{}/producer/{producer}", p.workflow, p.node),
-                    &(through + 1),
-                )
-                .map_err(store_err)?;
+            src.producers.insert(producer, next_after_batch);
             Ok(PushResult {
                 accepted_through: through,
                 dropped,
@@ -589,4 +603,126 @@ fn seal_window(
     src.sealed += 1;
     tracing::info!(workflow, node, partition = %partition, revision, records = batch.records, "window sealed");
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    async fn stream_daemon(path: &std::path::Path, when_full: &str) -> std::sync::Arc<Daemon> {
+        let d = Daemon::open(ogun_api::OgunPaths::rooted(path, None)).unwrap();
+        let mut workflow: Value = serde_json::from_str(include_str!(
+            "../../../examples/air-quality-stream.workflow.json"
+        ))
+        .unwrap();
+        workflow["streams"]["sensors"]["dedupe_key"] = json!([]);
+        workflow["streams"]["sensors"]["when_full"] = json!(when_full);
+        workflow["streams"]["sensors"]["max_buffer_bytes"] = json!(1 << 20);
+        let conn = crate::server::Conn {
+            kind: ogun_api::ClientKind::Human,
+            credential: d.ids.credential_id(),
+            name: "test".into(),
+            peer: Default::default(),
+            interactive: false,
+        };
+        crate::handlers::dispatch(
+            &d,
+            &conn,
+            ogun_api::methods::name::WORKFLOWS_PUT,
+            json!({"workflow": workflow, "idempotency_key":"stream-test"}),
+        )
+        .await
+        .unwrap();
+        d
+    }
+
+    #[tokio::test]
+    async fn retry_after_restart_uses_ingest_progress_without_run_store_frontier() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = stream_daemon(dir.path(), "block").await;
+        let producer = d.ids.credential_id();
+        let p = PushParams {
+            workflow: "air-quality-stream".into(),
+            node: "sensors".into(),
+            first_seq: 0,
+            records: vec![StreamRecord {
+                event_time_ms: now_ms(),
+                key: "device".into(),
+                payload: json!({"value":1}),
+            }],
+        };
+        d.streams.push(&d, producer, &p).unwrap();
+        // The producer checkpoint is not in the separate run store. This is the state
+        // in which the previous two-database implementation duplicated a retry after a crash.
+        d.store
+            .delete_doc(
+                Collection::Streams,
+                &format!("air-quality-stream/sensors/producer/{producer}"),
+            )
+            .unwrap();
+        drop(d);
+        let d = Daemon::open(ogun_api::OgunPaths::rooted(dir.path(), None)).unwrap();
+        let retry = d.streams.push(&d, producer, &p).unwrap();
+        assert_eq!(retry.accepted_through, 0);
+        assert_eq!(
+            d.streams.status(&d, &p.workflow, &p.node).unwrap().buffered,
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn drop_newest_windows_only_records_actually_committed() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = stream_daemon(dir.path(), "drop_newest").await;
+        let producer = d.ids.credential_id();
+        let at = now_ms() - 10 * 60_000;
+        let p = PushParams {
+            workflow: "air-quality-stream".into(),
+            node: "sensors".into(),
+            first_seq: 0,
+            records: vec![
+                StreamRecord {
+                    event_time_ms: at,
+                    key: "device".into(),
+                    payload: json!({"value":"x".repeat(2 << 20)}),
+                },
+                StreamRecord {
+                    event_time_ms: at + 1,
+                    key: "device".into(),
+                    payload: json!({"value":"kept"}),
+                },
+            ],
+        };
+        let pushed = d.streams.push(&d, producer, &p).unwrap();
+        assert_eq!(pushed.dropped, 1);
+        let mut sources = lock(&d.streams.inner);
+        let source = sources.get_mut(&(p.workflow, p.node)).unwrap();
+        let actions = source.windower.poll(now_ms() + 3_600_001);
+        let records = actions
+            .iter()
+            .find_map(|action| match action {
+                Action::Seal { records, .. } => Some(records),
+                _ => None,
+            })
+            .expect("accepted record must seal");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].payload, json!({"value":"kept"}));
+    }
+
+    #[test]
+    fn dedupe_preserves_field_boundaries_and_json_types() {
+        let key = vec!["a".into(), "b".into()];
+        let record = |payload| StreamRecord {
+            event_time_ms: 0,
+            key: "sensor".into(),
+            payload,
+        };
+        let id = |payload| to_record(&record(payload), 0, &key).dedupe;
+        assert_ne!(
+            id(json!({"a":"x/y", "b":"z"})),
+            id(json!({"a":"x", "b":"y/z"}))
+        );
+        assert_ne!(id(json!({"a":1, "b":"z"})), id(json!({"a":"1", "b":"z"})));
+    }
 }

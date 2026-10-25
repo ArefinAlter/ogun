@@ -105,9 +105,11 @@ class Client:
         if paths is None:
             paths = OgunPaths.rooted(ogun_home, profile) if ogun_home else OgunPaths.discover(profile)
         cred = Credential.read(credential_file or paths.credential_file(credential or ""))
-        secret = IpcSecret.read(paths.ipc_secret_file())
-        transport = connect(paths.endpoint(), timeout)
+        secret = None
+        transport = None
         try:
+            secret = IpcSecret.read(paths.ipc_secret_file())
+            transport = connect(paths.endpoint(), timeout)
             client_nonce = new_nonce()
             hello = cls._raw_call(
                 transport,
@@ -134,11 +136,13 @@ class Client:
                     f"credential kind {session.get('kind')} is not accepted here; use an agent credential",
                 )
         except BaseException:
-            transport.close()
+            if transport is not None:
+                transport.close()
             raise
         finally:
             cred.wipe()
-            secret.wipe()
+            if secret is not None:
+                secret.wipe()
         return cls(transport, session, hello)
 
     @staticmethod

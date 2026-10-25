@@ -33,7 +33,7 @@ fn parse_hex_32(text: &str) -> Option<[u8; 32]> {
         _ => None,
     };
     let mut out = [0u8; 32];
-    for (i, pair) in bytes.chunks_exact(2).enumerate() {
+    for (i, pair) in bytes.as_chunks::<2>().0.iter().enumerate() {
         out[i] = (digit(pair[0])? << 4) | digit(pair[1])?;
     }
     Some(out)

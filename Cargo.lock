@@ -324,9 +324,9 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "cc"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877bf67ac8e52449eb2f9e98a344ea163beb70dd1f9eebe3cc5357dcfeaee4df"
+checksum = "86e055fa6e3e40ad6187ba25b6855eeb635d5271f8e0f0e1e9a5826b8d75bea0"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -650,9 +650,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.5"
+version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a52aa3fcda4e6302a9f48734f234d35d4721b96f8fe07d073f07ce9df4f0271"
+checksum = "cc907c45bb7e9ef8fc3778defd0f3cd8c81288f1b4e748eba064948f20c47122"
 dependencies = [
  "cpubits",
  "ctutils",
@@ -1030,7 +1030,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d65aa39b3a5c1c9c1b745c9a019234bb7a21b77abcb4f4d266d706e2d577d65"
 dependencies = [
  "base16ct 1.0.0",
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.7",
  "crypto-common 0.2.2",
  "digest 0.11.3",
  "ff 0.14.0",
@@ -2244,9 +2244,9 @@ dependencies = [
 
 [[package]]
 name = "objc2"
-version = "0.6.5"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08849bbd4767dfae9457696856ae1c84fe4e0281bbe4a7abff2d0e06fb7981f8"
+checksum = "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f"
 dependencies = [
  "objc2-encode",
 ]
@@ -2269,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-api"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "directories",
@@ -2289,7 +2289,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-bench"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "blake3",
@@ -2313,7 +2313,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-cli"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2338,7 +2338,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-daemon"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2376,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-edge"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2390,7 +2390,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ingest"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "axum",
@@ -2411,12 +2411,13 @@ dependencies = [
  "tokio-modbus",
  "tracing",
  "tracing-subscriber",
+ "winapi-util",
  "zeroize",
 ]
 
 [[package]]
 name = "ogun-ir"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2429,7 +2430,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lineage"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2450,7 +2451,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-llm"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2470,7 +2471,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lsp"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "lsp-server",
  "lsp-types",
@@ -2483,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-llm"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-llm",
@@ -2499,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-shims"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -2508,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ops"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "async-trait",
  "blake3",
@@ -2545,7 +2546,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-run"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -2555,7 +2556,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sched"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "ogun-ir",
  "serde",
@@ -2566,7 +2567,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-server"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "axum",
@@ -2609,7 +2610,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-store"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "ogun-ir",
  "ogun-run",
@@ -2625,7 +2626,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-stream"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-sched",
@@ -2637,7 +2638,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sync"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2664,7 +2665,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-types"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -2675,7 +2676,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-zeus-bridge"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "getrandom 0.3.4",
@@ -2977,7 +2978,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c555a6e4eb7d4e158fcb028c835c3b8642206ddc279b5c6b202ef9a8bdb592f4"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.7",
  "crypto-common 0.2.2",
  "ff 0.14.0",
  "rand_core 0.10.1",
@@ -3310,7 +3311,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4a459cddafb3fe76b31fd8f1108007566c40301feb64dc7b54656eb7388172b"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.7",
  "hmac 0.13.0",
 ]
 
@@ -3916,9 +3917,9 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "smallvec"
-version = "1.16.3"
+version = "1.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b"
+checksum = "d0d5d4b1981b8bbbb7aed204cae5726d683d5d6ac7e74ec54122ea28f315e7c8"
 
 [[package]]
 name = "socket2"
@@ -4464,9 +4465,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "typed-path"
-version = "0.12.4"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ec2755506471f54baf5e4bb5499d8e510cc1caf271270e778a736bd2d7336c"
+checksum = "9ce898823d8cd0f028662d2f349694b1af0a5cc9be83f1d213a00d3147445e1e"
 
 [[package]]
 name = "typenum"
@@ -4574,9 +4575,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.28.0"
+version = "1.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
+checksum = "4a0e2d11620c50695fe12bbbfde96b3477fe606e7284c22d505c12ce51214514"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -5303,16 +5304,18 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "9.0.5"
+version = "9.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e"
+checksum = "2886b00003a72c4ccee3f42cfc34908d33b2508a74d827dc2a4244706475c704"
 dependencies = [
  "crc32fast",
  "flate2",
+ "getrandom 0.4.3",
  "indexmap",
  "memchr",
  "nix",
  "typed-path",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

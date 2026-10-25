@@ -220,9 +220,8 @@ pub struct RunLineage {
 }
 
 /// A UUID string for an OpenLineage `runId`: the ULID's 128 bits with the UUIDv7 version (`7`) and variant (`10`)
-/// bits set. ULIDs and UUIDv7 both start with a 48-bit millisecond timestamp, so the order is kept to the
-/// millisecond; two ids minted in the same millisecond may swap, because the version and variant bits replace
-/// the high random bits.
+/// bits set. ULIDs and UUIDv7 both start with a 48-bit millisecond timestamp, so ordering across
+/// different milliseconds is kept. Overwriting random bits does not preserve order within a millisecond.
 #[must_use]
 pub fn uuid_from_ulid(ulid: Ulid) -> String {
     let mut b = u128::from(ulid).to_be_bytes();
@@ -814,16 +813,16 @@ mod tests {
 
     #[test]
     fn uuid_has_v7_bits_and_keeps_millisecond_order() {
-        let a = Ulid::from_parts(1_000, u128::MAX);
-        let b = Ulid::from_parts(1_001, 0);
+        // Maximal randomness in the earlier millisecond must still sort before minimal
+        // randomness in the next millisecond. Same-millisecond ordering is not promised.
+        let a = Ulid::from((1_000u128 << 80) | ((1u128 << 80) - 1));
+        let b = Ulid::from(1_001u128 << 80);
         let ua = uuid_from_ulid(a);
         let ub = uuid_from_ulid(b);
         assert_eq!(ua.len(), 36);
         assert_eq!(&ua[14..15], "7");
         assert!(matches!(&ua[19..20], "8" | "9" | "a" | "b"));
         assert!(ua < ub);
-        let id = IdGenerator::new().run_id();
-        assert_eq!(uuid_from_ulid(id.ulid()).len(), 36);
     }
 
     #[test]

@@ -50,7 +50,7 @@ fn unhex_32(text: &str) -> Option<Zeroizing<[u8; 32]>> {
         _ => None,
     };
     let mut out = Zeroizing::new([0u8; 32]);
-    for (i, pair) in t.chunks_exact(2).enumerate() {
+    for (i, pair) in t.as_chunks::<2>().0.iter().enumerate() {
         out[i] = (digit(pair[0])? << 4) | digit(pair[1])?;
     }
     Some(out)

@@ -19,6 +19,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::{BridgeError, BridgeResult};
 
 /// Longest socket path Zeus uses before it falls back to a short temporary path.
+#[cfg(unix)]
 const MAX_SOCKET_PATH_BYTES: usize = 100;
 
 /// Where `zeusd` listens.

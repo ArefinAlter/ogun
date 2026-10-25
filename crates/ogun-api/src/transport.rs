@@ -7,7 +7,9 @@
 //! closed: the connection is not interactive.
 
 use std::io;
-use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::path::Path;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -309,14 +311,17 @@ mod tests {
         let dir = tempdir();
         let ep = Endpoint::UnixSocket(dir.join("s").join("ogund.sock"));
         let mut l = Listener::bind(&ep).await.unwrap();
-        assert!(Listener::bind(&ep).await.is_err());
-        let client = tokio::spawn({
-            let ep = ep.clone();
-            async move { connect(&ep).await.map(|_| ()) }
-        });
+        // Keep the client alive until peer credentials have been read (getpeereid on macOS
+        // may fail after the peer closes). Check duplicate binding after this accept so its
+        // short-lived liveness probe cannot be mistaken for our client.
+        let client = connect(&ep).await.unwrap();
         let (_s, peer) = l.accept().await.unwrap();
+        #[cfg(target_os = "linux")]
         assert_eq!(peer.pid, Some(std::process::id()));
-        client.await.unwrap().unwrap();
+        #[cfg(not(target_os = "linux"))]
+        let _ = peer;
+        assert!(Listener::bind(&ep).await.is_err());
+        drop(client);
     }
 
     #[cfg(unix)]

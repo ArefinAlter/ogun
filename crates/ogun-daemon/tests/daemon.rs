@@ -36,8 +36,10 @@ async fn workflow_run_and_policy() {
     let mut cli = Client::connect(&paths, "cli", info()).await.unwrap();
     assert_eq!(cli.kind(), ClientKind::Human);
 
-    let doc: Value =
+    let mut doc: Value =
         serde_json::from_str(include_str!("../../../examples/noaa-daily.workflow.json")).unwrap();
+    // Keep partition/lifecycle coverage local now that acquire executes real requests.
+    doc["nodes"] = json!([{ "id": "manifest", "op": "manifest@1" }]);
     let put: m::PutWorkflowResult = cli
         .call(
             name::WORKFLOWS_PUT,
@@ -79,7 +81,7 @@ async fn workflow_run_and_policy() {
         )
         .await
         .unwrap();
-    // Operators are not linked in this build's contract crate, so the run fails, cleanly.
+    // The native manifest operator runs through the daemon and commits its output.
     let mut state = run.state;
     for _ in 0..50 {
         let v: m::RunView = cli
@@ -95,10 +97,7 @@ async fn workflow_run_and_policy() {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    assert!(matches!(
-        state,
-        ogun_run::RunState::Failed | ogun_run::RunState::Succeeded
-    ));
+    assert_eq!(state, ogun_run::RunState::Succeeded);
     let status: m::PartitionStatusResult = cli
         .call(
             name::PARTITIONS_STATUS,
@@ -168,6 +167,13 @@ async fn stream_push_seals_a_window_into_a_run() {
         first_seq: 0,
         records: vec![rec(old, 0), rec(old + 1_000, 1), rec(now - 60_000, 2)],
     };
+    let mut overflow = p.clone();
+    overflow.first_seq = u64::MAX;
+    let error = ingest
+        .call::<_, m::PushResult>(name::STREAMS_PUSH, &overflow)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), "api.invalid_params");
     let r: m::PushResult = ingest.call(name::STREAMS_PUSH, &p).await.unwrap();
     assert_eq!(r.accepted_through, 2);
     // A retry of the same batch is not ingested twice.
