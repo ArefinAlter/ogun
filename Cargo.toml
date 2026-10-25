@@ -15,6 +15,7 @@ members = [
     "crates/ogun-op-llm",
     "crates/ogun-daemon",
     "crates/ogun-cli",
+    "crates/ogun-lsp",
     "crates/ogun-server",
     "crates/ogun-ingest",
     "crates/ogun-sync",
@@ -52,6 +53,7 @@ ogun-sched = { path = "crates/ogun-sched", version = "0.1.0" }
 ogun-store = { path = "crates/ogun-store", version = "0.1.0" }
 ogun-stream = { path = "crates/ogun-stream", version = "0.1.0" }
 ogun-edge = { path = "crates/ogun-edge", version = "0.1.0" }
+ogun-lsp = { path = "crates/ogun-lsp", version = "0.1.0" }
 ogun-api = { path = "crates/ogun-api", version = "0.1.0" }
 ogun-ops = { path = "crates/ogun-ops", version = "0.1.0" }
 ogun-sync = { path = "crates/ogun-sync", version = "0.1.0" }
@@ -130,6 +132,10 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls", "h
 # Terminal input without echo for `ogun secrets set` (same version as the zeus TUI).
 crossterm = "0.29"
 clap = { version = "4.6", features = ["derive", "env", "wrap_help"] }
+
+# Language server protocol types and synchronous transport.
+lsp-server = "0.10"
+lsp-types = "0.97"
 
 [profile.dev]
 debug = "line-tables-only"

@@ -29,6 +29,18 @@ Lifecycle: **acquire → materialize → verify → transform → organize → e
 | `zeus-extension` | Zeus MV3 browser extension |
 | `ogun-site`, `zeus-site` | The product websites |
 
+## Editors, agents and data platforms
+
+None of these can approve anything; approvals happen on the Ogun CLI or in Studio ([O-14](docs/spec/O-14-extension-and-integration-surfaces.md)).
+
+| Path | What |
+|---|---|
+| `crates/ogun-lsp` | `ogun lsp` / `ogun-lsp`: language server for `*.workflow.json` (validator diagnostics, hover, completion, go-to-definition, symbols, workflow hash) |
+| `extensions/vscode` | VS Code extension: the language server when found, `ogun validate --json` otherwise |
+| `integrations/mcp` | `ogun mcp` configurations for Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Zed and Codex CLI |
+| `integrations/python/ogun-client` | Python client of the `ogund` local API (O-15) |
+| `integrations/airflow`, `dagster`, `prefect`, `kestra` | Orchestrator integrations that start and watch Ogun runs with an `agent` credential |
+
 ## Read next
 
 1. [`docs/VISION.md`](docs/VISION.md): the product, the object model, the benchmark profile.

@@ -1,0 +1,11 @@
+{
+  "name": "ogun",
+  "version": "0.1.0",
+  "description": "Ogun workflow tools over MCP: validate, diff and plan workflow IR; with ogund running, store workflows, start runs and read run, partition, backfill, approval and stream status. Never decides approvals.",
+  "author": { "name": "Verne Ltd." },
+  "homepage": "https://github.com/ArefinAlter/ogun",
+  "repository": "https://github.com/ArefinAlter/ogun",
+  "license": "Apache-2.0",
+  "keywords": ["ogun", "workflows", "data-engineering", "mcp"],
+  "mcpServers": "./.mcp.json"
+}
