@@ -4,10 +4,12 @@
 
 import type { Backend, EventSubscription, PreparedDecision, ShellInfo } from './backend'
 import { asOgunError } from './backend'
+import { identityOf, type Me } from './identity'
 import type { ApprovalView, EventView, OgunError, StatusResult } from './types'
 import { getAssertion, toRequestOptions, webauthnAvailable } from './webauthn'
 
 const BASE = '/api/v1'
+
 const CSRF_HEADER = 'x-ogun-csrf'
 const CSRF_COOKIE = 'ogun_csrf'
 
@@ -76,18 +78,6 @@ async function request<T>(method: 'GET' | 'POST', url: string, body?: unknown): 
 const get = <T>(url: string) => request<T>('GET', url)
 const post = <T>(url: string, body: unknown) => request<T>('POST', url, body)
 
-interface Me {
-  user_id?: string
-  id?: string
-  name?: string
-  email?: string
-  roles?: string[]
-  role?: string
-  approver?: boolean
-  remote_approvals?: boolean
-  csrf_token?: string
-}
-
 const ROLE_ORDER = ['viewer', 'editor', 'admin', 'owner']
 
 function atLeast(roles: string[], role: string): boolean {
@@ -114,20 +104,14 @@ export function httpBackend(): Backend {
       try {
         const me = await get<Me>(path('me'))
         if (me.csrf_token) csrfToken = me.csrf_token
-        const roles = me.roles ?? (me.role ? [me.role] : [])
-        const approver = Boolean(me.approver)
+        const who = identityOf(me)
         return {
           ...base,
           connected: true,
-          canWrite: atLeast(roles, 'editor'),
+          canWrite: atLeast(who.roles, 'editor'),
           // The server refuses decisions while `remote_approvals` is off (ADR 0010); hide the buttons then.
-          decideChannel: approver && me.remote_approvals !== false && webauthnAvailable() ? 'webauthn' : null,
-          user: {
-            id: me.user_id ?? me.id ?? '',
-            name: me.name ?? me.email ?? me.user_id ?? me.id ?? 'signed in',
-            roles,
-            approver,
-          },
+          decideChannel: who.approver && me.remote_approvals !== false && webauthnAvailable() ? 'webauthn' : null,
+          user: { id: who.id, name: who.name, roles: who.roles, approver: who.approver },
         }
       } catch (e) {
         return { ...base, error: asOgunError(e) }

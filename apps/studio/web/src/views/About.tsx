@@ -23,9 +23,10 @@ export function About() {
         </p>
         <Kv
           rows={[
-            ['shell', web ? 'Studio-web (ogun-server)' : `Tauri, ${info?.platform ?? ''}${info?.mobile ? ' (companion)' : ''}`],
+            ['shell', info?.backend === 'demo' ? 'sample data, no daemon' : web ? 'Studio-web (ogun-server)' : `Tauri, ${info?.platform ?? ''}${info?.mobile ? ' (companion)' : ''}`],
+            ...((info?.backend === 'demo' ? [['data', 'sample workflows and numbers; the agent answers from prepared sessions and no model is called']] : []) as [string, string][]),
             ['licence', 'Apache-2.0, open core'],
-            ['fonts', 'IBM Plex Sans, IBM Plex Mono, EB Garamond (SIL Open Font License 1.1)'],
+            ['typeface', 'the system interface font and the system monospace font; nothing is fetched'],
             ['platforms', 'as listed in O-12, Platform profiles'],
           ]}
         />
