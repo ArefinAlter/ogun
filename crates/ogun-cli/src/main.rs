@@ -31,8 +31,8 @@ struct Cli {
     #[arg(long, global = true)]
     json: bool,
     /// The credential to connect to ogund with (a file under the state directory).
-    #[arg(long, global = true, default_value = "cli", env = "OGUN_CREDENTIAL")]
-    credential: String,
+    #[arg(long, global = true, env = "OGUN_CREDENTIAL")]
+    credential: Option<String>,
     /// Use a separate ogund profile.
     #[arg(long, global = true, env = "OGUN_PROFILE")]
     profile: Option<String>,
@@ -76,7 +76,9 @@ enum Command {
         /// The code bundle or script.
         file: PathBuf,
     },
-    /// Serve the read-only Ogun tools to a coding agent over MCP on stdio.
+    /// Serve the Ogun language server on stdio, for editors.
+    Lsp,
+    /// Serve the Ogun tools to a coding agent over MCP on stdio.
     Mcp,
     /// Show what changed between two versions and whether the new one needs an approval.
     Diff {
@@ -258,7 +260,7 @@ fn print_diagnostics(path: &Path, report: &Report) {
 
 fn run(cli: &Cli) -> Result<bool> {
     let o = client::Opts {
-        credential: cli.credential.clone(),
+        credential: cli.credential.clone().unwrap_or_else(|| "cli".to_owned()),
         profile: cli.profile.clone(),
         json: cli.json,
     };
@@ -431,9 +433,14 @@ fn run(cli: &Cli) -> Result<bool> {
             }
             Ok(true)
         }
+        Command::Lsp => {
+            ogun_lsp::serve_stdio().map_err(|e| anyhow::anyhow!("language server: {e}"))?;
+            Ok(true)
+        }
         Command::Mcp => {
             let stdin = std::io::stdin();
-            mcp::serve(stdin.lock(), std::io::stdout().lock(), || {
+            let config = mcp_config(cli, mcp::DaemonConfig::from_env());
+            mcp::serve(config, stdin.lock(), std::io::stdout().lock(), || {
                 zeus_types::Timestamp::now().unix_millis()
             })?;
             Ok(true)
@@ -498,5 +505,52 @@ fn run(cli: &Cli) -> Result<bool> {
             }
             Ok(!d.needs_approval())
         }
+    }
+}
+
+// MCP defaults to its own agent credential, while explicit global options select its connection.
+fn mcp_config(cli: &Cli, mut config: mcp::DaemonConfig) -> mcp::DaemonConfig {
+    if let Some(profile) = &cli.profile {
+        config.profile = Some(profile.clone());
+    }
+    if let Some(credential) = &cli.credential {
+        config.credential = credential.clone();
+    }
+    config
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    #[test]
+    fn mcp_respects_global_connection_options_and_keeps_agent_default() {
+        let cli = Cli {
+            json: false,
+            credential: None,
+            profile: None,
+            command: Command::Mcp,
+        };
+        let defaults = mcp::DaemonConfig {
+            credential: "mcp".into(),
+            ..Default::default()
+        };
+        assert_eq!(mcp_config(&cli, defaults.clone()).credential, "mcp");
+        let selected = Cli::try_parse_from([
+            "ogun",
+            "--profile",
+            "separate",
+            "--credential",
+            "agent1",
+            "mcp",
+        ])
+        .unwrap();
+        let config = mcp_config(&selected, defaults);
+        assert_eq!(config.profile.as_deref(), Some("separate"));
+        assert_eq!(config.credential, "agent1");
+        assert!(matches!(
+            Cli::try_parse_from(["ogun", "lsp"]).unwrap().command,
+            Command::Lsp
+        ));
     }
 }

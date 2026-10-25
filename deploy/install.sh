@@ -91,7 +91,7 @@ tar -xzf "$tmp/$archive" -C "$tmp"
 
 mkdir -p "$prefix/bin"
 installed=""
-for bin in ogun ogund ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
+for bin in ogun ogund ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
   if [ -f "$tmp/$name/$bin" ]; then
     # Install via a temporary name, then rename, so a running binary is never half-written.
     cp "$tmp/$name/$bin" "$prefix/bin/.$bin.new"

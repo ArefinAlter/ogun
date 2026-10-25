@@ -96,9 +96,13 @@ test('finds the server on PATH, then falls back to `ogun lsp`, else the CLI vali
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-// Runs against the real server when OGUN_LSP_BIN names a built ogun-lsp binary.
-test('the real ogun-lsp answers diagnostics, hover and completion', { skip: !process.env.OGUN_LSP_BIN }, async () => {
-  const client = new LspClient(process.env.OGUN_LSP_BIN, []);
+// Exercise either entry point when its built binary is available.
+for (const [name, command, args] of [
+  ['ogun-lsp', process.env.OGUN_LSP_BIN, []],
+  ['ogun lsp', process.env.OGUN_CLI_BIN, ['lsp']],
+]) {
+test(`the real ${name} answers diagnostics, hover and completion`, { skip: !command }, async () => {
+  const client = new LspClient(command, args);
   await client.initialize({ capabilities: {} });
   const uri = 'file:///tmp/t.workflow.json';
   const text = '{"ir_version":0,"workflow":"w","version":1,"nodes":[{"id":"a","op":"hash@1"},{"id":"b","op":"manifest@1","inputs":["a."]}]}';
@@ -115,3 +119,4 @@ test('the real ogun-lsp answers diagnostics, hover and completion', { skip: !pro
   assert.strictEqual(hash.workflow_hash, null);
   await client.stop();
 });
+}
