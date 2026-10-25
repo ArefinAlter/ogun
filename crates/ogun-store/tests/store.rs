@@ -155,3 +155,65 @@ fn a_second_process_cannot_open_the_store() {
     let _first = Store::open(&path).unwrap();
     assert!(matches!(Store::open(&path), Err(StoreError::AlreadyOpen)));
 }
+
+#[test]
+fn session_outputs_and_both_transitions_survive_restart_together() {
+    use ogun_store::{Collection, DocWrite};
+    use serde_json::json;
+
+    let (dir, store, run) = setup();
+    let a = store.instances(run.id).unwrap()[0].id;
+    let now = Timestamp::now();
+    for cause in [
+        Cause::InputsAvailable,
+        Cause::Dispatched,
+        Cause::SessionRequired,
+    ] {
+        store
+            .transition(a, cause, Actor::Runtime, now, None)
+            .unwrap();
+    }
+    let outputs = json!([{"artifact_id":"imported-zeus-object"}]);
+    let writes = [DocWrite::put(Collection::Outputs, a.to_string(), &outputs).unwrap()];
+    let before = store.last_event_seq().unwrap();
+    let done = store.complete_session(a, now, &writes).unwrap();
+    assert_eq!(done.state, NodeState::Succeeded);
+    let events = store.events_after(before, 10).unwrap();
+    assert_eq!(events.len(), 2);
+    assert!(matches!(
+        events[0].kind,
+        ogun_store::EventKind::Transition {
+            cause: Cause::SessionAvailable,
+            ..
+        }
+    ));
+    assert!(matches!(
+        events[1].kind,
+        ogun_store::EventKind::Transition {
+            cause: Cause::OutputsCommitted,
+            ..
+        }
+    ));
+    drop(store);
+
+    let store = Store::open(&dir.path().join("s.redb")).unwrap();
+    assert!(store.recover(Timestamp::now()).unwrap().is_empty());
+    assert_eq!(store.instance(a).unwrap().state, NodeState::Succeeded);
+    assert_eq!(
+        store
+            .get_doc::<serde_json::Value>(Collection::Outputs, &a.to_string())
+            .unwrap(),
+        Some(outputs.clone())
+    );
+    // A raced cancellation or repeated completion cannot replace outputs or add events.
+    let before = store.last_event_seq().unwrap();
+    let replacement = [DocWrite::put(Collection::Outputs, a.to_string(), &json!([])).unwrap()];
+    assert!(store.complete_session(a, now, &replacement).is_err());
+    assert_eq!(store.last_event_seq().unwrap(), before);
+    assert_eq!(
+        store
+            .get_doc::<serde_json::Value>(Collection::Outputs, &a.to_string())
+            .unwrap(),
+        Some(outputs)
+    );
+}

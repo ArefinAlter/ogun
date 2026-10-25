@@ -90,7 +90,7 @@ pub struct Usage {
     pub input_tokens: u64,
     /// Output tokens, including reasoning tokens.
     pub output_tokens: u64,
-    /// Cost in micro-US-dollars.
+    /// Cost in micro-US-dollars, or the admitted worst-case bound when a bill is unknown.
     pub cost_usd_micro: u64,
 }
 

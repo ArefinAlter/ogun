@@ -216,6 +216,83 @@ async fn anthropic_structured_call_sends_key_only_in_its_header() {
 }
 
 #[tokio::test]
+async fn unknown_chat_bills_are_charged_before_fallback_and_reported_after_success() {
+    for allow_fallback in [false, true] {
+        // A successful HTTP response with an unreadable result may already be billed.
+        let first = mock(vec![(200, json!({"unexpected": "response"}))]).await;
+        let second = mock(vec![(200, openai_ok("ok"))]).await;
+        let cfg = LadderConfig {
+            version: 1,
+            providers: vec![
+                provider(
+                    "first",
+                    ProviderKind::OpenaiCompatible,
+                    &first.base,
+                    None,
+                    1000,
+                ),
+                provider(
+                    "second",
+                    ProviderKind::OpenaiCompatible,
+                    &second.base,
+                    None,
+                    1000,
+                ),
+            ],
+        };
+        let ladder = Ladder::build(&cfg, &keys(), Capability::Chat, None).unwrap();
+        let req = request();
+        let bound = ladder.rungs()[0].worst_case_chat(&req);
+        let mut budget = CallBudget::new(bound * if allow_fallback { 2 } else { 1 }, 10);
+        let mut usage = Vec::new();
+        let result = ladder
+            .chat(&req, &mut budget, &mut |u| usage.push(u.clone()))
+            .await;
+        assert_eq!(usage[0].cost_usd_micro, bound);
+        assert_eq!(
+            budget.spent_usd_micro(),
+            usage.iter().map(|u| u.cost_usd_micro).sum::<u64>()
+        );
+        if allow_fallback {
+            assert!(result.is_ok());
+            assert_eq!(usage.len(), 2);
+            assert_eq!(second.seen.lock().unwrap().len(), 1);
+        } else {
+            assert!(matches!(result, Err(LlmError::BudgetExceeded { .. })));
+            assert!(second.seen.lock().unwrap().is_empty());
+        }
+    }
+}
+
+#[tokio::test]
+async fn unknown_embedding_bills_cannot_be_reused_by_fallback() {
+    let first = mock(vec![(200, json!({"unexpected": "response"}))]).await;
+    let second = mock(vec![]).await;
+    let cfg = LadderConfig {
+        version: 1,
+        providers: vec![
+            provider("first", ProviderKind::Ollama, &first.base, None, 1000),
+            provider("second", ProviderKind::Ollama, &second.base, None, 1000),
+        ],
+    };
+    let ladder = Ladder::build(&cfg, &keys(), Capability::Embeddings, None).unwrap();
+    let req = EmbedRequest {
+        inputs: vec!["document".into()],
+        dimensions: None,
+    };
+    let bound = ladder.rungs()[0].worst_case_embed(&req);
+    let mut budget = CallBudget::new(bound, 10);
+    let mut usage = Vec::new();
+    let result = ladder
+        .embed(&req, &mut None, &mut budget, &mut |u| usage.push(u.clone()))
+        .await;
+    assert!(matches!(result, Err(LlmError::BudgetExceeded { .. })));
+    assert_eq!(budget.spent_usd_micro(), bound);
+    assert_eq!(usage[0].cost_usd_micro, bound);
+    assert!(second.seen.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn throttling_falls_back_and_bad_requests_do_not() {
     let first = mock(vec![(429, json!({"error": {"type": "rate_limit_error"}}))]).await;
     let second = mock(vec![(200, openai_ok(r#"{"label":"a"}"#))]).await;

@@ -704,6 +704,28 @@ impl Store {
         Ok(updated)
     }
 
+    /// Commits a waiting session's imported outputs and both O-01 completion transitions atomically.
+    /// A restart therefore sees either a waiting session or its committed success, never a running
+    /// instance that would repeat the external job.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::InvalidTransition`] unless the instance is waiting for a session, or a storage
+    /// error. No events, state changes or documents are committed on error.
+    pub fn complete_session(
+        &self,
+        id: NodeInstanceId,
+        now: Timestamp,
+        docs: &[DocWrite],
+    ) -> StoreResult<NodeInstance> {
+        let txn = self.write()?;
+        Self::apply(&txn, id, Cause::SessionAvailable, Actor::Zeus, now, None)?;
+        let updated = Self::apply(&txn, id, Cause::OutputsCommitted, Actor::Runtime, now, None)?;
+        Self::write_docs_in(&txn, docs)?;
+        txn.commit().map_err(storage)?;
+        Ok(updated)
+    }
+
     /// Replaces an instance's checkpoint without a transition (operators checkpoint while running).
     ///
     /// # Errors
