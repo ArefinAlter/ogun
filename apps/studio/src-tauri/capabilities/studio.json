@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "studio",
-  "description": "Only the bundled main window may call the closed Ogun Studio command set. No shell, filesystem, HTTP, opener or remote-content permission is granted; the Rust process holds the daemon credential and the hub token.",
+  "description": "Only the bundled main window may call the closed Ogun Studio command set and move, minimize, maximize and close itself. No shell, filesystem, HTTP, opener or remote-content permission is granted; the Rust process holds the daemon credential and the hub token.",
   "local": true,
   "windows": [
     "main"
@@ -36,6 +36,13 @@
     "allow-edges-list",
     "allow-credentials-list",
     "allow-secrets-list",
-    "allow-llm-ladder"
+    "allow-llm-ladder",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "core:window:allow-is-maximized",
+    "core:window:allow-is-decorated",
+    "core:window:allow-internal-toggle-maximize"
   ]
 }
