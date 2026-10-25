@@ -1,0 +1,35 @@
+{
+  "ir_version": 0,
+  "workflow": "station-status",
+  "version": 1,
+  "description": "Every fifteen minutes: the station status feed of the sample network (bikes and docks free per station), kept with its digest.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "*/15 * * * *"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "feed",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "files.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://files.example.org/gbfs/station_status.json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "digest",
+      "op": "hash@1",
+      "inputs": [
+        "feed.artifacts"
+      ]
+    }
+  ]
+}

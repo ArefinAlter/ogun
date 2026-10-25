@@ -1,0 +1,67 @@
+{
+  "ir_version": 0,
+  "workflow": "district-report",
+  "version": 1,
+  "description": "A monthly service report per district, written in SQL and rendered with pandoc. Its SQL is code, so it waits for a person's approval, and this hub has no operator sandbox, so it does not run here.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "0 3 2 * *"
+    }
+  ],
+  "partitions": {
+    "kind": "time",
+    "granularity": "month",
+    "start": "2026-01"
+  },
+  "nodes": [
+    {
+      "id": "hourly",
+      "op": "duckdb@1",
+      "config": {
+        "read": "dock_hourly.parquet",
+        "table": "hourly",
+        "service_hours": "06:00-23:00"
+      }
+    },
+    {
+      "id": "figures",
+      "op": "sql@1",
+      "inputs": [
+        "hourly.tables"
+      ],
+      "code": {
+        "blake3": "54b23a6c4bea4d31a52192d8ef1cd4d50f60b9d6689a23df68b7d9fa993c5a7d",
+        "path": "ops/district_month.sql"
+      }
+    },
+    {
+      "id": "render",
+      "op": "pandoc@1",
+      "inputs": [
+        "figures.tables"
+      ],
+      "config": {
+        "template": "templates/district_report.md",
+        "to": "pdf",
+        "languages": [
+          "en",
+          "es"
+        ]
+      }
+    },
+    {
+      "id": "deliver",
+      "op": "file.copy@1",
+      "inputs": [
+        "render.artifacts"
+      ],
+      "config": {
+        "to": "outbox/districts/{partition}/"
+      },
+      "policy": {
+        "approval": "always"
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "ir_version": 0,
+  "workflow": "rebalance-plan",
+  "version": 2,
+  "description": "Version 2 adds a weather adjustment written in Python. It changes code, so it waits for a person's approval, and this hub has no operator sandbox to run it.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "45 0 * * *"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "rollups",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "files.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://files.example.org/docks/hourly-30d.csv"
+          }
+        ]
+      }
+    },
+    {
+      "id": "estimate",
+      "op": "python@1",
+      "inputs": [
+        "rollups.artifacts"
+      ],
+      "config": {
+        "as_of": "{run.date}",
+        "wet_or_cold": false
+      },
+      "code": {
+        "blake3": "8bd49e9d2379bf33d682b967615297dc731bac0d074354addd208611bcbed8e3",
+        "path": "ops/rebalance_weather.py"
+      }
+    },
+    {
+      "id": "shortlist",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "files.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://files.example.org/rebalance/shortlist.csv"
+          }
+        ]
+      }
+    },
+    {
+      "id": "digest",
+      "op": "hash@1",
+      "inputs": [
+        "shortlist.artifacts"
+      ]
+    }
+  ]
+}
