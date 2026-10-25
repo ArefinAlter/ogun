@@ -46,6 +46,38 @@ STATUS_JS = (
     "fetch('/api/v1/status', {credentials: 'include'}).then(r => r.json().then(j => ({status: r.status, "
     "profile: j.profile, version: j.daemon_version, workflows: j.workflows})))"
 )
+SVC_JS = """(async () => {
+  const me = await (await fetch('/api/v1/me', {credentials: 'include'})).json();
+  const call = async (method, params = {}) => {
+    const r = await fetch('/svc/v1/call', {method: 'POST', credentials: 'include',
+      headers: {'content-type': 'application/json', 'x-ogun-csrf': me.csrf_token}, body: JSON.stringify({method, params})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(method + ': ' + JSON.stringify(j));
+    return j;
+  };
+  const out = {};
+  const t = await call('agent.create', {access: 'read', model: 'scripted'});
+  await call('agent.send', {thread_id: t.thread_id, text: 'What is running, and what is waiting for a person?', mentions: []});
+  let th = null;
+  for (let i = 0; i < 60; i++) {
+    th = (await call('agent.thread', {thread_id: t.thread_id})).thread;
+    if (th && th.state !== 'running') break;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  const tools = th.items.filter(x => x.kind === 'tool');
+  out.agent_state = th.state;
+  out.tools_ok = tools.filter(x => x.state === 'ok').map(x => x.tool);
+  out.tools_bad = tools.filter(x => x.state !== 'ok').map(x => x.tool + ':' + x.state + ':' + x.summary);
+  out.reply = (th.items.filter(x => x.kind === 'assistant').map(x => x.text).join(' ')).slice(0, 160);
+  await call('agent.remove', {thread_id: t.thread_id});
+  await call('connections.put', {input: {name: 'check_conn', connector: 'webhook', auth: 'none', settings: {}, secret_refs: {}}});
+  out.connection_saved = (await call('connections.list')).connections.some(c => c.name === 'check_conn');
+  await call('connections.remove', {name: 'check_conn'});
+  const ladder = await call('ladder.get');
+  out.ladder_entries = (ladder.ladder && ladder.ladder.providers || []).length;
+  out.env = (await call('environments')).environments.map(e => e.name + ':' + e.connected);
+  return out;
+})()"""
 TOKEN_JS = """(async () => {
   const me = await (await fetch('/api/v1/me', {credentials: 'include'})).json();
   const h = {'content-type': 'application/json', 'x-ogun-csrf': me.csrf_token};
@@ -127,7 +159,9 @@ async def run(a: argparse.Namespace) -> int:
                     p = e['params']
                     if e['method'] == 'Runtime.exceptionThrown':
                         d = p['exceptionDetails']
-                        errors.append('exception: ' + (d.get('exception', {}).get('description') or d.get('text', ''))[:200])
+                        ex = d.get('exception', {})
+                        props = {q.get('name'): q.get('value') for q in ex.get('preview', {}).get('properties', [])}
+                        errors.append('exception: ' + (ex.get('description') or d.get('text', ''))[:200] + (' ' + json.dumps(props)[:200] if props else ''))
                     elif e['method'] == 'Log.entryAdded' and p['entry'].get('level') in ('error', 'warning'):
                         errors.append(f"log {p['entry'].get('level')}: {p['entry'].get('text', '')[:160]}")
                     elif e['method'] == 'Network.responseReceived' and p['response']['status'] >= 400:
@@ -154,7 +188,7 @@ async def run(a: argparse.Namespace) -> int:
             if a.enroll_file:
                 await c.call('Page.navigate', url=Path(a.enroll_file).read_text().strip().splitlines()[0])
             else:
-                await c.call('Page.navigate', url=a.base.rstrip('/') + '/auth/login?provider=demo')
+                await c.call('Page.navigate', url=a.base.rstrip('/') + '/auth/login?provider=' + a.provider)
             await asyncio.sleep(2)
             if await c.eval("location.pathname.startsWith('/enroll')"):
                 await c.eval("(() => { const l = [...document.querySelectorAll('a,button')].find(e => /sign in/i.test(e.textContent)); if (l) l.click() })()")
@@ -181,7 +215,7 @@ async def run(a: argparse.Namespace) -> int:
                 print(f"       daemon {st['version']}, {st['workflows']} workflow(s)")
             role = me['roles'][0] if me and me['roles'] else '?'
             label = f"{me['user']} · {role}" if me and me.get('user') else ''
-            check(bool(label) and await wait(f'document.body.innerText.includes({json.dumps(label)})', 8), 'Studio shows who is signed in and their role', label)
+            check(bool(label) and await wait(f'document.body.innerText.includes({json.dumps(label)}) || [...document.querySelectorAll("[title]")].some(e => e.title.includes({json.dumps(label)}))', 8), 'Studio shows who is signed in and their role', label)
 
             if a.make_token:
                 t = await c.eval(TOKEN_JS)
@@ -193,6 +227,17 @@ async def run(a: argparse.Namespace) -> int:
             if a.revoke_token:
                 n = await c.eval(REVOKE_JS + '(' + json.dumps(a.revoke_token) + ')')
                 print(f'       revoked {n} token(s) named {a.revoke_token}')
+
+            if a.svc:
+                print('pre-alpha service')
+                try:
+                    r = await c.eval(SVC_JS)
+                except Exception as e:  # noqa: BLE001
+                    r = {'error': str(e)[:300]}
+                print('      ', json.dumps(r)[:600])
+                check(isinstance(r, dict) and r.get('agent_state') in ('idle', 'waiting') and len(r.get('tools_ok', [])) >= 2 and not r.get('tools_bad'),
+                      'an agent turn calls the real daemon through its tools', json.dumps(r)[:200])
+                check(isinstance(r, dict) and r.get('connection_saved') is True, 'a connection is stored and listed again')
 
             print('pages')
             for route in a.routes or ROUTES:
@@ -218,11 +263,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--base', default='http://localhost:18443')
     ap.add_argument('--user', default='demo@ogun.local')
+    ap.add_argument('--provider', default='demo', help='the OIDC provider id in server.json (the hosted pre-alpha hub uses sample)')
     ap.add_argument('--enroll-file', help='a file whose first line is the owner enrolment link (consumed once)')
     ap.add_argument('--make-token', help='write a new one-day viewer API token to this file')
     ap.add_argument('--revoke-token', metavar='NAME', help='delete the API tokens with this name (for example desktop-check)')
     ap.add_argument('--out', default='.design-reference/hub')
     ap.add_argument('--routes', nargs='*')
+    ap.add_argument('--svc', action='store_true', help='also check the pre-alpha service (/svc/v1): an agent turn and a stored connection')
     ap.add_argument('--chrome')
     ap.add_argument('--port', type=int, default=9555)
     return asyncio.run(run(ap.parse_args()))
