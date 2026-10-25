@@ -6,7 +6,8 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
+    # Full releases only (v1.2.3); pre-alpha tags such as v0.0.1a are built by release-prealpha.yml or by hand.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
 
 permissions:
   contents: read

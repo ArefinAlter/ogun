@@ -1,0 +1,62 @@
+name: release-prealpha
+
+# Builds the pre-alpha assets (Ogun Studio desktop for Windows x64 and Linux x64, and the `ogun` and `ogund`
+# binaries) and uploads them to an existing GitHub pre-release. Started by hand only: 0.0.1a was built locally
+# (deploy/pre-alpha/release/README.md) while Actions minutes were used up, so a tag push must not start a build.
+#
+# The desktop build links to the hosted hub by default when the repository secrets OGUN_STUDIO_DEFAULT_HUB_URL and
+# OGUN_STUDIO_DEFAULT_HUB_TOKEN are set (a public, editor-role sample token; see deploy/pre-alpha/README.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload to (it must exist), e.g. v0.0.1a
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows-x64, os: windows-latest }
+          - { name: linux-x64, os: ubuntu-22.04 }
+    defaults:
+      run:
+        shell: bash
+        working-directory: ogun
+    env:
+      CARGO_BUILD_JOBS: 4
+      OGUN_STUDIO_DEFAULT_HUB_URL: ${{ secrets.OGUN_STUDIO_DEFAULT_HUB_URL }}
+      OGUN_STUDIO_DEFAULT_HUB_TOKEN: ${{ secrets.OGUN_STUDIO_DEFAULT_HUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { path: ogun }
+      - uses: actions/checkout@v5
+        with: { repository: ArefinAlter/zeus-core, path: zeus-core }
+      - uses: dtolnay/rust-toolchain@1.90.0
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - name: ogun and ogund
+        run: cargo build --release --locked --bin ogun --bin ogund
+      - name: Studio
+        run: |
+          cargo install tauri-cli --version "^2.6" --locked
+          (cd apps/studio/web && npm ci --no-audit --no-fund)
+          cd apps/studio/src-tauri
+          if [ "$RUNNER_OS" = Windows ]; then B=nsis; else B=appimage,deb; fi
+          cargo tauri build --bundles "$B" --config '{"bundle":{"active":true}}'
+      - name: Package
+        run: sh deploy/pre-alpha/release/package.sh "${{ matrix.name }}" "$GITHUB_WORKSPACE/out"
+      - name: Upload
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release upload "${{ inputs.tag }}" "$GITHUB_WORKSPACE"/out/* --clobber
