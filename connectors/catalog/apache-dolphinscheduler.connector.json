@@ -1,0 +1,42 @@
+{
+  "connector_version": 0,
+  "id": "apache-dolphinscheduler",
+  "name": "Apache DolphinScheduler",
+  "vendor": "Apache Software Foundation",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "An Apache DolphinScheduler Shell or HTTP task starts a run of an approved Ogun workflow and waits for it. DolphinScheduler calls Ogun; Ogun does not drive DolphinScheduler.",
+  "docs_url": "https://dolphinscheduler.apache.org/",
+  "maturity": "contract",
+  "directions": ["trigger"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential (Shell task on the ogund host)",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": true, "help": "Created once on a terminal: ogun credentials add NAME --kind agent. Pass it with --credential or OGUN_CREDENTIAL." }
+      ]
+    },
+    {
+      "id": "api_token",
+      "label": "Ogun API token (HTTP task, through ogun-server)",
+      "fields": [
+        { "name": "ogun_api_token", "label": "Ogun API token", "secret": true, "required": true, "help": "A token a signed-in person creates; role editor to start runs. Sent as a Bearer header." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "ogun_home", "label": "Ogun state directory", "type": "string", "help": "As $OGUN_HOME, for a Shell task on the ogund host." },
+    { "name": "profile", "label": "Profile", "type": "string", "help": "Profile whose daemon to reach; also OGUN_PROFILE." },
+    { "name": "server_url", "label": "Ogun server URL", "type": "string", "placeholder": "https://ogun.example.com", "help": "The public_url of ogun-server: an origin with no path. For an HTTP task." },
+    { "name": "workspace", "label": "Workspace id", "type": "string", "placeholder": "wsp_...", "help": "Sent as x-ogun-workspace. A token belongs to one workspace, so this is rarely needed." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "DolphinScheduler calls Ogun. Nothing leaves the machine from Ogun for this connector."
+  },
+  "operators": [],
+  "notes": "Apache DolphinScheduler calls Ogun and cannot approve. A Shell task on the ogund host runs ogun with an agent credential; an HTTP task calls ogun-server with an API token. A run that needs an approval waits for a person on the Ogun CLI or in Studio."
+}

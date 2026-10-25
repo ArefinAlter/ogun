@@ -1,0 +1,70 @@
+{
+  "connector_version": 0,
+  "id": "apache-kafka",
+  "name": "Apache Kafka",
+  "vendor": "Apache Software Foundation",
+  "category": "streaming",
+  "regions": ["cn", "global"],
+  "summary": "Consume from and produce to Apache Kafka topics, and Kafka-compatible services: Redpanda, Amazon MSK, Confluent Cloud, Alibaba Cloud Kafka and Tencent CKafka.",
+  "docs_url": "https://kafka.apache.org/documentation/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "kafka_api",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No client authentication (PLAINTEXT or plain TLS)",
+      "fields": []
+    },
+    {
+      "id": "sasl",
+      "label": "SASL username and password",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true, "help": "For Confluent Cloud, the API key." },
+        { "name": "password", "label": "Password", "secret": true, "required": true, "help": "For Confluent Cloud, the API secret. Store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "mtls",
+      "label": "TLS client certificate (mTLS)",
+      "fields": [
+        { "name": "client_cert_pem", "label": "Client certificate (PEM)", "secret": false, "required": true },
+        { "name": "client_key_pem", "label": "Client private key (PEM)", "secret": true, "required": true, "help": "Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "bootstrap_servers", "label": "Bootstrap servers", "type": "string", "required": true, "placeholder": "broker-1.example.com:9093,broker-2.example.com:9093", "help": "Comma-separated host:port list." },
+    { "name": "security_protocol", "label": "Security protocol", "type": "enum", "required": true, "default": "SASL_SSL", "options": ["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"] },
+    { "name": "sasl_mechanism", "label": "SASL mechanism", "type": "enum", "default": "SCRAM-SHA-512", "options": ["PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"], "help": "Only with a SASL security protocol." },
+    { "name": "topic", "label": "Topic", "type": "string", "required": true },
+    { "name": "group_id", "label": "Consumer group", "type": "string", "help": "Used by kafka.consume@1." },
+    { "name": "start_offset", "label": "Start offset", "type": "enum", "default": "earliest", "options": ["earliest", "latest"], "help": "Where a new consumer group starts." }
+  ],
+  "egress": {
+    "domains": ["{bootstrap_servers}"],
+    "ports": [9092, 9093],
+    "note": "The hosts in bootstrap_servers, then the broker addresses they advertise; approve those too. 9092 is the Kafka default, 9093 is common for TLS."
+  },
+  "operators": [
+    {
+      "op": "kafka.consume@1",
+      "kind": "adapter",
+      "summary": "Read records from a topic between recorded offsets and keep them as JSON lines.",
+      "outputs": [{ "name": "records", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "kafka.produce@1",
+      "kind": "adapter",
+      "summary": "Write records to a topic and record the partition and offset of each.",
+      "inputs": ["records"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Bridging records into Ogun's stream sources (O-09) is done by ogun-ingest and is not built for Kafka. MSK IAM authentication and OAUTHBEARER are not covered here."
+}

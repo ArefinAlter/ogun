@@ -1,0 +1,65 @@
+{
+  "connector_version": 0,
+  "id": "oracle-database",
+  "name": "Oracle Database",
+  "vendor": "Oracle",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into Oracle Database, on premises or Autonomous Database. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://docs.oracle.com/en/database/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "wallet",
+      "label": "Wallet (Autonomous Database, mutual TLS)",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true },
+        { "name": "wallet", "label": "Wallet files (zip)", "secret": true, "required": true, "help": "The client credentials zip downloaded from the Oracle Cloud console." },
+        { "name": "wallet_password", "label": "Wallet password", "secret": true, "required": false }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true },
+    { "name": "port", "label": "Listener port", "type": "integer", "default": 1521 },
+    { "name": "service_name", "label": "Service name", "type": "string", "required": true },
+    { "name": "transport", "label": "Transport", "type": "enum", "default": "tcp", "options": ["tcp", "tcps"], "help": "tcps encrypts the connection with TLS." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [1521, 1522],
+    "note": "1521 is the default listener port. Autonomous Database connections with a wallet use 1522."
+  },
+  "operators": [
+    {
+      "op": "oracle.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "oracle.load@1",
+      "kind": "adapter",
+      "summary": "Insert Parquet rows with array binds, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Ogun does not create the table. Oracle's own bulk tools (SQL*Loader, Data Pump) are not used."
+}

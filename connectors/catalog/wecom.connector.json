@@ -1,0 +1,43 @@
+{
+  "connector_version": 0,
+  "id": "wecom",
+  "name": "WeCom",
+  "vendor": "Tencent",
+  "category": "notification",
+  "regions": ["cn"],
+  "summary": "Post messages from Ogun workflows to a WeCom group through its group robot webhook. The key inside the URL is the secret.",
+  "docs_url": "https://developer.work.weixin.qq.com/document/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "webhook",
+  "auth": [
+    {
+      "id": "group_robot",
+      "label": "Group robot webhook",
+      "fields": [
+        { "name": "webhook_url", "label": "Webhook URL", "secret": true, "required": true, "help": "The robot's URL, including its key query parameter. It is a secret. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["qyapi.weixin.qq.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "notify.wecom@1",
+      "kind": "adapter",
+      "summary": "Post a text message to the WeCom group the robot belongs to.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "The robot's key is a query parameter of the webhook URL, so the whole URL is stored as a secret and its query string never reaches logs, events or lineage. Anyone holding the URL can post to the group.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/wecom.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

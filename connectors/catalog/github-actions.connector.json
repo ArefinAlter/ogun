@@ -1,0 +1,42 @@
+{
+  "connector_version": 0,
+  "id": "github-actions",
+  "name": "GitHub Actions",
+  "vendor": "GitHub",
+  "category": "orchestration",
+  "regions": ["global"],
+  "summary": "A GitHub Actions workflow step runs ogun to validate a workflow file or start a run of an approved version. GitHub calls Ogun; Ogun does not drive GitHub.",
+  "docs_url": "https://docs.github.com/en/actions",
+  "maturity": "contract",
+  "directions": ["trigger"],
+  "protocol": "cli",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential (self-hosted runner on the ogund host)",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": true, "help": "Created once on a terminal: ogun credentials add NAME --kind agent. Pass it with --credential or OGUN_CREDENTIAL." }
+      ]
+    },
+    {
+      "id": "api_token",
+      "label": "Ogun API token (any runner, through ogun-server)",
+      "fields": [
+        { "name": "ogun_api_token", "label": "Ogun API token", "secret": true, "required": true, "help": "A token a signed-in person creates, role viewer or editor. Keep it in Actions secrets, not in Ogun." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "ogun_home", "label": "Ogun state directory", "type": "string", "help": "As $OGUN_HOME, for a runner on the ogund host." },
+    { "name": "profile", "label": "Profile", "type": "string", "help": "Profile whose daemon to reach; also OGUN_PROFILE." },
+    { "name": "server_url", "label": "Ogun server URL", "type": "string", "placeholder": "https://ogun.example.com", "help": "The public_url of ogun-server: an origin with no path. For a runner on another machine." },
+    { "name": "workspace", "label": "Workspace id", "type": "string", "placeholder": "wsp_...", "help": "Sent as x-ogun-workspace. A token belongs to one workspace, so this is rarely needed." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "GitHub calls Ogun. Nothing leaves the machine from Ogun for this connector."
+  },
+  "operators": [],
+  "notes": "GitHub Actions calls Ogun and cannot approve. ogun validate, hash and diff run offline on any runner; starting a run needs a runner on the ogund host, or a public ogun-server. A run that needs an approval waits for a person on the Ogun CLI or in Studio."
+}

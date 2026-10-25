@@ -1,0 +1,46 @@
+{
+  "connector_version": 0,
+  "id": "elastic",
+  "name": "Elasticsearch",
+  "vendor": "Elastic",
+  "category": "observability",
+  "regions": ["cn", "global"],
+  "summary": "Index Ogun run and approval events and metrics into Elasticsearch with the _bulk API, on Elastic Cloud or a self-managed cluster.",
+  "docs_url": "https://www.elastic.co/docs",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_key",
+      "label": "API key",
+      "fields": [
+        { "name": "api_key", "label": "API key (encoded)", "secret": true, "required": true, "help": "The encoded value, sent as Authorization: ApiKey. Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    },
+    {
+      "id": "basic",
+      "label": "Basic authentication",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true, "help": "Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Elasticsearch host", "type": "string", "required": true, "placeholder": "my-deployment.es.example.com", "help": "Host only. Elastic Cloud shows it as the deployment's Elasticsearch endpoint." },
+    { "name": "port", "label": "Port", "type": "integer", "help": "443 on Elastic Cloud; 9200 on a self-managed node." },
+    { "name": "index", "label": "Index or data stream", "type": "string", "required": true, "placeholder": "ogun-events" }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [443, 9200]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics, indexed as documents: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state. Events: failed runs and approvals waiting for a person.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/elastic.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

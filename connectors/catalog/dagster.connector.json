@@ -1,0 +1,39 @@
+{
+  "connector_version": 0,
+  "id": "dagster",
+  "name": "Dagster",
+  "vendor": "Dagster Labs",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "Materialise Dagster assets by starting Ogun runs: one asset per workflow, partitioned like it, with run id, workflow hash and artifact digests recorded. Dagster calls Ogun and cannot approve.",
+  "docs_url": "https://docs.dagster.io/",
+  "maturity": "built",
+  "directions": ["trigger"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": true, "help": "Created once on a terminal: ogun credentials add NAME --kind agent. Default dagster. The token stays in Ogun's state directory." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "ogun_home", "label": "Ogun state directory", "type": "string", "help": "As $OGUN_HOME. The platform default for the user Dagster runs as when empty." },
+    { "name": "profile", "label": "Profile", "type": "string", "help": "Profile whose daemon to reach." },
+    { "name": "agent_file", "label": "Credential file", "type": "string", "help": "Explicit path of the credential file instead of a name." },
+    { "name": "timeout_s", "label": "Call timeout (seconds)", "type": "integer", "default": 30, "help": "Socket timeout of one call to ogund." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "The resource reaches ogund through its local socket on the same machine (O-15 section 2); nothing leaves the host. The server bridge (ADR 0010) is for remote workers and this package does not use it yet."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "integrations/dagster",
+    "evidence": "Built, not yet run against the real counterpart: IMPLEMENTATION_STATUS says Dagster was smoke-tested against a fake daemon."
+  },
+  "notes": "Package dagster-ogun: OgunResource and ogun_workflow_asset. Day, month, static and window partitions map to Dagster partitions; a window partition is checked, not run, because the stream seals it. Dagster Pipes is not built yet."
+}

@@ -1,0 +1,31 @@
+{
+  "connector_version": 0,
+  "id": "vscode",
+  "name": "Ogun for VS Code",
+  "vendor": "Ogun",
+  "category": "agent",
+  "regions": ["global", "cn"],
+  "summary": "Check *.workflow.json in VS Code: schema validation, diagnostics, hover, completion, go to definition and the workflow hash, from the Ogun language server or the validator.",
+  "docs_url": "https://code.visualstudio.com/docs",
+  "maturity": "built",
+  "directions": ["trigger"],
+  "protocol": "cli",
+  "auth": [],
+  "settings": [
+    { "name": "ogun_path", "label": "Path to ogun", "type": "string", "default": "ogun", "help": "VS Code setting ogun.path. The command-line tool the extension runs." },
+    { "name": "validate_on_save", "label": "Validate on save", "type": "boolean", "default": true, "help": "VS Code setting ogun.validateOnSave. In CLI mode, runs ogun validate when a file is saved." },
+    { "name": "language_server_mode", "label": "Language server mode", "type": "enum", "default": "auto", "options": ["auto", "on", "off"], "help": "VS Code setting ogun.languageServer.mode." },
+    { "name": "language_server_path", "label": "Language server command", "type": "string", "help": "VS Code setting ogun.languageServer.path. Empty means ogun-lsp on PATH, then ogun lsp." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "None. The extension runs local commands and never contacts ogund."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "extensions/vscode",
+    "evidence": "Node tests against the built ogun-lsp; they do not start VS Code. Not yet published to the VS Code Marketplace or Open VSX."
+  },
+  "notes": "Chooses language-server or CLI mode at activation; it falls back to ogun validate --json when no server is found, the server does not initialise within 10 s, or it exits later. Read-only: it never runs a workflow and is not an approval surface. It also copies the workflow hash from the status bar or a code lens."
+}

@@ -1,0 +1,33 @@
+{
+  "connector_version": 0,
+  "id": "aws-glue",
+  "name": "AWS Glue",
+  "vendor": "Amazon Web Services",
+  "category": "orchestration",
+  "regions": ["global"],
+  "summary": "An AWS Glue Python shell job or a Step Functions task calls Ogun's server bridge over HTTPS to start a run of an approved workflow and read its state. AWS calls Ogun; Ogun does not drive AWS.",
+  "docs_url": "https://docs.aws.amazon.com/glue/",
+  "maturity": "contract",
+  "directions": ["trigger"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_token",
+      "label": "Ogun API token",
+      "fields": [
+        { "name": "ogun_api_token", "label": "Ogun API token", "secret": true, "required": true, "help": "A token a signed-in person creates; role editor to start runs. Sent as a Bearer header; keep it in AWS Secrets Manager, not in Ogun." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "server_url", "label": "Ogun server URL", "type": "string", "required": true, "placeholder": "https://ogun.example.com", "help": "The public_url of ogun-server: an origin with no path." },
+    { "name": "workspace", "label": "Workspace id", "type": "string", "placeholder": "wsp_...", "help": "Sent as x-ogun-workspace. A token belongs to one workspace, so this is rarely needed." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "AWS calls Ogun. Nothing leaves the machine from Ogun for this connector."
+  },
+  "operators": [],
+  "notes": "AWS Glue calls Ogun and cannot approve. The job or task sends POST /api/v1/workflows/{name}/runs and polls GET /api/v1/runs/{run_id} (O-13 section 6.2). A run that needs an approval waits for a person on the Ogun CLI or in Studio. ogun-server was proven only against a fake ogund."
+}

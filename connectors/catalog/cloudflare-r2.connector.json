@@ -1,0 +1,62 @@
+{
+  "connector_version": 0,
+  "id": "cloudflare-r2",
+  "name": "Cloudflare R2",
+  "vendor": "Cloudflare",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish objects in Cloudflare R2 through its S3-compatible API, signed with an R2 access key pair.",
+  "docs_url": "https://developers.cloudflare.com/r2/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "R2 access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true, "help": "Create an R2 API token in the Cloudflare dashboard; it yields this pair." },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "account_id", "label": "Cloudflare account ID", "type": "string", "required": true, "help": "Shown in the Cloudflare dashboard; it is part of the endpoint." },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Key prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["{account_id}.r2.cloudflarestorage.com", "{bucket}.{account_id}.r2.cloudflarestorage.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "r2.list@1",
+      "kind": "adapter",
+      "summary": "List keys under a prefix, with sizes and ETags, as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "r2.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "r2.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a key prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Buckets created in a data jurisdiction such as the EU use a different endpoint host and need the s3-compatible connector with that host as its endpoint. The signing region is auto."
+}

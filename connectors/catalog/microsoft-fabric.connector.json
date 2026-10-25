@@ -1,0 +1,68 @@
+{
+  "connector_version": 0,
+  "id": "microsoft-fabric",
+  "name": "Microsoft Fabric OneLake",
+  "vendor": "Microsoft",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "List, fetch and publish files in Microsoft Fabric OneLake through its ADLS Gen2-compatible API, signed in with Microsoft Entra ID.",
+  "docs_url": "https://learn.microsoft.com/en-us/fabric/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "service_principal",
+      "label": "Microsoft Entra ID service principal",
+      "fields": [
+        { "name": "tenant_id", "label": "Tenant ID", "secret": false, "required": true },
+        { "name": "client_id", "label": "Application (client) ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "managed_identity",
+      "label": "Managed identity of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "workspace", "label": "Workspace", "type": "string", "required": true, "help": "Workspace name or GUID." },
+    { "name": "item", "label": "Item", "type": "string", "required": true, "placeholder": "sales.Lakehouse", "help": "Item name and type, or the item GUID." },
+    { "name": "prefix", "label": "Path prefix", "type": "string", "default": "Files/", "placeholder": "Files/raw/" }
+  ],
+  "egress": {
+    "domains": ["onelake.dfs.fabric.microsoft.com", "login.microsoftonline.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "onelake.list@1",
+      "kind": "adapter",
+      "summary": "List paths under a prefix in a OneLake item as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "onelake.get@1",
+      "kind": "adapter",
+      "summary": "Fetch files into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "onelake.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a path prefix with a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "This connector reads and writes files. Turning Parquet under Files into a lakehouse table is done inside Fabric, not by Ogun. The global endpoint is used; a workspace in another region may need that region's OneLake endpoint."
+}

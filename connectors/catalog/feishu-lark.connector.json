@@ -1,0 +1,45 @@
+{
+  "connector_version": 0,
+  "id": "feishu-lark",
+  "name": "Feishu / Lark",
+  "vendor": "ByteDance",
+  "category": "notification",
+  "regions": ["cn", "global"],
+  "summary": "Post messages from Ogun workflows to a Feishu or Lark group through a custom bot webhook. The token at the end of the URL is the secret.",
+  "docs_url": "https://open.larksuite.com/document/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "webhook",
+  "auth": [
+    {
+      "id": "custom_bot",
+      "label": "Custom bot webhook",
+      "fields": [
+        { "name": "webhook_url", "label": "Webhook URL", "secret": true, "required": true, "help": "The bot's URL on open.feishu.cn or open.larksuite.com. It is a secret. Store it with ogun secrets set." },
+        { "name": "signing_secret", "label": "Signing secret", "secret": true, "required": false, "help": "Only when signature verification is on for the bot. Used to sign; never sent." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["open.feishu.cn", "open.larksuite.com"],
+    "ports": [443],
+    "note": "Feishu accounts use open.feishu.cn; Lark accounts use open.larksuite.com. The host of the webhook URL decides."
+  },
+  "operators": [
+    {
+      "op": "notify.feishu@1",
+      "kind": "adapter",
+      "summary": "Post a text message to the Feishu or Lark group the custom bot belongs to.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "The bot's token is part of the webhook URL, so the whole URL is stored as a secret and never reaches logs, events or lineage. A custom bot can also be set to require a keyword or an IP allowlist; check its security settings in the app.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/feishu.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "connector_version": 0,
+  "id": "noaa",
+  "name": "NOAA NCEI",
+  "vendor": "NOAA",
+  "category": "source",
+  "regions": ["global"],
+  "summary": "Read daily-summary weather CSV files from NOAA's National Centers for Environmental Information, one partition per day, hashed and listed in a manifest.",
+  "docs_url": "https://www.ncei.noaa.gov/",
+  "maturity": "contract",
+  "directions": ["source"],
+  "protocol": "rest",
+  "auth": [],
+  "settings": [],
+  "egress": {
+    "domains": ["www.ncei.noaa.gov"],
+    "ports": [443]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Used by examples/noaa-daily.workflow.json through the builtin acquire@1, then hash@1 and manifest@1. It needs no key and no model access. Check the terms of each NCEI dataset before redistributing it."
+}

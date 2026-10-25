@@ -1,0 +1,74 @@
+{
+  "connector_version": 0,
+  "id": "aws-s3",
+  "name": "Amazon S3",
+  "vendor": "Amazon Web Services",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish objects in Amazon S3, including the public OpenAQ and NOAA archives, with Signature Version 4.",
+  "docs_url": "https://docs.aws.amazon.com/s3/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    },
+    {
+      "id": "instance_role",
+      "label": "IAM role of the daemon host",
+      "fields": []
+    },
+    {
+      "id": "anonymous",
+      "label": "No credentials (public buckets)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "us-east-1", "placeholder": "us-east-1" },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true, "placeholder": "openaq-data-archive" },
+    { "name": "prefix", "label": "Key prefix", "type": "string", "placeholder": "records/csv.gz/" },
+    { "name": "path_style", "label": "Path-style addressing", "type": "boolean", "default": false }
+  ],
+  "egress": {
+    "domains": ["s3.{region}.amazonaws.com", "{bucket}.s3.{region}.amazonaws.com", "sts.{region}.amazonaws.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "s3.list@1",
+      "kind": "adapter",
+      "summary": "List keys under a prefix, with sizes and ETags, as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "s3.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "s3.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a key prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "The same S3 API covers many other object stores; see the S3-compatible, Cloudflare R2, MinIO, Alibaba OSS, Tencent COS, Huawei OBS and Volcano Engine TOS connectors."
+}

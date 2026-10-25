@@ -1,0 +1,38 @@
+{
+  "connector_version": 0,
+  "id": "new-relic",
+  "name": "New Relic",
+  "vendor": "New Relic",
+  "category": "observability",
+  "regions": ["global"],
+  "summary": "Send Ogun metrics to the New Relic Metric API and events to the Log API, in the US or EU data center, authenticated with an Api-Key header.",
+  "docs_url": "https://docs.newrelic.com/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_key",
+      "label": "Ingest key",
+      "fields": [
+        { "name": "api_key", "label": "Ingest key", "secret": true, "required": true, "help": "Sent as the Api-Key header. Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Data center", "type": "enum", "required": true, "default": "us", "options": ["us", "eu"] },
+    { "name": "service", "label": "Service name", "type": "string", "default": "ogun" }
+  ],
+  "egress": {
+    "domains": ["metric-api.newrelic.com", "log-api.newrelic.com", "metric-api.eu.newrelic.com", "log-api.eu.newrelic.com"],
+    "ports": [443],
+    "note": "The US data center uses the first two hosts, the EU data center the last two."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state. Events, sent as log records: failed runs and approvals waiting for a person.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/newrelic.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

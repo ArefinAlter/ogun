@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "azure-monitor",
+  "name": "Azure Monitor",
+  "vendor": "Microsoft",
+  "category": "observability",
+  "regions": ["global"],
+  "summary": "Send Ogun metrics to Azure Monitor custom metrics and events to a Log Analytics table through the Logs Ingestion API, with Microsoft Entra ID.",
+  "docs_url": "https://learn.microsoft.com/en-us/azure/azure-monitor/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "entra_id",
+      "label": "Microsoft Entra ID application",
+      "fields": [
+        { "name": "tenant_id", "label": "Tenant ID", "secret": false, "required": true },
+        { "name": "client_id", "label": "Application (client) ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true, "help": "Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    },
+    {
+      "id": "managed_identity",
+      "label": "Managed identity of the exporter host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "placeholder": "eastus", "help": "The region of the resource that custom metrics are reported against." },
+    { "name": "resource_id", "label": "Azure resource ID", "type": "string", "help": "The resource that custom metrics are reported against." },
+    { "name": "endpoint", "label": "Data collection endpoint host", "type": "string", "help": "Host only, from the data collection endpoint in the Azure portal. For the Logs Ingestion API." },
+    { "name": "dcr_immutable_id", "label": "Data collection rule immutable ID", "type": "string", "help": "Starts with dcr-. For the Logs Ingestion API." },
+    { "name": "stream_name", "label": "Stream name", "type": "string", "placeholder": "Custom-OgunEvents_CL", "help": "The stream of the data collection rule that receives events." }
+  ],
+  "egress": {
+    "domains": ["{region}.monitoring.azure.com", "{endpoint}", "login.microsoftonline.com"],
+    "ports": [443],
+    "note": "login.microsoftonline.com is only for Entra ID."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics, to custom metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state. Events, to the Logs Ingestion API: failed runs and approvals waiting for a person."
+}

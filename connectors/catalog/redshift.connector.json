@@ -1,0 +1,71 @@
+{
+  "connector_version": 0,
+  "id": "redshift",
+  "name": "Amazon Redshift",
+  "vendor": "Amazon Web Services",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into Amazon Redshift, provisioned or serverless, with COPY from S3. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://docs.aws.amazon.com/redshift/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "database_user",
+      "label": "Database user and password",
+      "fields": [
+        { "name": "username", "label": "Database user", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "iam_keys",
+      "label": "IAM access key pair (temporary database credentials)",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    },
+    {
+      "id": "instance_role",
+      "label": "IAM role of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "us-east-1", "placeholder": "us-east-1" },
+    { "name": "host", "label": "Endpoint", "type": "string", "required": true, "placeholder": "examplecluster.abc123.us-east-1.redshift.amazonaws.com", "help": "Cluster endpoint or serverless workgroup endpoint, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 5439 },
+    { "name": "database", "label": "Database", "type": "string", "required": true },
+    { "name": "db_user", "label": "Database user for IAM sign-in", "type": "string", "help": "Only for the two IAM methods." },
+    { "name": "copy_role_arn", "label": "IAM role for COPY", "type": "string", "placeholder": "arn:aws:iam::123456789012:role/ogun-copy", "help": "A role attached to the cluster or workgroup that can read the staging bucket." }
+  ],
+  "egress": {
+    "domains": ["{host}", "redshift.{region}.amazonaws.com", "redshift-serverless.{region}.amazonaws.com", "sts.{region}.amazonaws.com"],
+    "ports": [5439, 443],
+    "note": "5439 is the Redshift default; the IAM methods call the Redshift and STS APIs on 443."
+  },
+  "operators": [
+    {
+      "op": "redshift.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "redshift.load@1",
+      "kind": "adapter",
+      "summary": "Load Parquet from S3 with COPY, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging goes through S3; add the Amazon S3 connector's domains to the same egress approval. Redshift reads the staged files itself, so the cluster role, not Ogun, needs access to the bucket."
+}

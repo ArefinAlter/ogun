@@ -1,0 +1,63 @@
+{
+  "connector_version": 0,
+  "id": "tencent-cos",
+  "name": "Tencent Cloud COS",
+  "vendor": "Tencent Cloud",
+  "category": "object_storage",
+  "regions": ["cn", "global"],
+  "summary": "List, fetch and publish objects in Tencent Cloud Object Storage (COS), through its S3-compatible API or the native XML API.",
+  "docs_url": "https://www.tencentcloud.com/document/product/436",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "api_keys",
+      "label": "SecretId and SecretKey (CAM user)",
+      "fields": [
+        { "name": "secret_id", "label": "SecretId", "secret": true, "required": true },
+        { "name": "secret_key", "label": "SecretKey", "secret": true, "required": true },
+        { "name": "security_token", "label": "Temporary security token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "ap-guangzhou", "placeholder": "ap-guangzhou" },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true, "placeholder": "examplebucket-1250000000", "help": "The full bucket name, which ends in the APPID of the account." },
+    { "name": "prefix", "label": "Object prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["cos.{region}.myqcloud.com", "{bucket}.cos.{region}.myqcloud.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "cos.list@1",
+      "kind": "adapter",
+      "summary": "List objects under a prefix as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "cos.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "cos.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under an object prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging store for Tencent Data Lake Compute (see that connector). Mainland regions may require a filed domain for custom endpoints; the default myqcloud.com endpoints do not."
+}

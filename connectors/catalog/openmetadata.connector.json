@@ -1,0 +1,35 @@
+{
+  "connector_version": 0,
+  "id": "openmetadata",
+  "name": "OpenMetadata",
+  "vendor": "OpenMetadata",
+  "category": "catalog",
+  "regions": ["global", "cn"],
+  "summary": "Emit Ogun run lineage as OpenLineage events to an OpenMetadata server, authenticated with an ingestion bot JWT.",
+  "docs_url": "https://docs.open-metadata.org/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "bot_jwt",
+      "label": "Ingestion bot JWT",
+      "fields": [
+        { "name": "bot_jwt", "label": "Bot JWT", "secret": true, "required": true, "help": "Copied from the bot's page in OpenMetadata; sent as a bearer token. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "url", "label": "OpenMetadata URL", "type": "string", "required": true, "placeholder": "http://localhost:8585", "help": "Base URL of the OpenMetadata server." },
+    { "name": "path", "label": "OpenLineage path", "type": "string", "help": "Where your OpenMetadata version accepts OpenLineage events. Check the vendor documentation." },
+    { "name": "namespace", "label": "Namespace", "type": "string", "default": "ogun://local", "help": "OpenLineage namespace for Ogun jobs and datasets." }
+  ],
+  "egress": {
+    "domains": ["{url}"],
+    "ports": [8585, 443],
+    "note": "The host of the url setting, on the port in the url."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Ogun sends OpenLineage run events with Ogun facets for artifacts and windows, through an outbox (ADR 0012). The path has no default because OpenLineage intake depends on the OpenMetadata version and deployment: check the vendor documentation. This build reaches http:// endpoints only."
+}

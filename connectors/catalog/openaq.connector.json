@@ -1,0 +1,52 @@
+{
+  "connector_version": 0,
+  "id": "openaq",
+  "name": "OpenAQ",
+  "vendor": "OpenAQ",
+  "category": "source",
+  "regions": [
+    "global"
+  ],
+  "summary": "Read open air-quality measurements from the OpenAQ API v3 and from the public OpenAQ S3 archive, month by month, as resumable partitions.",
+  "docs_url": "https://docs.openaq.org/",
+  "maturity": "contract",
+  "directions": [
+    "source"
+  ],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_key",
+      "label": "OpenAQ API key",
+      "fields": [
+        {
+          "name": "api_key",
+          "label": "API key",
+          "secret": true,
+          "required": true,
+          "help": "Sent as X-API-Key to api.openaq.org. The S3 archive needs no key. Store it with ogun secrets set."
+        }
+      ]
+    },
+    {
+      "id": "anonymous",
+      "label": "No key (the public S3 archive only)",
+      "fields": []
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": [
+      "api.openaq.org",
+      "openaq-data-archive.s3.amazonaws.com"
+    ],
+    "ports": [
+      443
+    ]
+  },
+  "operators": [],
+  "approvals": [
+    "egress"
+  ],
+  "notes": "Reached through the builtin crawl@1 (locations from the API) and acquire@1 (files from the archive). Terms: attribution to OpenAQ is required, and use must complement rather than replicate OpenAQ. Check the licence again before you rely on it."
+}

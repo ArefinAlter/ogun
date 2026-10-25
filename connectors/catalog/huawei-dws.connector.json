@@ -1,0 +1,54 @@
+{
+  "connector_version": 0,
+  "id": "huawei-dws",
+  "name": "Huawei Cloud GaussDB(DWS)",
+  "vendor": "Huawei Cloud",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run queries and load Parquet partitions into GaussDB(DWS), the Huawei Cloud data warehouse, over its PostgreSQL-derived protocol. Loads are idempotent by partition and revision.",
+  "docs_url": "https://support.huaweicloud.com/intl/en-us/dws/index.html",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "Database user and password",
+      "fields": [
+        { "name": "username", "label": "Database user", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "endpoint", "label": "Cluster endpoint", "type": "string", "required": true, "help": "The access address of the cluster from the console, without the port." },
+    { "name": "port", "label": "Database port", "type": "integer", "required": true, "placeholder": "8000", "help": "Set when the cluster is created; Huawei's documentation uses 8000 in its examples." },
+    { "name": "database", "label": "Database", "type": "string", "default": "gaussdb" }
+  ],
+  "egress": {
+    "domains": ["{endpoint}"],
+    "ports": [8000],
+    "note": "The database port is chosen when the cluster is created. 8000 is the value in Huawei's examples; set the port setting to your cluster's."
+  },
+  "operators": [
+    {
+      "op": "dws.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "dws.load@1",
+      "kind": "adapter",
+      "summary": "Load Parquet rows into a table through SQL, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "DWS can also read files in Huawei OBS through foreign tables (see the Huawei OBS connector). Ogun does not create the table."
+}

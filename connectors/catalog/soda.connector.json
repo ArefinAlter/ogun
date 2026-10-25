@@ -1,0 +1,46 @@
+{
+  "connector_version": 0,
+  "id": "soda",
+  "name": "Soda",
+  "vendor": "Soda",
+  "category": "quality",
+  "regions": ["global"],
+  "summary": "Run Soda Core scans on Ogun data inside a sandboxed Python code operator; with Soda Cloud keys, scan results are posted to Soda Cloud.",
+  "docs_url": "https://docs.soda.io/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "core",
+      "label": "Soda Core, no account",
+      "fields": []
+    },
+    {
+      "id": "cloud",
+      "label": "Soda Cloud API key",
+      "fields": [
+        { "name": "api_key_id", "label": "API key ID", "secret": true, "required": true, "help": "Created in Soda Cloud. Store it with ogun secrets set." },
+        { "name": "api_key_secret", "label": "API key secret", "secret": true, "required": true, "help": "Shown once when the key is created." }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "name": "cloud_host",
+      "label": "Soda Cloud host",
+      "type": "enum",
+      "default": "cloud.soda.io",
+      "options": ["cloud.soda.io", "cloud.us.soda.io"],
+      "help": "Soda Cloud region of your account. Only used with an API key."
+    }
+  ],
+  "egress": {
+    "domains": ["{cloud_host}"],
+    "ports": [443],
+    "note": "Soda Core scans reach the data source the scan names; add its host to the same egress approval."
+  },
+  "operators": [],
+  "approvals": ["code_change", "egress"],
+  "notes": "Ogun calls Soda; it does not replace it. A scan runs in the builtin python@1 code operator: out of process, sandboxed, referenced by content hash and approved by a person against the workflow hash. Ogun has no Soda-specific operator. With a Soda Cloud configuration, the Soda library posts results itself. Check the Soda documentation for your Soda Core version."
+}

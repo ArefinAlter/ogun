@@ -1,0 +1,73 @@
+{
+  "connector_version": 0,
+  "id": "mongodb",
+  "name": "MongoDB",
+  "vendor": "MongoDB",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Run finds and aggregations on MongoDB Atlas or a self-hosted deployment and keep the documents as Parquet, or upsert Parquet rows as documents.",
+  "docs_url": "https://www.mongodb.com/docs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "scram",
+      "label": "User name and password (SCRAM)",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "x509",
+      "label": "TLS client certificate (X.509)",
+      "fields": [
+        { "name": "client_certificate", "label": "Client certificate and key (PEM)", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "aws_iam",
+      "label": "AWS IAM (Atlas)",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true, "placeholder": "cluster0.abc123.mongodb.net", "help": "Atlas cluster host (with srv on) or a server host name." },
+    { "name": "srv", "label": "Look up hosts with a DNS SRV record", "type": "boolean", "default": true, "help": "Atlas connection strings use mongodb+srv." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 27017, "help": "Ignored when srv is on." },
+    { "name": "database", "label": "Database", "type": "string", "required": true },
+    { "name": "auth_source", "label": "Authentication database", "type": "string", "default": "admin" },
+    { "name": "tls", "label": "Use TLS", "type": "boolean", "default": true }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [27017],
+    "note": "With srv on, the driver resolves the shard hosts from DNS; approve the hosts it returns as well."
+  },
+  "operators": [
+    {
+      "op": "mongodb.query@1",
+      "kind": "adapter",
+      "summary": "Run a find or an aggregation pipeline and keep the documents as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "mongodb.load@1",
+      "kind": "adapter",
+      "summary": "Upsert Parquet rows as documents with bulk writes, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Nested documents are flattened into Parquet columns by a mapping the workflow gives. A MongoDB connection string is not a setting here, because it can carry a password."
+}

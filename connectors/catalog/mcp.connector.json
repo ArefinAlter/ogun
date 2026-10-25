@@ -1,0 +1,37 @@
+{
+  "connector_version": 0,
+  "id": "mcp",
+  "name": "Ogun MCP server",
+  "vendor": "Ogun",
+  "category": "agent",
+  "regions": ["global", "cn"],
+  "summary": "Let coding agents validate, diff and store workflows, start runs and read status through ogun mcp over stdio. No tool can decide an approval.",
+  "docs_url": "https://modelcontextprotocol.io/",
+  "maturity": "built",
+  "directions": ["trigger"],
+  "protocol": "cli",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": false, "help": "Name of a local credential of kind agent, created once on a terminal with ogun credentials add. Default: mcp." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "profile", "label": "Profile", "type": "string", "help": "The profile whose daemon to reach (OGUN_PROFILE)." },
+    { "name": "offline", "label": "Offline tools only", "type": "boolean", "default": false, "help": "Offer only the four offline tools (OGUN_MCP_OFFLINE=1)." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "None. A stdio process that talks to ogund over its local endpoint."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "crates/ogun-cli/src/mcp.rs",
+    "evidence": "Unit tests of the stdio server, the tool-to-policy mapping and an agent credential against a stand-in daemon; not run with a real MCP client or a real ogund."
+  },
+  "notes": "Four offline tools (validate, diff, partitions, operators) and twelve daemon tools (O-14 section 3). Agents can read status, store workflows and start runs; they can never decide an approval, raise a budget or manage credentials. A run of a version that needs approval waits until a person decides in the CLI or Studio."
+}
