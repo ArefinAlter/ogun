@@ -1,0 +1,11 @@
+{
+  "ir_version": 0,
+  "workflow": "hub-heartbeat",
+  "version": 1,
+  "description": "Fires every fifteen minutes so the scheduler, the event stream and the run list have something live to show. Built-in operators only.",
+  "triggers": [{ "kind": "cron", "cron": "*/15 * * * *" }],
+  "nodes": [
+    { "id": "manifest", "op": "manifest@1" },
+    { "id": "digest", "op": "hash@1", "inputs": ["manifest.manifest"] }
+  ]
+}

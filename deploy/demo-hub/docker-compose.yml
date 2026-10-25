@@ -1,0 +1,87 @@
+# A loopback-only Ogun hub for demonstrations: the real `ogund`, the real `ogun-server` (Studio-web, REST, MCP) and
+# a Dex identity provider with one static user. Nothing listens on a public interface. You reach it through an SSH
+# tunnel, so it can share a host with other services (README.md).
+#
+#   ogund        the daemon, `ogund --profile server`; its one listener is a Unix socket in the shared volume
+#   ogun-server  the HTTP bridge, plain HTTP on loopback only (published to 127.0.0.1 on the host)
+#   dex          OpenID Connect provider for the sign-in; shares ogun-server's network namespace so that the
+#                issuer URL is the same from the browser (through the tunnel) and from ogun-server
+#
+# The build context is the directory that holds ogun/ and zeus-core/ side by side (ADR 0002).
+
+name: ogun-demo-hub
+
+x-ogun: &ogun
+  image: ${OGUN_IMAGE:-ogun-demo-hub:local}
+  build:
+    context: ../../..
+    dockerfile: ogun/deploy/Dockerfile
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  mem_limit: 2g
+  cpus: 2
+  pids_limit: 512
+  environment:
+    OGUN_HOME: /var/lib/ogun
+    OGUN_LOG: ${OGUN_LOG:-info}
+  volumes:
+    - ogun-state:/var/lib/ogun
+
+services:
+  ogund:
+    <<: *ogun
+    command: ["ogund", "--profile", "server"]
+    networks: [hub]
+
+  ogun-server:
+    <<: *ogun
+    command: ["ogun-server", "serve", "--init-if-empty"]
+    depends_on: [ogund]
+    environment:
+      OGUN_HOME: /var/lib/ogun
+      OGUN_SERVER_HOME: /var/lib/ogun/ogun-server
+      OGUN_SERVER_CONFIG: /etc/ogun/server.json
+      OGUN_LOG: ${OGUN_LOG:-info}
+    volumes:
+      - ogun-state:/var/lib/ogun
+      - ./server.json:/etc/ogun/server.json:ro
+      - ./secrets:/etc/ogun/secrets:ro
+    # Host loopback only. 18443 is Studio-web and the API, 18444 is the sign-in page of Dex.
+    ports:
+      - "127.0.0.1:18443:8080"
+      - "127.0.0.1:18444:18444"
+    networks:
+      hub:
+        ipv4_address: 172.30.0.20
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.41.1
+    restart: unless-stopped
+    network_mode: "service:ogun-server"
+    depends_on: [ogun-server]
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    pids_limit: 128
+    env_file: ./dex/dex.env
+    volumes:
+      - ./dex/config.yaml:/etc/dex/config.yaml:ro
+
+networks:
+  hub:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  ogun-state:
