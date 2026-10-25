@@ -88,6 +88,10 @@ Or set `OGUN_IMAGE` to a released image (`ghcr.io/arefinalter/ogun:<version>`) a
 
 `docker compose --profile ingest up -d` adds the ingest bridge. It needs its own credential of kind `service` (`ogun --profile server credentials add ingest --kind service`) and its configuration in `profiles/server/ingest.json` on the volume.
 
+### On a shared machine, for a demonstration
+
+`deploy/demo-hub` is this setup cut down to run beside other services: everything on loopback, an SSH tunnel to reach it, a Dex identity provider with one static user, and two seed workflows. See its README. It is not for production, and the image has no operator sandbox (IMPLEMENTATION_STATUS, known gap 11).
+
 ## Option B: Kubernetes with Helm
 
 The chart in `deploy/helm/ogun` runs one pod with the daemon and the bridge as two containers. They share a persistent volume for state and an in-memory volume for the socket. TLS ends at your ingress controller.

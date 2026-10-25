@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "openlineage",
+  "name": "OpenLineage HTTP endpoint",
+  "vendor": "OpenLineage",
+  "category": "catalog",
+  "regions": ["global", "cn"],
+  "summary": "Send OpenLineage run events for every Ogun run to any OpenLineage-compatible HTTP endpoint, with Ogun facets for artifacts and windows.",
+  "docs_url": "https://openlineage.io/docs/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": []
+    },
+    {
+      "id": "bearer",
+      "label": "Bearer token",
+      "fields": [
+        { "name": "bearer_token", "label": "Bearer token", "secret": true, "required": true, "help": "Sent as Authorization: Bearer. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "url", "label": "Endpoint URL", "type": "string", "required": true, "placeholder": "http://localhost:5000", "help": "Base URL of the receiver. Nothing is sent until you set it. No user information in the URL." },
+    { "name": "path", "label": "Path", "type": "string", "default": "/api/v1/lineage", "help": "Used when the URL has no path of its own." },
+    { "name": "namespace", "label": "Namespace", "type": "string", "default": "ogun://local", "help": "OpenLineage namespace for Ogun jobs and datasets." }
+  ],
+  "egress": {
+    "domains": ["{url}"],
+    "ports": [80, 443],
+    "note": "The host of the url setting, on the port in the url. There is no default endpoint and no telemetry."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Ogun sends OpenLineage run events with Ogun facets for artifacts and windows, one per request and in order, through an outbox (ADR 0012). The ogun-export sink delivers over http or https. The daemon's own outbox (O-05 section 5) reaches http:// endpoints only.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/openlineage.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

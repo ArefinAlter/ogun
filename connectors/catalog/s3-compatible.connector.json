@@ -1,0 +1,73 @@
+{
+  "connector_version": 0,
+  "id": "s3-compatible",
+  "name": "S3-compatible object storage",
+  "vendor": "Any S3 API provider",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish objects in any store that serves the S3 API, such as Ceph, Wasabi or DigitalOcean Spaces, at an endpoint you set.",
+  "docs_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials, if the provider issues them." }
+      ]
+    },
+    {
+      "id": "anonymous",
+      "label": "No credentials (public buckets)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "endpoint", "label": "Endpoint host", "type": "string", "required": true, "help": "The provider's S3 endpoint host, without the scheme or port." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 443 },
+    { "name": "secure", "label": "Use TLS", "type": "boolean", "default": true },
+    { "name": "region", "label": "Region", "type": "string", "default": "us-east-1", "help": "The signing region the provider expects; many ignore it." },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Key prefix", "type": "string" },
+    { "name": "path_style", "label": "Path-style addressing", "type": "boolean", "default": true, "help": "Off sends the bucket as a host name prefix, which the provider must resolve." }
+  ],
+  "egress": {
+    "domains": ["{endpoint}", "{bucket}.{endpoint}"],
+    "ports": [443],
+    "note": "A provider on another port is reached by setting the port setting; the egress approval then names that port."
+  },
+  "operators": [
+    {
+      "op": "s3compat.list@1",
+      "kind": "adapter",
+      "summary": "List keys under a prefix, with sizes and ETags, as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "s3compat.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "s3compat.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a key prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Use this when no provider connector exists. Cloudflare R2, MinIO, Backblaze B2, Alibaba OSS, Tencent COS, Huawei OBS and Volcano Engine TOS have their own. Providers differ in multipart and checksum support."
+}

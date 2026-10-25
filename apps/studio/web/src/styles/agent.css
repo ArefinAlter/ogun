@@ -1,0 +1,1113 @@
+/* The agent screen: a conversation in the manner of T3 Code's thread view. A centered column of messages, tool calls
+   folded into one quiet line, cards for anything with consequences, and a rounded composer with its pickers underneath. */
+
+/* ---------------------------------------------------------------- the page fills the window
+
+   The conversation scrolls inside the page and the composer stays where it is, so the shell stops scrolling as a whole. */
+
+.shell.is-chat {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+.main.chat {
+  padding: 0;
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.newthread {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h);
+  margin-bottom: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  font-weight: 500;
+}
+.newthread:hover {
+  background: var(--sidebar-row-hover);
+  text-decoration: none;
+}
+.newthread[aria-current='page'] {
+  background: var(--sidebar-row-selected);
+  box-shadow: var(--shadow-xs), 0 0 0 1px var(--line);
+}
+.newthread svg {
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+}
+.newthread .spacer {
+  flex: 1;
+}
+.nav a.threadrow {
+  position: relative;
+}
+.threadrow .rowx {
+  display: none;
+  margin-left: 2px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.threadrow .rowx svg {
+  width: 14px;
+  height: 14px;
+}
+.threadrow .rowx:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.threadrow:hover .rowx,
+.threadrow:focus-within .rowx {
+  display: inline-flex;
+}
+.threadrow:hover .trail,
+.threadrow:focus-within .trail {
+  display: none;
+}
+.nav .dot.run {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.showmore {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+.showmore:hover {
+  background: var(--sidebar-row-hover);
+  color: var(--foreground);
+}
+.showmore svg {
+  width: 14px;
+  height: 14px;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+:root[data-motion='reduced'] .nav .dot.run {
+  animation: none;
+}
+
+/* ---------------------------------------------------------------- the empty thread */
+
+.agent-new {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.agent-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 7vh 24px 16px;
+}
+.hero {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 28px;
+}
+.hero svg {
+  width: 44px;
+  height: 44px;
+  color: var(--foreground);
+}
+.hero h1 {
+  font-size: 24px;
+  margin: 12px 0 6px;
+}
+.hero p {
+  margin: 0;
+}
+.starters {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.starters .label {
+  padding: 0 12px 6px;
+}
+.starters button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+}
+.starters button:hover,
+.starters button:focus-visible {
+  background: var(--accent);
+}
+.starters svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+  grid-row: 1 / span 2;
+}
+.starters .meta {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.agent-empty {
+  max-width: 760px;
+  margin: 32px auto;
+  padding: 0 24px 40px;
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------- the thread */
+
+.agent-thread {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.agent-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.timeline-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 12px;
+  scroll-behavior: auto;
+}
+.timeline .column {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.jump {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--popover);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.jump svg {
+  width: 14px;
+  height: 14px;
+}
+
+.msg.user {
+  display: flex;
+  justify-content: flex-end;
+}
+.msg.user .bubble {
+  max-width: 86%;
+  background: var(--accent);
+  border-radius: 16px;
+  padding: 9px 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg.user .mentions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.msg.assistant {
+  position: relative;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.msg.assistant .msgfoot {
+  height: 0;
+  overflow: visible;
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease);
+}
+.msg.assistant:hover .msgfoot,
+.msg.assistant:focus-within .msgfoot {
+  opacity: 1;
+}
+.msg.assistant .msgfoot .btn {
+  margin-top: 2px;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0 0 10px;
+}
+.md ul,
+.md ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+.md li {
+  margin: 3px 0;
+}
+.md .md-h {
+  font-size: 14.5px;
+  margin: 14px 0 6px;
+}
+.md blockquote {
+  margin: 0 0 10px;
+  padding: 2px 12px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--muted-foreground);
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 14px 0;
+}
+.md pre.code-block {
+  margin: 0 0 10px;
+  max-height: 340px;
+  overflow: auto;
+}
+.md-table {
+  overflow-x: auto;
+  margin: 0 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+.md-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.md-table th,
+.md-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.md-table th {
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+.md-table tr:last-child td {
+  border-bottom: 0;
+}
+.msg.assistant.streaming .md > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--foreground);
+  opacity: 0.6;
+  animation: blink 1s steps(2, start) infinite;
+}
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+:root[data-motion='reduced'] .msg.assistant.streaming .md > :last-child::after {
+  animation: none;
+}
+
+.inlinenote {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.inlinenote.warn {
+  color: var(--warning-foreground);
+}
+.working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.working .dots,
+.spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+:root[data-motion='reduced'] .working .dots,
+:root[data-motion='reduced'] .spin {
+  animation: none;
+}
+
+/* ---------------------------------------------------------------- tool calls */
+
+.toolgroup {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  overflow: hidden;
+}
+.grouphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.grouphead:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.grouphead span {
+  flex: 1;
+}
+.grouphead svg,
+.toolhead svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.grouphead > svg:last-child,
+.toolhead > svg:last-child {
+  transition: transform var(--duration) var(--ease);
+}
+.toolgroup.open > .grouphead > svg:last-child,
+.toolhead[aria-expanded='true'] > svg:last-child {
+  transform: rotate(180deg);
+}
+.toolgroup ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.tool + .tool {
+  border-top: 1px solid var(--line);
+}
+.toolhead {
+  display: grid;
+  grid-template-columns: 16px auto minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.toolhead:hover {
+  background: var(--muted);
+}
+.tname {
+  font-size: 12px;
+}
+.tsum,
+.tms {
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tstate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tool.ok .tstate {
+  color: var(--success-foreground);
+}
+.tool.denied .tstate,
+.tool.denied .tsum {
+  color: var(--warning-foreground);
+}
+.tool.error .tstate,
+.tool.error .tsum {
+  color: var(--error-foreground);
+}
+.toolbody {
+  padding: 4px 12px 10px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.toolbody .code-block {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- cards */
+
+.cardrow {
+  display: flex;
+  flex-direction: column;
+}
+.acard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+.acard > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.acard > header h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acard .well {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  flex: none;
+}
+.acard .well svg {
+  width: 15px;
+  height: 15px;
+}
+.acard .chips {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+}
+.acard > .body {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.acard > footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--muted);
+}
+.acard .small-text {
+  font-size: 12.5px;
+}
+.kvs {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+.kvs dt {
+  color: var(--muted-foreground);
+}
+.kvs dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plan li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  color: var(--muted-foreground);
+}
+.plan li.done {
+  color: var(--foreground);
+}
+.plan .mark {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  flex: none;
+}
+.plan .mark svg {
+  width: 11px;
+  height: 11px;
+}
+.plan li.done .mark {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+.plan li.doing {
+  color: var(--foreground);
+}
+.plan li.doing .mark {
+  border-color: var(--primary);
+  border-top-color: transparent;
+  animation: spin 0.9s linear infinite;
+}
+:root[data-motion='reduced'] .plan li.doing .mark {
+  animation: none;
+  border-top-color: var(--primary);
+}
+.diags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.needs .label {
+  margin-bottom: 4px;
+}
+.needs ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+.arows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.arows li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.arows a {
+  color: var(--foreground);
+}
+.acard .meter {
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------- the composer */
+
+.composer-wrap {
+  flex: none;
+  padding: 6px 24px 12px;
+}
+.composer {
+  position: relative;
+  max-width: 780px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  padding: 12px 12px 8px 16px;
+  transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+}
+.composer:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--line-strong));
+  box-shadow: var(--shadow-sm), 0 0 0 3px var(--primary-soft);
+}
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  max-height: 220px;
+  padding: 2px 0;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
+  resize: none;
+  font: inherit;
+  line-height: 1.55;
+  color: var(--foreground);
+}
+.composer textarea:focus {
+  box-shadow: none;
+  border: 0;
+}
+.cmp-mentions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.chip.removable {
+  gap: 4px;
+  padding-right: 3px;
+}
+.chip.removable button {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.chip.removable button:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+.chip.removable svg {
+  width: 10px;
+  height: 10px;
+}
+.cmp-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.cmp-bar .spacer {
+  flex: 1;
+}
+.cmp-bar .vsep {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  margin: 0 2px;
+}
+.chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.chipbtn:hover:not(:disabled),
+.chipbtn[aria-expanded='true'] {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.chipbtn:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+.chipbtn svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.chipbtn .cbl {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sendbtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+}
+.sendbtn svg {
+  width: 17px;
+  height: 17px;
+}
+.sendbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.sendbtn.stop {
+  background: var(--foreground);
+  color: var(--background);
+}
+.cmp-note {
+  max-width: 780px;
+  margin: 6px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.agent-err {
+  padding: 0 24px;
+  max-width: 828px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mentionmenu {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  max-height: 290px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--popover);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  z-index: 30;
+}
+.mentionmenu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mentionmenu button.on {
+  background: var(--accent);
+}
+.mentionmenu svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted-foreground);
+  flex: none;
+}
+.mentionmenu .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mentionmenu .meta {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.popover {
+  position: relative;
+}
+.popmenu {
+  position: absolute;
+  z-index: 40;
+  min-width: 320px;
+  padding: 6px;
+  background: var(--popover);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+}
+.popmenu.up {
+  bottom: calc(100% + 6px);
+}
+.popmenu.down {
+  top: calc(100% + 6px);
+}
+.popmenu.left {
+  left: 0;
+}
+.popmenu.right {
+  right: 0;
+}
+.pophead {
+  padding: 6px 10px 4px;
+  font-size: 11.5px;
+  color: var(--muted-foreground);
+}
+.popfoot {
+  padding: 8px 10px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.popmenu > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.popmenu > button:hover:not(:disabled),
+.popmenu > button.on {
+  background: var(--accent);
+}
+.popmenu > button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.popmenu .name {
+  font-weight: 500;
+}
+.popmenu .meta {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.popmenu .desc {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.popmenu button.on .name::after {
+  content: ' ·';
+  color: var(--primary);
+}
+
+/* ---------------------------------------------------------------- the side panel */
+
+.agent-side {
+  width: 320px;
+  flex: none;
+  overflow-y: auto;
+  padding: 8px 16px 20px;
+  border-left: 1px solid var(--line);
+  background: var(--muted);
+}
+.dsec {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dsec:last-child {
+  border-bottom: 0;
+}
+.dsec h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  letter-spacing: 0;
+}
+.dactions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.dactions .btn svg {
+  width: 14px;
+  height: 14px;
+}
+.renameform {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.renameform input {
+  flex: 1;
+  min-width: 0;
+}
+.accessrows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.accessrows button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.accessrows button:hover {
+  background: var(--accent);
+}
+.accessrows button.on {
+  background: var(--card);
+  border-color: var(--line-strong);
+}
+.accessrows .name {
+  font-weight: 500;
+}
+.accessrows .desc {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.toollist,
+.never,
+.ctxlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+}
+.toollist li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.toollist li svg,
+.never svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.toollist li.on svg {
+  color: var(--success-foreground);
+}
+.toollist li.off {
+  color: var(--muted-foreground);
+}
+.toollist .lvl {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.never li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--muted-foreground);
+}
+.never svg {
+  margin-top: 2px;
+  color: var(--primary);
+}
+
+/* ---------------------------------------------------------------- settings */
+
+.instructions {
+  width: 100%;
+  min-height: 190px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .agent-side {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .timeline {
+    padding: 12px 12px 8px;
+  }
+  .composer-wrap {
+    padding: 6px 10px calc(70px + env(safe-area-inset-bottom));
+  }
+  .agent-scroll {
+    padding-top: 3vh;
+  }
+  .chipbtn .cbl {
+    max-width: 84px;
+  }
+}

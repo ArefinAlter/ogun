@@ -1,0 +1,38 @@
+{
+  "connector_version": 0,
+  "id": "splunk",
+  "name": "Splunk",
+  "vendor": "Splunk",
+  "category": "observability",
+  "regions": ["cn", "global"],
+  "summary": "Send Ogun run and approval events and metrics to Splunk through the HTTP Event Collector, on Splunk Enterprise or Splunk Cloud Platform.",
+  "docs_url": "https://docs.splunk.com/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "hec_token",
+      "label": "HTTP Event Collector token",
+      "fields": [
+        { "name": "hec_token", "label": "HEC token", "secret": true, "required": true, "help": "Sent as Authorization: Splunk TOKEN. Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "HEC host", "type": "string", "required": true, "placeholder": "splunk.example.com", "help": "Host only. Splunk Cloud Platform shows its HEC host in the deployment's settings." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 8088, "help": "8088 is the HEC default; your deployment may use another." },
+    { "name": "index", "label": "Index", "type": "string", "help": "Leave empty to use the token's default index." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [8088]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state. Events: failed runs and approvals waiting for a person.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/splunk.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

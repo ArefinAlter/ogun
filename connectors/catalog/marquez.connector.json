@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "marquez",
+  "name": "Marquez",
+  "vendor": "Marquez Project",
+  "category": "catalog",
+  "regions": ["global", "cn"],
+  "summary": "Send OpenLineage run events to a Marquez server, so its lineage graph shows each Ogun run, node and dataset under one namespace.",
+  "docs_url": "https://marquezproject.ai/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": []
+    },
+    {
+      "id": "bearer",
+      "label": "Bearer token (a gateway in front of Marquez)",
+      "fields": [
+        { "name": "bearer_token", "label": "Bearer token", "secret": true, "required": true, "help": "Sent as Authorization: Bearer. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "url", "label": "Marquez API URL", "type": "string", "required": true, "placeholder": "http://localhost:5000", "help": "Base URL of the Marquez API. Nothing is sent until you set it." },
+    { "name": "path", "label": "Lineage path", "type": "string", "default": "/api/v1/lineage", "help": "Used when the URL has no path of its own." },
+    { "name": "namespace", "label": "Namespace", "type": "string", "default": "ogun://local", "help": "Namespace under which Marquez lists Ogun jobs and datasets." }
+  ],
+  "egress": {
+    "domains": ["{url}"],
+    "ports": [5000],
+    "note": "The host of the url setting. The Marquez API listens on port 5000 by default; use the port in your url."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Ogun posts OpenLineage run events with Ogun facets for artifacts and windows to /api/v1/lineage, one per request, through an outbox (ADR 0012). Jobs and datasets appear under the namespace setting. The ogun-export sink delivers over http or https. The daemon's own outbox (O-05 section 5) reaches http:// endpoints only, which suits a local or LAN Marquez.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/openlineage.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

@@ -1,6 +1,7 @@
 // The Tauri backend: the closed command set of `apps/studio/src-tauri/src/commands.rs`. The Rust process holds
 // the daemon credential or the hub token; this side sees typed results only.
 
+import type { SvcTransport } from './svc'
 import { invoke } from '@tauri-apps/api/core'
 
 import type { Backend, EventSubscription, PreparedDecision, ShellInfo } from './backend'
@@ -237,4 +238,9 @@ export interface GatewayStatus {
     last_sync?: { at_ms: number; ok: boolean; reason: string }
   }
   core_error?: OgunError
+}
+
+/** The hosted pre-alpha service over the hub link (`prealpha_call`, a closed method list in the shell). */
+export function tauriSvcTransport(install: string): SvcTransport {
+  return { call: (method, params = {}) => call('prealpha_call', { method, params, install }) }
 }

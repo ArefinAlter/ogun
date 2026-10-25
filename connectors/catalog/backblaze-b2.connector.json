@@ -1,0 +1,62 @@
+{
+  "connector_version": 0,
+  "id": "backblaze-b2",
+  "name": "Backblaze B2",
+  "vendor": "Backblaze",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish objects in Backblaze B2 through its S3-compatible API, signed with an application key.",
+  "docs_url": "https://www.backblaze.com/docs/cloud-storage",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "application_key",
+      "label": "Application key",
+      "fields": [
+        { "name": "application_key_id", "label": "keyID", "secret": true, "required": true },
+        { "name": "application_key", "label": "applicationKey", "secret": true, "required": true, "help": "Shown once when the key is created; limit it to the bucket you use." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "placeholder": "us-west-004", "help": "The region in the bucket's endpoint, s3.<region>.backblazeb2.com." },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Key prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["s3.{region}.backblazeb2.com", "{bucket}.s3.{region}.backblazeb2.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "b2.list@1",
+      "kind": "adapter",
+      "summary": "List keys under a prefix, with sizes and ETags, as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "b2.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "b2.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a key prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "The B2 native API (api.backblazeb2.com) is not used."
+}

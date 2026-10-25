@@ -1,0 +1,62 @@
+{
+  "connector_version": 0,
+  "id": "alibaba-hologres",
+  "name": "Alibaba Cloud Hologres",
+  "vendor": "Alibaba Cloud",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run queries and load Parquet partitions into Hologres over its PostgreSQL protocol. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://www.alibabacloud.com/help/en/hologres/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "AccessKey pair as user name and password",
+      "fields": [
+        { "name": "access_key_id", "label": "AccessKey ID (user name)", "secret": true, "required": true },
+        { "name": "access_key_secret", "label": "AccessKey secret (password)", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "custom_account",
+      "label": "Custom account with a password",
+      "fields": [
+        { "name": "username", "label": "Account name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "endpoint", "label": "Instance endpoint", "type": "string", "required": true, "placeholder": "hgpostcn-cn-abc123-cn-hangzhou.hologres.aliyuncs.com", "help": "The domain name of the instance, from the Hologres console, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "required": true, "placeholder": "80", "help": "Shown with the endpoint in the Hologres console." },
+    { "name": "database", "label": "Database", "type": "string", "required": true }
+  ],
+  "egress": {
+    "domains": ["{endpoint}"],
+    "ports": [80],
+    "note": "Each instance has its own port in the console. 80 is listed here as the value commonly shown; set the port setting to the one your instance uses."
+  },
+  "operators": [
+    {
+      "op": "hologres.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "hologres.load@1",
+      "kind": "adapter",
+      "summary": "Copy Parquet rows into a table with COPY FROM STDIN, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Hologres can also read MaxCompute and OSS data through foreign tables; stage in OSS (see that connector) if you prefer that route. Ogun does not create the table."
+}

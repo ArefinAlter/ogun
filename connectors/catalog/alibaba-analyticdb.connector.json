@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "alibaba-analyticdb",
+  "name": "Alibaba Cloud AnalyticDB",
+  "vendor": "Alibaba Cloud",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run queries and load Parquet partitions into AnalyticDB for MySQL or AnalyticDB for PostgreSQL over their wire protocols. Loads are idempotent by partition and revision.",
+  "docs_url": "https://www.alibabacloud.com/help/en/analyticdb-for-mysql/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "Database account and password",
+      "fields": [
+        { "name": "username", "label": "Account name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "engine", "label": "Engine", "type": "enum", "required": true, "default": "mysql", "options": ["mysql", "postgresql"], "help": "AnalyticDB for MySQL speaks the MySQL protocol; AnalyticDB for PostgreSQL speaks the PostgreSQL protocol." },
+    { "name": "endpoint", "label": "Instance endpoint", "type": "string", "required": true, "help": "The connection address of the cluster or instance from the console, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "help": "3306 for MySQL, 5432 for PostgreSQL, unless the console shows another." },
+    { "name": "database", "label": "Database", "type": "string", "required": true }
+  ],
+  "egress": {
+    "domains": ["{endpoint}"],
+    "ports": [3306, 5432],
+    "note": "3306 is the MySQL protocol default and 5432 the PostgreSQL default; the console lists the port of each instance."
+  },
+  "operators": [
+    {
+      "op": "analyticdb.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "analyticdb.load@1",
+      "kind": "adapter",
+      "summary": "Load staged Parquet into a table through the engine's SQL interface, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Alibaba Cloud OSS can stage files for external tables (see that connector). Ogun does not create the table. The two engines share this manifest and differ only in the engine setting."
+}

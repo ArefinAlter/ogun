@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "clickhouse",
+  "name": "ClickHouse",
+  "vendor": "ClickHouse",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into ClickHouse Cloud or a self-hosted server over the HTTP interface. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://clickhouse.com/docs",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true, "help": "default is the built-in user of a new self-hosted server." },
+        { "name": "password", "label": "Password", "secret": true, "required": false, "help": "Empty only for a local server that allows it." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true, "placeholder": "abc123.us-east-1.aws.clickhouse.cloud" },
+    { "name": "port", "label": "HTTP port", "type": "integer", "default": 8443, "help": "8443 for HTTPS, 8123 for plain HTTP on a self-hosted server." },
+    { "name": "secure", "label": "Use TLS", "type": "boolean", "default": true },
+    { "name": "database", "label": "Database", "type": "string", "default": "default" }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [8443, 9440, 8123, 9000],
+    "note": "8443 (HTTPS) and 9440 (native, TLS) are the encrypted defaults, used by ClickHouse Cloud. 8123 and 9000 are the plain defaults of a self-hosted server."
+  },
+  "operators": [
+    {
+      "op": "clickhouse.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "clickhouse.load@1",
+      "kind": "adapter",
+      "summary": "Insert Parquet into a table over HTTP, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "ByteHouse speaks a ClickHouse-compatible protocol but has its own connector. Ogun does not create the target table."
+}

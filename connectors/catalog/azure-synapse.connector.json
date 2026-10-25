@@ -1,0 +1,68 @@
+{
+  "connector_version": 0,
+  "id": "azure-synapse",
+  "name": "Azure Synapse Analytics",
+  "vendor": "Microsoft",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into an Azure Synapse dedicated SQL pool with COPY INTO. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://learn.microsoft.com/en-us/azure/synapse-analytics/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "service_principal",
+      "label": "Microsoft Entra ID service principal",
+      "fields": [
+        { "name": "tenant_id", "label": "Tenant ID", "secret": false, "required": true },
+        { "name": "client_id", "label": "Application (client) ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "sql_login",
+      "label": "SQL login",
+      "fields": [
+        { "name": "username", "label": "Login name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "managed_identity",
+      "label": "Managed identity of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "SQL endpoint", "type": "string", "required": true, "placeholder": "myworkspace.sql.azuresynapse.net", "help": "The server name of the dedicated SQL pool, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 1433 },
+    { "name": "database", "label": "Dedicated SQL pool", "type": "string", "required": true }
+  ],
+  "egress": {
+    "domains": ["{host}", "login.microsoftonline.com"],
+    "ports": [1433, 443],
+    "note": "1433 is the SQL Server protocol default; the Entra ID methods sign in over 443."
+  },
+  "operators": [
+    {
+      "op": "synapse.query@1",
+      "kind": "adapter",
+      "summary": "Run a T-SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "synapse.load@1",
+      "kind": "adapter",
+      "summary": "Load Parquet from Azure storage with COPY INTO, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging goes through Azure Blob Storage or Data Lake Storage Gen2; add the Azure Blob Storage connector's domains to the same egress approval. Ogun does not create the target table."
+}

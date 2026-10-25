@@ -1,0 +1,67 @@
+{
+  "connector_version": 0,
+  "id": "azure-event-hubs",
+  "name": "Azure Event Hubs",
+  "vendor": "Microsoft",
+  "category": "streaming",
+  "regions": ["global"],
+  "summary": "Read events from and send events to Azure Event Hubs over AMQP. The namespace's Kafka endpoint can also be used through the Apache Kafka connector.",
+  "docs_url": "https://learn.microsoft.com/en-us/azure/event-hubs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "connection_string",
+      "label": "Shared access policy connection string",
+      "fields": [
+        { "name": "connection_string", "label": "Connection string", "secret": true, "required": true, "help": "From a shared access policy of the namespace or the event hub; store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "entra_id",
+      "label": "Microsoft Entra ID application",
+      "fields": [
+        { "name": "tenant_id", "label": "Tenant ID", "secret": false, "required": true },
+        { "name": "client_id", "label": "Application (client) ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "managed_identity",
+      "label": "Managed identity of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "namespace", "label": "Namespace", "type": "string", "required": true, "help": "The name before .servicebus.windows.net." },
+    { "name": "event_hub", "label": "Event hub", "type": "string", "required": true },
+    { "name": "consumer_group", "label": "Consumer group", "type": "string", "default": "$Default", "help": "Used by eventhubs.consume@1." }
+  ],
+  "egress": {
+    "domains": ["{namespace}.servicebus.windows.net", "login.microsoftonline.com"],
+    "ports": [443, 5671, 9093],
+    "note": "5671 is AMQP over TLS, 443 is AMQP over WebSockets, 9093 is the Kafka endpoint. login.microsoftonline.com is only for Entra ID."
+  },
+  "operators": [
+    {
+      "op": "eventhubs.consume@1",
+      "kind": "adapter",
+      "summary": "Read events from an event hub's partitions in a consumer group and keep them as JSON lines.",
+      "outputs": [{ "name": "records", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "eventhubs.produce@1",
+      "kind": "adapter",
+      "summary": "Send events to an event hub and record the partition and sequence number of each.",
+      "inputs": ["records"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Bridging events into Ogun's stream sources (O-09) is done by ogun-ingest and is not built for Event Hubs."
+}

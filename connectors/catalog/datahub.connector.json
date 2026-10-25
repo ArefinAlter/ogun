@@ -1,0 +1,40 @@
+{
+  "connector_version": 0,
+  "id": "datahub",
+  "name": "DataHub",
+  "vendor": "DataHub",
+  "category": "catalog",
+  "regions": ["global", "cn"],
+  "summary": "Send OpenLineage run events with Ogun facets to the OpenLineage endpoint of a DataHub metadata service (GMS), authenticated with a personal access token.",
+  "docs_url": "https://docs.datahub.com/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "personal_access_token",
+      "label": "DataHub personal access token",
+      "fields": [
+        { "name": "access_token", "label": "Personal access token", "secret": true, "required": true, "help": "Created in DataHub; sent as a bearer token. Store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "none",
+      "label": "No authentication (metadata service authentication off)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "url", "label": "GMS URL", "type": "string", "required": true, "placeholder": "http://localhost:8080", "help": "Base URL of the DataHub metadata service (GMS)." },
+    { "name": "path", "label": "OpenLineage path", "type": "string", "placeholder": "/openapi/openlineage/api/v1/lineage", "help": "Check the DataHub documentation for the OpenLineage path of your version." },
+    { "name": "namespace", "label": "Namespace", "type": "string", "default": "ogun://local", "help": "OpenLineage namespace for Ogun jobs and datasets." }
+  ],
+  "egress": {
+    "domains": ["{url}"],
+    "ports": [8080, 443],
+    "note": "The host of the url setting, on the port in the url."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Ogun sends OpenLineage run events with Ogun facets for artifacts and windows, through an outbox (ADR 0012). The path has no default: check the vendor documentation for your DataHub version. This build reaches http:// endpoints only; an https GMS needs a local TLS forwarder."
+}

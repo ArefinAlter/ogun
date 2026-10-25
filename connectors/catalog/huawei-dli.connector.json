@@ -1,0 +1,62 @@
+{
+  "connector_version": 0,
+  "id": "huawei-dli",
+  "name": "Huawei Cloud Data Lake Insight",
+  "vendor": "Huawei Cloud",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run Data Lake Insight SQL jobs through the Huawei Cloud API and load staged Parquet from OBS into DLI tables, once per partition and revision.",
+  "docs_url": "https://support.huaweicloud.com/intl/en-us/dli/index.html",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair (AK/SK)",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID (AK)", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key (SK)", "secret": true, "required": true },
+        { "name": "security_token", "label": "Security token", "secret": true, "required": false, "help": "Only for temporary access keys." }
+      ]
+    },
+    {
+      "id": "iam_token",
+      "label": "IAM token",
+      "fields": [
+        { "name": "iam_token", "label": "IAM token", "secret": true, "required": true, "help": "A token for the project; short-lived." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "cn-north-4", "placeholder": "cn-north-4" },
+    { "name": "project_id", "label": "Project ID", "type": "string", "required": true, "help": "The project of the region, from My Credentials in the console." },
+    { "name": "queue", "label": "Queue", "type": "string", "required": true, "help": "The DLI queue that runs the jobs." },
+    { "name": "database", "label": "Database", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["dli.{region}.myhuaweicloud.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "dli.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL job on a queue and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "dli.load@1",
+      "kind": "adapter",
+      "summary": "Load staged Parquet from OBS into a DLI table with a job, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging and job results use Huawei OBS; add the Huawei OBS connector's domains to the same egress approval. The table must already exist."
+}

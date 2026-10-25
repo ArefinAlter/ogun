@@ -1,0 +1,89 @@
+{
+  "connector_version": 0,
+  "id": "azure-blob-storage",
+  "name": "Azure Blob Storage",
+  "vendor": "Microsoft",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish blobs in Azure Blob Storage and Data Lake Storage Gen2 with an account key, a SAS token or Microsoft Entra ID.",
+  "docs_url": "https://learn.microsoft.com/en-us/azure/storage/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "account_key",
+      "label": "Storage account key",
+      "fields": [
+        { "name": "account_key", "label": "Account key", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "sas",
+      "label": "Shared access signature",
+      "fields": [
+        { "name": "sas_token", "label": "SAS token", "secret": true, "required": true, "help": "The query string of a SAS URL for the account, container or blob." }
+      ]
+    },
+    {
+      "id": "service_principal",
+      "label": "Microsoft Entra ID service principal",
+      "fields": [
+        { "name": "tenant_id", "label": "Tenant ID", "secret": false, "required": true },
+        { "name": "client_id", "label": "Application (client) ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "managed_identity",
+      "label": "Managed identity of the daemon host",
+      "fields": []
+    },
+    {
+      "id": "anonymous",
+      "label": "No credentials (public containers)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "account", "label": "Storage account", "type": "string", "required": true },
+    { "name": "container", "label": "Container", "type": "string", "required": true },
+    { "name": "prefix", "label": "Blob prefix", "type": "string" },
+    { "name": "hierarchical_namespace", "label": "Data Lake Storage Gen2 account", "type": "boolean", "default": false, "help": "On if the account has a hierarchical namespace; Ogun then uses the dfs endpoint." }
+  ],
+  "egress": {
+    "domains": ["{account}.blob.core.windows.net", "{account}.dfs.core.windows.net", "login.microsoftonline.com"],
+    "ports": [443],
+    "note": "login.microsoftonline.com is used only by the Entra ID methods. Azure operated by 21Vianet uses other domains and is not covered."
+  },
+  "operators": [
+    {
+      "op": "azblob.list@1",
+      "kind": "adapter",
+      "summary": "List blobs under a prefix as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "azblob.get@1",
+      "kind": "adapter",
+      "summary": "Fetch blobs into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "azblob.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a blob prefix with block upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging store for Azure Synapse and Microsoft Fabric loads (see those connectors). Anyone holding an account key can read the whole account; prefer a SAS token or Entra ID."
+}

@@ -1,0 +1,59 @@
+{
+  "connector_version": 0,
+  "id": "iceberg-rest-catalog",
+  "name": "Apache Iceberg REST catalog",
+  "vendor": "Apache Software Foundation",
+  "category": "catalog",
+  "regions": ["global", "cn"],
+  "summary": "Append Parquet files that Ogun published to object storage to tables in any catalog that implements the Apache Iceberg REST catalog specification.",
+  "docs_url": "https://iceberg.apache.org/rest-catalog-spec/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": []
+    },
+    {
+      "id": "bearer",
+      "label": "Bearer token",
+      "fields": [
+        { "name": "access_token", "label": "Bearer token", "secret": true, "required": true, "help": "Sent as Authorization: Bearer. Store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "oauth2",
+      "label": "OAuth2 client credentials",
+      "fields": [
+        { "name": "client_id", "label": "Client ID", "secret": true, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "uri", "label": "Catalog URI", "type": "string", "required": true, "placeholder": "https://catalog.example.com", "help": "Base URL of the REST catalog." },
+    { "name": "warehouse", "label": "Warehouse", "type": "string", "help": "Passed to the catalog when it asks for one." },
+    { "name": "table_namespace", "label": "Table namespace", "type": "string", "help": "Namespace that holds the tables Ogun appends to." },
+    { "name": "oauth2_server_uri", "label": "OAuth2 token endpoint", "type": "string", "help": "Token endpoint of your identity provider. Empty means the catalog's own." }
+  ],
+  "egress": {
+    "domains": ["{uri}", "{oauth2_server_uri}"],
+    "ports": [443],
+    "note": "The hosts of the uri and oauth2_server_uri settings, on the ports in those URLs."
+  },
+  "operators": [
+    {
+      "op": "iceberg.append@1",
+      "kind": "adapter",
+      "summary": "Append published Parquet data files to an Iceberg table through the REST catalog.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "The catalog holds table metadata only; the data files stay in object storage that the matching storage connector writes, so add its domains to the same egress approval. Catalogs that require request signing or vended storage credentials need the vendor's documentation."
+}

@@ -1,0 +1,42 @@
+{
+  "connector_version": 0,
+  "id": "aws-cloudwatch",
+  "name": "Amazon CloudWatch",
+  "vendor": "Amazon Web Services",
+  "category": "observability",
+  "regions": ["global"],
+  "summary": "Send Ogun metrics to Amazon CloudWatch Metrics and events to CloudWatch Logs, signed with Signature Version 4.",
+  "docs_url": "https://docs.aws.amazon.com/cloudwatch/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true, "help": "Read from the exporter process environment, not Ogun's secret store." },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    },
+    {
+      "id": "instance_role",
+      "label": "IAM role of the exporter host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "us-east-1", "placeholder": "us-east-1" },
+    { "name": "namespace", "label": "Metric namespace", "type": "string", "default": "Ogun" },
+    { "name": "log_group", "label": "Log group", "type": "string", "required": true, "help": "The group that receives the events. It must exist." },
+    { "name": "log_stream", "label": "Log stream", "type": "string", "default": "ogun" }
+  ],
+  "egress": {
+    "domains": ["monitoring.{region}.amazonaws.com", "logs.{region}.amazonaws.com", "sts.{region}.amazonaws.com"],
+    "ports": [443]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics, to CloudWatch Metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state. Events, to CloudWatch Logs: failed runs and approvals waiting for a person."
+}

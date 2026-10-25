@@ -4,7 +4,8 @@
 //! `ogund` with the `studio` credential; on Android and iOS it is a read-only companion of a hub, and on Android it
 //! also hosts the field gateway plugin. The webview gets typed results only. It cannot name a daemon method, read
 //! a credential or token, open a file or a process, or load remote content: the capability grants exactly the
-//! commands in `commands.rs` to the bundled main window, and navigation away from the bundled pages is refused.
+//! commands in `commands.rs` to the bundled main window, plus the few window commands its own title bar needs
+//! (minimize, maximize, close, move), and navigation away from the bundled pages is refused.
 
 #![deny(unsafe_code)]
 
@@ -51,6 +52,7 @@ pub fn run() {
             commands::link_local,
             commands::link_hub,
             commands::link_forget,
+            commands::prealpha_call,
             commands::daemon_status,
             commands::workflows_list,
             commands::workflows_get,

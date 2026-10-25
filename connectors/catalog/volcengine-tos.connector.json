@@ -1,0 +1,64 @@
+{
+  "connector_version": 0,
+  "id": "volcengine-tos",
+  "name": "Volcano Engine TOS",
+  "vendor": "Volcano Engine",
+  "category": "object_storage",
+  "regions": ["cn", "global"],
+  "summary": "List, fetch and publish objects in Volcano Engine Torch Object Storage (TOS), through its S3-compatible endpoint or the native TOS API.",
+  "docs_url": "https://www.volcengine.com/docs",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair (AK/SK)",
+      "fields": [
+        { "name": "access_key_id", "label": "Access Key ID (AK)", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret Access Key (SK)", "secret": true, "required": true },
+        { "name": "security_token", "label": "STS security token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "cn-beijing", "placeholder": "cn-beijing" },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Object prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["tos-{region}.volces.com", "tos-s3-{region}.volces.com", "{bucket}.tos-{region}.volces.com", "{bucket}.tos-s3-{region}.volces.com"],
+    "ports": [443],
+    "note": "tos-<region> is the native endpoint and tos-s3-<region> the S3-compatible one. Internal ivolces.com endpoints are not listed."
+  },
+  "operators": [
+    {
+      "op": "tos.list@1",
+      "kind": "adapter",
+      "summary": "List objects under a prefix as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "tos.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "tos.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under an object prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging store for Volcano Engine ByteHouse loads (see that connector)."
+}

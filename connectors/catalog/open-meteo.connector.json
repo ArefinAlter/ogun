@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "open-meteo",
+  "name": "Open-Meteo",
+  "vendor": "Open-Meteo",
+  "category": "source",
+  "regions": [
+    "global"
+  ],
+  "summary": "Read weather, archive and CAMS air-quality forecasts from the Open-Meteo APIs; commercial use goes through the customer host with an API key.",
+  "docs_url": "https://open-meteo.com/en/docs",
+  "maturity": "contract",
+  "directions": [
+    "source"
+  ],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_key",
+      "label": "Open-Meteo API key (commercial use)",
+      "fields": [
+        {
+          "name": "api_key",
+          "label": "API key",
+          "secret": true,
+          "required": true,
+          "help": "Sent as the apikey query parameter on the customer host. Store it with ogun secrets set."
+        }
+      ]
+    },
+    {
+      "id": "anonymous",
+      "label": "No key (the free hosts)",
+      "fields": []
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": [
+      "customer-air-quality-api.open-meteo.com",
+      "air-quality-api.open-meteo.com",
+      "api.open-meteo.com",
+      "archive-api.open-meteo.com"
+    ],
+    "ports": [
+      443
+    ],
+    "note": "The key is for the customer host only; the others are the keyless hosts."
+  },
+  "operators": [],
+  "approvals": [
+    "egress"
+  ],
+  "notes": "Used by examples/bikeshare/ridership-forecast.workflow.json through the builtin acquire@1. Terms: commercial use needs a key, passed as a secret query parameter, weather data needs the attribution \"Weather data by Open-Meteo.com\", and CAMS data needs \"Copernicus Atmosphere Monitoring Service via Open-Meteo\". Check the licence again before you rely on it."
+}

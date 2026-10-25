@@ -1,0 +1,34 @@
+{
+  "connector_version": 0,
+  "id": "atlan",
+  "name": "Atlan",
+  "vendor": "Atlan",
+  "category": "catalog",
+  "regions": ["global"],
+  "summary": "Send OpenLineage run events with Ogun facets to your Atlan tenant, authenticated with an Atlan API token.",
+  "docs_url": "https://developer.atlan.com/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_token",
+      "label": "Atlan API token",
+      "fields": [
+        { "name": "api_token", "label": "API token", "secret": true, "required": true, "help": "Created in Atlan; sent as a bearer token. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "tenant", "label": "Tenant", "type": "string", "required": true, "placeholder": "mycompany", "help": "The subdomain of your Atlan URL, as in mycompany.atlan.com." },
+    { "name": "path", "label": "OpenLineage path", "type": "string", "help": "The OpenLineage intake path for your connection. Check the vendor documentation." },
+    { "name": "namespace", "label": "Namespace", "type": "string", "default": "ogun://local", "help": "OpenLineage namespace for Ogun jobs and datasets." }
+  ],
+  "egress": {
+    "domains": ["{tenant}.atlan.com"],
+    "ports": [443]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Ogun sends OpenLineage run events with Ogun facets for artifacts and windows, through an outbox (ADR 0012). The path has no default: check the vendor documentation. This build reaches http:// endpoints only, so Atlan's https needs a local TLS forwarder until O-05 open issue 1 is closed."
+}

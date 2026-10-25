@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "prometheus",
+  "name": "Prometheus",
+  "vendor": "Cloud Native Computing Foundation",
+  "category": "observability",
+  "regions": ["cn", "global"],
+  "summary": "Push Ogun metrics to a Prometheus Pushgateway in the Prometheus text format, for a Prometheus server to scrape.",
+  "docs_url": "https://prometheus.io/docs/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": []
+    },
+    {
+      "id": "basic",
+      "label": "Basic authentication",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true, "help": "Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Pushgateway host", "type": "string", "required": true, "placeholder": "pushgateway.example.com", "help": "Host only." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 9091, "help": "9091 is the Pushgateway default; 443 behind a TLS proxy." },
+    { "name": "job", "label": "Job name", "type": "string", "default": "ogun", "help": "The job in the push path, /metrics/job/NAME." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [9091, 443]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state; names are written with underscores. Prometheus has no event type, so failed runs and approvals waiting for a person are not sent here.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/prometheus.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

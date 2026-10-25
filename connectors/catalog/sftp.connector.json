@@ -1,0 +1,72 @@
+{
+  "connector_version": 0,
+  "id": "sftp",
+  "name": "SFTP",
+  "vendor": "Any SFTP server",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish files on an SFTP server over SSH, with a private key or a password and a pinned host key.",
+  "docs_url": "https://www.openssh.com/manual.html",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "file",
+  "auth": [
+    {
+      "id": "ssh_key",
+      "label": "SSH private key",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "private_key", "label": "Private key (OpenSSH or PEM)", "secret": true, "required": true },
+        { "name": "private_key_passphrase", "label": "Private key passphrase", "secret": true, "required": false, "help": "Only for an encrypted private key." }
+      ]
+    },
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true },
+    { "name": "port", "label": "Port", "type": "integer", "default": 22 },
+    { "name": "host_key_fingerprint", "label": "Host key fingerprint", "type": "string", "required": true, "placeholder": "SHA256:...", "help": "The server's host key, as printed by ssh-keygen -l. Ogun refuses a host whose key differs." },
+    { "name": "path", "label": "Remote directory", "type": "string", "default": "/" }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [22]
+  },
+  "operators": [
+    {
+      "op": "sftp.list@1",
+      "kind": "adapter",
+      "summary": "List files under a directory, with sizes and modification times, as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "sftp.get@1",
+      "kind": "adapter",
+      "summary": "Fetch files into the artifact store, hashed with BLAKE3, resumable by offset.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "sftp.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts into a directory, written under a temporary name and renamed when complete.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "SFTP is the SSH file transfer subsystem; it is not FTP and not FTPS. Neither of those has a connector."
+}

@@ -1,0 +1,68 @@
+{
+  "connector_version": 0,
+  "id": "mqtt",
+  "name": "MQTT",
+  "vendor": "OASIS",
+  "category": "edge",
+  "regions": ["global", "cn"],
+  "summary": "Subscribe to MQTT 3.1.1 topics on a broker and log each message as a durable stream record, acknowledged only after it is committed to disk.",
+  "docs_url": "https://mqtt.org/",
+  "maturity": "built",
+  "directions": ["edge"],
+  "protocol": "mqtt",
+  "auth": [
+    {
+      "id": "anonymous",
+      "label": "No credentials",
+      "fields": []
+    },
+    {
+      "id": "username_password",
+      "label": "Username and password",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true, "help": "Read from a file that only its owner can access, named in ingest.json or by a secret_ref." }
+      ]
+    },
+    {
+      "id": "mutual_tls",
+      "label": "TLS client certificate",
+      "fields": [
+        { "name": "client_cert_file", "label": "Client certificate chain (PEM)", "secret": false, "required": true },
+        { "name": "client_key_file", "label": "Client private key (PEM)", "secret": true, "required": true, "help": "A file that only its owner can access." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "broker_host", "label": "Broker host", "type": "string", "required": true, "placeholder": "gateway.local" },
+    { "name": "broker_port", "label": "Broker port", "type": "integer", "help": "Defaults to 8883 with TLS and 1883 without." },
+    { "name": "tls", "label": "Use TLS (mqtts)", "type": "boolean", "default": true },
+    { "name": "ca_file", "label": "CA certificates (PEM)", "type": "string", "help": "Trust roots to use instead of the platform's." },
+    { "name": "topics", "label": "Topic filters", "type": "string", "required": true, "placeholder": "site-a/+/telemetry", "help": "Comma-separated filters; the workflow node holds them as a list." },
+    { "name": "qos", "label": "QoS", "type": "integer", "default": 1, "help": "0, 1 or 2." },
+    { "name": "payload", "label": "Payload format", "type": "enum", "default": "json", "options": ["json", "csv"] },
+    { "name": "client_id", "label": "Client ID", "type": "string", "help": "Stable, so the broker keeps the persistent session. Default: ogun- and 12 hex digits of BLAKE3." },
+    { "name": "max_payload_bytes", "label": "Largest payload (bytes)", "type": "integer", "default": 262144 }
+  ],
+  "egress": {
+    "domains": ["{broker_host}"],
+    "ports": [1883, 8883],
+    "note": "The broker you set, on the port you set."
+  },
+  "operators": [
+    {
+      "op": "stream.mqtt@1",
+      "kind": "builtin",
+      "summary": "Subscribe to MQTT topics and log each message as a stream record that feeds window partitions.",
+      "outputs": [{ "name": "window" }],
+      "determinism": "nondeterministic",
+      "via": "builtin"
+    }
+  ],
+  "approvals": ["egress"],
+  "implementation": {
+    "path": "crates/ogun-ingest",
+    "evidence": "unit and loopback tests; not run against a real broker, network server or device"
+  },
+  "notes": "Runs in the ogun-ingest bridge, not in ogund. The session is persistent and the PUBACK follows the commit, so a broker queues messages while the bridge restarts; copies are removed by the stream's dedupe_key. MQTT 5 is not wired yet. A broker URL with credentials in it is refused (O-10 section 2.4.1)."
+}

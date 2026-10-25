@@ -1,0 +1,35 @@
+{
+  "ir_version": 0,
+  "workflow": "ridership-forecast",
+  "version": 1,
+  "description": "Every night: the seven-day weather forecast for the sample city, kept with its digest, for next week's ridership estimate. The sample weather service (weather.example.org inside the hub) is down on purpose, so the run fails the way a real outage does.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "20 23 * * *"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "forecast",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "weather.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://weather.example.org/v1/forecast/sample-city.json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "publish",
+      "op": "hash@1",
+      "inputs": [
+        "forecast.artifacts"
+      ]
+    }
+  ]
+}

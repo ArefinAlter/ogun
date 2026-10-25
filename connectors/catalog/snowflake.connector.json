@@ -1,0 +1,72 @@
+{
+  "connector_version": 0,
+  "id": "snowflake",
+  "name": "Snowflake",
+  "vendor": "Snowflake",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into Snowflake with COPY INTO from a stage. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://docs.snowflake.com/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "key_pair",
+      "label": "Key pair",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "private_key", "label": "Private key (PEM)", "secret": true, "required": true, "help": "The private half of the key pair registered on the Snowflake user." },
+        { "name": "private_key_passphrase", "label": "Private key passphrase", "secret": true, "required": false, "help": "Only for an encrypted private key." }
+      ]
+    },
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "oauth",
+      "label": "OAuth access token",
+      "fields": [
+        { "name": "oauth_access_token", "label": "OAuth access token", "secret": true, "required": true, "help": "Issued by your identity provider or by Snowflake OAuth; short-lived." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "account", "label": "Account", "type": "string", "required": true, "placeholder": "orgname-accountname", "help": "Everything before .snowflakecomputing.com in the account URL." },
+    { "name": "warehouse", "label": "Virtual warehouse", "type": "string", "required": true },
+    { "name": "database", "label": "Database", "type": "string" },
+    { "name": "schema", "label": "Schema", "type": "string", "default": "PUBLIC" },
+    { "name": "role", "label": "Role", "type": "string" },
+    { "name": "stage", "label": "Stage for loads", "type": "string", "placeholder": "@ogun_stage", "help": "A named stage that holds the Parquet files for COPY INTO." }
+  ],
+  "egress": {
+    "domains": ["{account}.snowflakecomputing.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "snowflake.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL statement and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "snowflake.load@1",
+      "kind": "adapter",
+      "summary": "Load Parquet from a stage with COPY INTO, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "An external stage reads from S3, Google Cloud Storage or Azure Blob; add that store's connector domains to the same egress approval. Ogun does not create the stage or the target table."
+}

@@ -1,11 +1,14 @@
 //! Generates the closed Studio command permissions and the Tauri context.
 
-/// Every command the webview may invoke; `capabilities/studio.json` allows exactly these for the main window.
+/// Every command the webview may invoke (`prealpha_call` relays only the closed method list in `hub.rs`); `capabilities/studio.json` allows exactly these for the main window, and
+/// besides them only the window controls of the page's own title bar (`core:window:allow-minimize`, `-toggle-maximize`,
+/// `-internal-toggle-maximize`, `-close`, `-start-dragging`, `-is-maximized`, `-is-decorated`).
 const COMMANDS: &[&str] = &[
     "studio_info",
     "link_local",
     "link_hub",
     "link_forget",
+    "prealpha_call",
     "daemon_status",
     "workflows_list",
     "workflows_get",

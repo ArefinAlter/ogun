@@ -1,0 +1,46 @@
+{
+  "connector_version": 0,
+  "id": "datadog",
+  "name": "Datadog",
+  "vendor": "Datadog",
+  "category": "observability",
+  "regions": ["global"],
+  "summary": "Send run, partition and approval metrics and events from Ogun to Datadog, on any Datadog site. Ogun never needs your Datadog keys in a workflow.",
+  "docs_url": "https://docs.datadoghq.com/api/latest/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_key",
+      "label": "API key",
+      "fields": [
+        { "name": "api_key", "label": "API key", "secret": true, "required": true, "help": "Read from the environment of the exporter process, not from Ogun's secret store." },
+        { "name": "app_key", "label": "Application key", "secret": true, "required": false, "help": "Only for reading metrics back." }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "name": "site",
+      "label": "Datadog site",
+      "type": "enum",
+      "required": true,
+      "default": "datadoghq.com",
+      "options": ["datadoghq.com", "datadoghq.eu", "us3.datadoghq.com", "us5.datadoghq.com", "ap1.datadoghq.com", "ddog-gov.com"]
+    },
+    { "name": "service", "label": "Service tag", "type": "string", "default": "ogun" },
+    { "name": "env", "label": "Environment tag", "type": "string", "placeholder": "production" }
+  ],
+  "egress": {
+    "domains": ["api.{site}"],
+    "ports": [443]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances (tagged by state). Events: failed runs and approvals waiting for a person.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/datadog.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

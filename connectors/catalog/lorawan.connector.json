@@ -1,0 +1,62 @@
+{
+  "connector_version": 0,
+  "id": "lorawan",
+  "name": "LoRaWAN",
+  "vendor": "LoRa Alliance",
+  "category": "edge",
+  "regions": ["global", "cn"],
+  "summary": "Read LoRaWAN uplinks from a ChirpStack v4 or The Things Stack v3 network server through its MQTT integration, and log them as a durable stream.",
+  "docs_url": "https://lora-alliance.org/",
+  "maturity": "built",
+  "directions": ["edge"],
+  "protocol": "mqtt",
+  "auth": [
+    {
+      "id": "username_password",
+      "label": "Username and password or API key",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true },
+        { "name": "password", "label": "Password or API key", "secret": true, "required": true, "help": "For The Things Stack, an API key. Read from a file that only its owner can access." }
+      ]
+    },
+    {
+      "id": "mutual_tls",
+      "label": "TLS client certificate",
+      "fields": [
+        { "name": "client_cert_file", "label": "Client certificate chain (PEM)", "secret": false, "required": true },
+        { "name": "client_key_file", "label": "Client private key (PEM)", "secret": true, "required": true, "help": "A file that only its owner can access." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "network", "label": "Network server", "type": "enum", "required": true, "default": "chirpstack", "options": ["chirpstack", "the_things_stack"] },
+    { "name": "broker_host", "label": "Broker host", "type": "string", "required": true, "help": "The network server's MQTT integration." },
+    { "name": "broker_port", "label": "Broker port", "type": "integer", "help": "Defaults to 8883 with TLS and 1883 without." },
+    { "name": "tls", "label": "Use TLS (mqtts)", "type": "boolean", "default": true },
+    { "name": "ca_file", "label": "CA certificates (PEM)", "type": "string", "help": "Trust roots to use instead of the platform's." },
+    { "name": "application_id", "label": "Application ID", "type": "string", "required": true },
+    { "name": "tenant", "label": "Tenant (The Things Stack)", "type": "string", "default": "ttn" },
+    { "name": "qos", "label": "QoS", "type": "integer", "default": 0, "help": "0, 1 or 2." }
+  ],
+  "egress": {
+    "domains": ["{broker_host}"],
+    "ports": [1883, 8883],
+    "note": "The network server's MQTT broker, on the port you set."
+  },
+  "operators": [
+    {
+      "op": "stream.lorawan@1",
+      "kind": "builtin",
+      "summary": "Read LoRaWAN uplinks from a network server's MQTT integration and log them as a stream.",
+      "outputs": [{ "name": "window" }],
+      "determinism": "nondeterministic",
+      "via": "builtin"
+    }
+  ],
+  "approvals": ["egress"],
+  "implementation": {
+    "path": "crates/ogun-ingest",
+    "evidence": "unit and loopback tests; not run against a real broker, network server or device"
+  },
+  "notes": "The Things Stack's MQTT integration is QoS 0, so uplinks sent while the bridge is away are lost. Gaps are detected by frame counter and counted, not filled; backfill through its Storage Integration API is not implemented (O-10 section 2.4.3, open issue 4)."
+}

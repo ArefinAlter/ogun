@@ -1,0 +1,10 @@
+{
+  "states": [
+    { "name": "01-overview", "do": [], "settle_ms": 1500 },
+    { "name": "02-runs", "do": [{ "key": "alt+3" }], "settle_ms": 1000 },
+    { "name": "03-approvals", "do": [{ "key": "alt+5" }], "settle_ms": 1000 },
+    { "name": "04-connectors", "do": [{ "key": "alt+9" }], "settle_ms": 1500 },
+    { "name": "05-palette", "do": [{ "key": "ctrl+k" }], "settle_ms": 900, "after": [{ "key": "escape" }] },
+    { "name": "06-settings", "do": [{ "key": "ctrl+comma" }], "settle_ms": 1200 }
+  ]
+}

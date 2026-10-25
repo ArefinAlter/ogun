@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ogun.dev/schema/connector.v0.schema.json",
+  "title": "Ogun connector manifest v0 (O-16)",
+  "description": "Describes one external system Ogun can read from, write to, emit telemetry to, or be called by: what it is, how it authenticates (names only, never values), where it connects, and which operators it contributes. A manifest holds no secret and no endpoint of a person's own.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["connector_version", "id", "name", "vendor", "category", "regions", "summary", "docs_url", "maturity", "directions", "protocol", "auth", "settings", "egress", "operators"],
+  "properties": {
+    "connector_version": { "const": 0 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "vendor": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "category": {
+      "enum": ["warehouse", "database", "object_storage", "streaming", "orchestration", "observability", "catalog", "quality", "notification", "source", "edge", "agent"]
+    },
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["global", "cn"] }
+    },
+    "summary": { "type": "string", "minLength": 20, "maxLength": 240 },
+    "docs_url": { "type": "string", "pattern": "^https://[a-z0-9.-]+(/[^\\s?#]*)?$" },
+    "maturity": { "enum": ["contract", "built", "verified"] },
+    "directions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["source", "sink", "emit", "trigger", "edge"] }
+    },
+    "protocol": { "enum": ["rest", "s3_api", "sql_wire", "kafka_api", "webhook", "otlp", "mqtt", "cli", "sdk", "file", "device"] },
+    "auth": { "type": "array", "items": { "$ref": "#/$defs/auth_method" } },
+    "settings": { "type": "array", "items": { "$ref": "#/$defs/setting" } },
+    "egress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domains", "ports"],
+      "properties": {
+        "domains": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^(\\*\\.)?([a-z0-9{}_-]+\\.)*[a-z0-9{}_-]+(\\.[a-z0-9{}_-]+)+$|^\\{[a-z_][a-z0-9_]*\\}$" } },
+        "ports": { "type": "array", "uniqueItems": true, "items": { "type": "integer", "minimum": 1, "maximum": 65535 } },
+        "note": { "type": "string", "maxLength": 240 }
+      }
+    },
+    "operators": { "type": "array", "items": { "$ref": "#/$defs/operator" } },
+    "approvals": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["egress", "code_change", "budget", "publish"] }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^[A-Za-z0-9_./-]+$" },
+        "evidence": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "notes": { "type": "string", "maxLength": 400 }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "label", "secret"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "secret": { "type": "boolean" },
+        "required": { "type": "boolean" },
+        "help": { "type": "string", "maxLength": 160 }
+      }
+    },
+    "auth_method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "fields"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "label", "type"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "type": { "enum": ["string", "integer", "boolean", "enum"] },
+        "required": { "type": "boolean" },
+        "default": { "type": ["string", "integer", "boolean"] },
+        "options": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 64 } },
+        "placeholder": { "type": "string", "maxLength": 80 },
+        "help": { "type": "string", "maxLength": 160 }
+      }
+    },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "kind", "summary", "outputs", "determinism"],
+      "properties": {
+        "op": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]*$" },
+        "kind": { "enum": ["adapter", "builtin"] },
+        "summary": { "type": "string", "minLength": 8, "maxLength": 160 },
+        "inputs": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "media_type": { "type": "string", "pattern": "^[a-z]+/[a-z0-9.+-]+$" }
+            }
+          }
+        },
+        "determinism": { "enum": ["pure", "seeded", "nondeterministic"] },
+        "via": { "enum": ["rest", "cli", "sdk", "driver", "builtin"] },
+        "tool": { "type": "string", "pattern": "^[a-z][a-z0-9._-]*$" }
+      }
+    }
+  }
+}

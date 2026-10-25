@@ -1,0 +1,54 @@
+{
+  "connector_version": 0,
+  "id": "tencent-dlc",
+  "name": "Tencent Cloud Data Lake Compute",
+  "vendor": "Tencent Cloud",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run Data Lake Compute SQL tasks through the Tencent Cloud API and register staged Parquet in COS as table partitions, once per partition and revision.",
+  "docs_url": "https://www.tencentcloud.com/document/product/1155",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_keys",
+      "label": "SecretId and SecretKey (CAM user)",
+      "fields": [
+        { "name": "secret_id", "label": "SecretId", "secret": true, "required": true },
+        { "name": "secret_key", "label": "SecretKey", "secret": true, "required": true },
+        { "name": "security_token", "label": "Temporary security token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "ap-guangzhou", "placeholder": "ap-guangzhou" },
+    { "name": "data_engine", "label": "Data engine", "type": "string", "required": true, "help": "The name of the DLC data engine that runs the tasks." },
+    { "name": "database", "label": "Database", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["dlc.tencentcloudapi.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "dlc.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL task on a data engine and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "dlc.load@1",
+      "kind": "adapter",
+      "summary": "Register staged Parquet in COS as a table partition with a SQL task, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staged data and task results live in Tencent COS; add the Tencent COS connector's domains to the same egress approval. The table must already exist."
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-prealpha-call"
+description = "Enables the prealpha_call command without any pre-configured scope."
+commands.allow = ["prealpha_call"]
+
+[[permission]]
+identifier = "deny-prealpha-call"
+description = "Denies the prealpha_call command without any pre-configured scope."
+commands.deny = ["prealpha_call"]

@@ -1,0 +1,51 @@
+{
+  "connector_version": 0,
+  "id": "motherduck",
+  "name": "MotherDuck",
+  "vendor": "MotherDuck",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run DuckDB queries on MotherDuck and load Parquet partitions into MotherDuck tables. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://motherduck.com/docs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "token",
+      "label": "MotherDuck access token",
+      "fields": [
+        { "name": "motherduck_token", "label": "MotherDuck access token", "secret": true, "required": true, "help": "Create it in the MotherDuck app under settings; store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "database", "label": "Database", "type": "string", "required": true, "help": "The MotherDuck database to attach, as in md:<database>." }
+  ],
+  "egress": {
+    "domains": ["*.motherduck.com", "extensions.duckdb.org"],
+    "ports": [443],
+    "note": "MotherDuck hosts are taken to lie under motherduck.com; narrow the list once the exact names are recorded from a real connection."
+  },
+  "operators": [
+    {
+      "op": "motherduck.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query on MotherDuck and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "motherduck.load@1",
+      "kind": "adapter",
+      "summary": "Insert Parquet rows into a MotherDuck table, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "For a local DuckDB file use the DuckDB connector and the builtin duckdb@1 operator; this connector is only for the hosted service. extensions.duckdb.org is where DuckDB fetches its MotherDuck extension."
+}

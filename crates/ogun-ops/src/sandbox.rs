@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::sync::OnceCell;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::tools;
 
 /// Which sandbox this host offers.

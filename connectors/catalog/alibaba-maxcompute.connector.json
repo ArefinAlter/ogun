@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "alibaba-maxcompute",
+  "name": "Alibaba Cloud MaxCompute",
+  "vendor": "Alibaba Cloud",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run MaxCompute SQL and load Parquet partitions into MaxCompute tables through the Tunnel service. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://www.alibabacloud.com/help/en/maxcompute/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "AccessKey pair (RAM user)",
+      "fields": [
+        { "name": "access_key_id", "label": "AccessKey ID", "secret": true, "required": true },
+        { "name": "access_key_secret", "label": "AccessKey secret", "secret": true, "required": true },
+        { "name": "security_token", "label": "STS security token", "secret": true, "required": false, "help": "Only for temporary credentials from STS." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "cn-hangzhou", "placeholder": "cn-hangzhou" },
+    { "name": "project", "label": "Project", "type": "string", "required": true },
+    { "name": "schema", "label": "Schema", "type": "string", "help": "Only for projects that use the schema model." }
+  ],
+  "egress": {
+    "domains": ["service.{region}.maxcompute.aliyun.com", "dt.{region}.maxcompute.aliyun.com"],
+    "ports": [443],
+    "note": "service.<region> is the API endpoint and dt.<region> the Tunnel endpoint on the public network. VPC and intranet endpoints are not listed."
+  },
+  "operators": [
+    {
+      "op": "maxcompute.query@1",
+      "kind": "adapter",
+      "summary": "Run a MaxCompute SQL job and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "maxcompute.load@1",
+      "kind": "adapter",
+      "summary": "Upload Parquet rows into a table partition with Tunnel, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Alibaba Cloud OSS can stage files for external tables (see that connector). Ogun does not create the table or its partition columns."
+}

@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "volcengine-bytehouse",
+  "name": "Volcano Engine ByteHouse",
+  "vendor": "Volcano Engine",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run queries and load Parquet partitions into ByteHouse, the ClickHouse-compatible warehouse of Volcano Engine. Loads are idempotent by partition and revision.",
+  "docs_url": "https://www.volcengine.com/docs",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "endpoint", "label": "Endpoint", "type": "string", "required": true, "help": "The host shown on the connection page of the ByteHouse console, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "required": true, "help": "The port shown on the connection page of the ByteHouse console." },
+    { "name": "secure", "label": "Use TLS", "type": "boolean", "default": true },
+    { "name": "database", "label": "Database", "type": "string", "default": "default" }
+  ],
+  "egress": {
+    "domains": ["{endpoint}"],
+    "ports": [8443, 9440],
+    "note": "These are the ClickHouse TLS defaults, listed because ByteHouse is ClickHouse-compatible. Set the port setting to the one the console shows."
+  },
+  "operators": [
+    {
+      "op": "bytehouse.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "bytehouse.load@1",
+      "kind": "adapter",
+      "summary": "Insert Parquet rows into a table, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Use a ClickHouse-compatible driver. For ClickHouse Cloud or a self-hosted server see the ClickHouse connector. Ogun does not create the table."
+}

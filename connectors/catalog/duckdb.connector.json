@@ -1,0 +1,33 @@
+{
+  "connector_version": 0,
+  "id": "duckdb",
+  "name": "DuckDB",
+  "vendor": "DuckDB",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Query and write a local DuckDB database file, or an in-process database, from workflows. The only network use is downloading DuckDB extensions.",
+  "docs_url": "https://duckdb.org/docs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "file",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No credentials (local file)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "path", "label": "Database file", "type": "string", "default": ":memory:", "help": "A path under the workspace, or :memory: for an in-process database." },
+    { "name": "read_only", "label": "Open read-only", "type": "boolean", "default": false },
+    { "name": "extensions_host", "label": "Extension repository host", "type": "string", "default": "extensions.duckdb.org", "help": "Where INSTALL fetches extensions from; change it for a private repository." }
+  ],
+  "egress": {
+    "domains": ["{extensions_host}"],
+    "ports": [443],
+    "note": "Reading and writing the database file needs no network. Only INSTALL of an extension reaches the repository host."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Ogun already ships the builtin duckdb@1 operator, which is the way to use DuckDB in a workflow; this manifest only records the settings and the extension egress. For the hosted service see the MotherDuck connector."
+}

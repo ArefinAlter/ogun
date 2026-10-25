@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "alibaba-sls",
+  "name": "Alibaba Cloud Simple Log Service",
+  "vendor": "Alibaba Cloud",
+  "category": "streaming",
+  "regions": ["cn", "global"],
+  "summary": "Read logs from and write logs to Alibaba Cloud Simple Log Service Logstores, as JSON lines in a workflow, with an AccessKey pair.",
+  "docs_url": "https://www.alibabacloud.com/help/en/sls/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "AccessKey pair (RAM user)",
+      "fields": [
+        { "name": "access_key_id", "label": "AccessKey ID", "secret": true, "required": true },
+        { "name": "access_key_secret", "label": "AccessKey secret", "secret": true, "required": true },
+        { "name": "security_token", "label": "STS security token", "secret": true, "required": false, "help": "Only for temporary credentials from STS." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "cn-hangzhou", "placeholder": "cn-hangzhou" },
+    { "name": "project", "label": "Project", "type": "string", "required": true },
+    { "name": "logstore", "label": "Logstore", "type": "string", "required": true },
+    { "name": "consumer_group", "label": "Consumer group", "type": "string", "help": "Used by sls.consume@1." }
+  ],
+  "egress": {
+    "domains": ["{project}.{region}.log.aliyuncs.com", "{region}.log.aliyuncs.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "sls.consume@1",
+      "kind": "adapter",
+      "summary": "Read log groups from a Logstore and keep them as JSON lines.",
+      "outputs": [{ "name": "records", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "sls.produce@1",
+      "kind": "adapter",
+      "summary": "Write log groups to a Logstore and record the request id of each write.",
+      "inputs": ["records"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Bridging logs into Ogun's stream sources (O-09) is done by ogun-ingest and is not built for Simple Log Service."
+}

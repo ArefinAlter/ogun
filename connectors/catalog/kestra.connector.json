@@ -1,0 +1,38 @@
+{
+  "connector_version": 0,
+  "id": "kestra",
+  "name": "Kestra",
+  "vendor": "Kestra",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "Start a run of an approved Ogun workflow from a Kestra flow, wait for it and expose the run id, state and artifact digests as outputs. Kestra calls Ogun and cannot approve.",
+  "docs_url": "https://kestra.io/docs",
+  "maturity": "built",
+  "directions": ["trigger"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": true, "help": "The blueprint connects as kestra (ogun credentials add kestra --kind agent). Edit the Client.connect call to use another name." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "workflow", "label": "Ogun workflow", "type": "string", "required": true, "placeholder": "noaa-daily", "help": "Name of the stored Ogun workflow. A flow input." },
+    { "name": "workflow_hash", "label": "Pinned workflow hash", "type": "string", "help": "The hash a person reviewed and approved. The run binds to it. A flow input." },
+    { "name": "partition", "label": "Partition key", "type": "string", "placeholder": "2026-01-31", "help": "One partition key. Empty runs the latest partition. A flow input." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "Both tasks use the Process task runner on the ogund host and reach ogund through its local socket (O-15 section 2); nothing leaves the host."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "integrations/kestra",
+    "evidence": "IMPLEMENTATION_STATUS names no check of the Kestra blueprint. The Java plugin task io.verne.ogun.Run is not built."
+  },
+  "notes": "A flow blueprint, not a plugin: a Commands task runs ogun validate --json and ogun hash --json against the pinned hash, then a Python Script task starts the run with ogun-client. A Schedule trigger runs yesterday's partition at 04:15."
+}

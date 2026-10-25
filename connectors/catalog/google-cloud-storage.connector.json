@@ -1,0 +1,71 @@
+{
+  "connector_version": 0,
+  "id": "google-cloud-storage",
+  "name": "Google Cloud Storage",
+  "vendor": "Google Cloud",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish objects in Google Cloud Storage with a service account or Application Default Credentials, through the JSON API.",
+  "docs_url": "https://cloud.google.com/storage/docs",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "service_account",
+      "label": "Service account key",
+      "fields": [
+        { "name": "service_account_json", "label": "Service account key (JSON)", "secret": true, "required": true, "help": "Create it in the Google Cloud console; store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "adc",
+      "label": "Application Default Credentials on the daemon host",
+      "fields": []
+    },
+    {
+      "id": "anonymous",
+      "label": "No credentials (public buckets)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Object prefix", "type": "string" },
+    { "name": "project_id", "label": "Project", "type": "string", "help": "Only needed to bill requests to a project, for example for requester-pays buckets." }
+  ],
+  "egress": {
+    "domains": ["storage.googleapis.com", "oauth2.googleapis.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "gcs.list@1",
+      "kind": "adapter",
+      "summary": "List objects under a prefix as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "gcs.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "gcs.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under an object prefix with a resumable upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging bucket for BigQuery loads (see the BigQuery connector). Requests go to storage.googleapis.com; the bucket is part of the path."
+}

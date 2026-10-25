@@ -1,0 +1,21 @@
+# Dex for the loopback demo hub. Secrets come from dex.env (see ../README.md), never from this file.
+issuer: http://localhost:18444/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:18444
+oauth2:
+  skipApprovalScreen: true
+  responseTypes: [code]
+enablePasswordDB: true
+staticClients:
+  - id: ogun
+    name: Ogun demo hub
+    secretEnv: OGUN_CLIENT_SECRET
+    redirectURIs:
+      - http://localhost:18443/auth/callback
+staticPasswords:
+  - email: demo@ogun.local
+    username: demo
+    userID: 7a1f3c52-0e0e-4a39-9a9e-6f0d2a3b4c5d
+    hashFromEnv: DEMO_PASSWORD_HASH

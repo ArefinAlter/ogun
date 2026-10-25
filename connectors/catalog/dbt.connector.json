@@ -1,0 +1,29 @@
+{
+  "connector_version": 0,
+  "id": "dbt",
+  "name": "dbt",
+  "vendor": "dbt Labs",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "Run dbt build on a verified dbt project bundle in the operator sandbox, against a DuckDB database Ogun generates, and keep run_results.json, manifest.json and the database as artifacts.",
+  "docs_url": "https://docs.getdbt.com/",
+  "maturity": "built",
+  "directions": ["source", "sink"],
+  "protocol": "cli",
+  "auth": [],
+  "settings": [
+    { "name": "select", "label": "Node selection", "type": "string", "placeholder": "tag:daily+", "help": "Passed to dbt build --select. Letters, digits and _ . : + * @ , / - and spaces, at most 512 characters." },
+    { "name": "threads", "label": "Threads", "type": "integer", "default": 1, "help": "From 1 to 16." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "None. The dbt operator runs with the sandbox network denied; it needs no warehouse and reaches nothing outside the machine."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "crates/ogun-ops",
+    "evidence": "The manifest is compiled into ogun-ops and the shim is in ogun-op-shims. IMPLEMENTATION_STATUS does not mention dbt, and no test in the repository runs dbt."
+  },
+  "notes": "This is Ogun's builtin dbt@1 operator, not an adapter. It runs a code bundle referenced by content hash and needs a human approval bound to the workflow hash. dbt with the dbt-duckdb adapter must be installed. Ogun does not pretend to be a warehouse (ADR 0012)."
+}

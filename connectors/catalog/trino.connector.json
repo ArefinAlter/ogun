@@ -1,0 +1,70 @@
+{
+  "connector_version": 0,
+  "id": "trino",
+  "name": "Trino",
+  "vendor": "Trino",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries against a Trino coordinator and keep the results as Parquet. Writes go through a catalog that can read staged Parquet, once per partition and revision.",
+  "docs_url": "https://trino.io/docs/current/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true, "help": "Sent as the query user. Trino does not check it when authentication is off." }
+      ]
+    },
+    {
+      "id": "basic",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "jwt",
+      "label": "JWT",
+      "fields": [
+        { "name": "jwt_token", "label": "JWT", "secret": true, "required": true, "help": "A signed token that the coordinator is configured to accept." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Coordinator host", "type": "string", "required": true },
+    { "name": "port", "label": "Port", "type": "integer", "default": 8443, "help": "8443 for HTTPS, 8080 for plain HTTP." },
+    { "name": "https", "label": "Use HTTPS", "type": "boolean", "default": true },
+    { "name": "catalog", "label": "Catalog", "type": "string" },
+    { "name": "schema", "label": "Schema", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [8443, 8080],
+    "note": "8443 and 8080 are the usual HTTPS and HTTP ports of a coordinator; the port setting overrides them."
+  },
+  "operators": [
+    {
+      "op": "trino.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "trino.load@1",
+      "kind": "adapter",
+      "summary": "Insert staged Parquet into a table through a catalog that can read it, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Loading needs a catalog whose connector can read Parquet from object storage, such as Hive, and permission to write. Trino does not store data itself; add the staging store's connector domains to the same egress approval."
+}

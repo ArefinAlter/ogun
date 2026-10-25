@@ -1,0 +1,57 @@
+{
+  "connector_version": 0,
+  "id": "google-pubsub",
+  "name": "Google Cloud Pub/Sub",
+  "vendor": "Google Cloud",
+  "category": "streaming",
+  "regions": ["global"],
+  "summary": "Pull messages from a Google Cloud Pub/Sub subscription and publish messages to a topic, as JSON lines in a workflow.",
+  "docs_url": "https://cloud.google.com/pubsub/docs",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "service_account",
+      "label": "Service account key",
+      "fields": [
+        { "name": "service_account_json", "label": "Service account key (JSON)", "secret": true, "required": true, "help": "Create it in the Google Cloud console; store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "adc",
+      "label": "Application Default Credentials on the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "project_id", "label": "Project", "type": "string", "required": true, "placeholder": "my-project-123456" },
+    { "name": "subscription", "label": "Subscription", "type": "string", "help": "Used by pubsub.consume@1." },
+    { "name": "topic", "label": "Topic", "type": "string", "help": "Used by pubsub.produce@1." }
+  ],
+  "egress": {
+    "domains": ["pubsub.googleapis.com", "oauth2.googleapis.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "pubsub.consume@1",
+      "kind": "adapter",
+      "summary": "Pull messages from a subscription, acknowledge them after they are stored, and keep them as JSON lines.",
+      "outputs": [{ "name": "records", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "pubsub.produce@1",
+      "kind": "adapter",
+      "summary": "Publish messages to a topic and record the message id of each.",
+      "inputs": ["records"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Bridging messages into Ogun's stream sources (O-09) is done by ogun-ingest and is not built for Pub/Sub."
+}

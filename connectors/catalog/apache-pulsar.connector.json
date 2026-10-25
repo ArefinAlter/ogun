@@ -1,0 +1,58 @@
+{
+  "connector_version": 0,
+  "id": "apache-pulsar",
+  "name": "Apache Pulsar",
+  "vendor": "Apache Software Foundation",
+  "category": "streaming",
+  "regions": ["cn", "global"],
+  "summary": "Consume messages from and produce messages to Apache Pulsar topics, with token authentication, as JSON lines in a workflow.",
+  "docs_url": "https://pulsar.apache.org/docs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": []
+    },
+    {
+      "id": "jwt",
+      "label": "JWT token",
+      "fields": [
+        { "name": "auth_token", "label": "Authentication token", "secret": true, "required": true, "help": "A JWT issued by the cluster's operator; store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "service_url", "label": "Service URL", "type": "string", "required": true, "placeholder": "pulsar+ssl://pulsar.example.com:6651", "help": "pulsar:// for plain text, pulsar+ssl:// for TLS." },
+    { "name": "topic", "label": "Topic", "type": "string", "required": true, "placeholder": "persistent://tenant/namespace/topic" },
+    { "name": "subscription", "label": "Subscription", "type": "string", "help": "Used by pulsar.consume@1." }
+  ],
+  "egress": {
+    "domains": ["{service_url}"],
+    "ports": [6650, 6651],
+    "note": "The host in service_url. 6650 is the default for pulsar://, 6651 for pulsar+ssl://."
+  },
+  "operators": [
+    {
+      "op": "pulsar.consume@1",
+      "kind": "adapter",
+      "summary": "Read messages from a topic through a subscription and keep them as JSON lines.",
+      "outputs": [{ "name": "records", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "pulsar.produce@1",
+      "kind": "adapter",
+      "summary": "Send messages to a topic and record the message id of each.",
+      "inputs": ["records"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Bridging messages into Ogun's stream sources (O-09) is done by ogun-ingest and is not built for Pulsar."
+}

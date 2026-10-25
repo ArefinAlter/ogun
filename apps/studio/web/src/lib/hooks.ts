@@ -6,6 +6,7 @@ import { useCallback, useContext, useEffect, useRef, useState } from 'preact/hoo
 import type { Backend, ShellInfo } from '../api'
 import { asOgunError } from '../api'
 import type { EventView, OgunError } from '../api/types'
+import { usePrefs } from './prefs'
 
 export const BackendContext = createContext<Backend | null>(null)
 export const InfoContext = createContext<{ info: ShellInfo | null; refresh: () => void }>({
@@ -65,8 +66,9 @@ export function useLive(onChange: (e: EventView) => void, runId?: string, enable
   const [error, setError] = useState<OgunError | undefined>(undefined)
   const cb = useRef(onChange)
   cb.current = onChange
+  const follow = usePrefs().liveUpdates
   useEffect(() => {
-    if (!enabled) return undefined
+    if (!enabled || !follow) return undefined
     let timer: ReturnType<typeof setTimeout> | undefined
     let latest: EventView | undefined
     const sub = backend.subscribe(
@@ -87,7 +89,7 @@ export function useLive(onChange: (e: EventView) => void, runId?: string, enable
       sub.close()
       if (timer !== undefined) clearTimeout(timer)
     }
-  }, [backend, runId, enabled])
+  }, [backend, runId, enabled, follow])
   return error
 }
 

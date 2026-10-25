@@ -1,0 +1,55 @@
+{
+  "connector_version": 0,
+  "id": "starrocks",
+  "name": "StarRocks",
+  "vendor": "StarRocks",
+  "category": "warehouse",
+  "regions": ["cn", "global"],
+  "summary": "Run queries over the MySQL protocol and load partitions into StarRocks with Stream Load over HTTP, labelled by partition and revision so a retry is not applied twice.",
+  "docs_url": "https://docs.starrocks.io/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": false, "help": "Empty only if the user has no password." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "fe_host", "label": "Frontend host", "type": "string", "required": true, "help": "A frontend (FE) node; the same host serves both the MySQL port and the HTTP port." },
+    { "name": "query_port", "label": "MySQL protocol port", "type": "integer", "default": 9030 },
+    { "name": "http_port", "label": "HTTP port", "type": "integer", "default": 8030 },
+    { "name": "database", "label": "Database", "type": "string", "required": true }
+  ],
+  "egress": {
+    "domains": ["{fe_host}"],
+    "ports": [9030, 8030, 8040],
+    "note": "9030 is the frontend MySQL port and 8030 its HTTP port. A frontend may redirect Stream Load to a backend on 8040; approve those hosts as well."
+  },
+  "operators": [
+    {
+      "op": "starrocks.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query over the MySQL protocol and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "starrocks.load@1",
+      "kind": "adapter",
+      "summary": "Send a partition's rows with Stream Load under a label from the partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Stream Load takes CSV or JSON, so Ogun converts the Parquet rows. A label can be used by one successful load in a database, which is what makes a retry safe. Ogun does not create the table."
+}

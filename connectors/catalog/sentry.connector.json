@@ -1,0 +1,33 @@
+{
+  "connector_version": 0,
+  "id": "sentry",
+  "name": "Sentry",
+  "vendor": "Sentry",
+  "category": "observability",
+  "regions": ["global"],
+  "summary": "Report failed Ogun runs to Sentry as error events, with the workflow, run id and failing node, using a project DSN.",
+  "docs_url": "https://docs.sentry.io/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "dsn",
+      "label": "Project DSN",
+      "fields": [
+        { "name": "dsn", "label": "DSN", "secret": true, "required": true, "help": "The DSN holds a public key and your organization's ingest host. Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "environment", "label": "Environment", "type": "string", "placeholder": "production", "help": "Sentry's environment tag." }
+  ],
+  "egress": {
+    "domains": ["*.ingest.sentry.io"],
+    "ports": [443],
+    "note": "The ingest host is in your DSN. If it is not under ingest.sentry.io, or Sentry is self-hosted, approve the host in the DSN instead."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Events: failed runs. Sentry takes no metrics from Ogun (ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances go to the other exporters), and approvals waiting for a person are not errors."
+}

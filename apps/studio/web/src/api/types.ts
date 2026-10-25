@@ -328,4 +328,325 @@ export interface ListSecretsResult {
 export interface LadderResult {
   available: boolean
   ladder?: unknown
+  /** Reported by the scripted demo only: the month's model spend against its cap. */
+  spend?: { month_usd_micro: number; cap_usd_micro: number; entries: number }
 }
+
+// ---------------------------------------------------------------- connections, schedules, storage, archive
+// Settings pages beyond the closed O-15 set. A daemon that does not offer them leaves the matching `Backend`
+// member undefined and Studio says so; the scripted demo implements all of them (see O-16, Proposed).
+
+export type ConnectionState = 'untested' | 'healthy' | 'failing'
+
+export type ConnectionValue = string | number | boolean
+
+/** A named, configured use of a connector: plain settings, and the NAMES of secrets (never their values). */
+export interface ConnectionView {
+  connection_id: string
+  name: string
+  connector: string
+  auth: string
+  settings: Record<string, ConnectionValue>
+  /** Auth field name -> the name of the secret that holds it (`ogun secrets set <name>`). */
+  secret_refs: Record<string, string>
+  state: ConnectionState
+  last_test_at?: Timestamp
+  last_test_ms?: number
+  last_error?: string
+  created_at: Timestamp
+  used_by: string[]
+}
+
+export interface ConnectionInput {
+  name: string
+  connector: string
+  auth: string
+  settings: Record<string, ConnectionValue>
+  secret_refs: Record<string, string>
+}
+
+export interface ConnectionCheck {
+  name: string
+  ok: boolean
+  detail: string
+}
+
+export interface ConnectionTestResult {
+  ok: boolean
+  elapsed_ms: number
+  simulated: boolean
+  checks: ConnectionCheck[]
+}
+
+export interface ScheduleView {
+  workflow: string
+  version: number
+  trigger_kind: string
+  /** The cron expression for `cron` triggers. */
+  cron?: string
+  /** For stream triggers: the source id. */
+  source?: string
+  enabled: boolean
+  runnable: boolean
+  last_run_at?: Timestamp
+  last_run_state?: RunState
+}
+
+export interface StorageInfo {
+  root: string
+  artifacts: { count: number; bytes: number }
+  runs: { count: number }
+  caches: { bytes: number }
+  limit_bytes: number
+  retention_days: number
+  by_workflow: { workflow: string; artifacts: number; bytes: number }[]
+}
+
+export type ArchiveKind = 'workflow_version' | 'run'
+
+export interface ArchiveItem {
+  id: string
+  kind: ArchiveKind
+  name: string
+  detail: string
+  archived_at: Timestamp
+  reason: string
+}
+
+// ---------------------------------------------------------------- runtime defaults, environments, sources, evidence, storage rules
+// More settings a daemon may offer (O-16, Proposed). Each is an optional `Backend` member; a daemon without it is
+// shown the matching page read-only, with the honest "this daemon does not report this" notice.
+
+export interface RuntimeSettings {
+  /** Node instances running at once, per run. */
+  concurrency: number
+  /** Default retries per node (`policy.retries`). */
+  retries: number
+  /** Default wall-clock budget in minutes; 0 means none. */
+  wall_minutes: number
+  /** Default bytes budget in GiB; 0 means none. */
+  bytes_gib: number
+  /** How long an approval request waits before it expires. */
+  approval_expiry_hours: number
+  /** `off`: no model operator may run. `ladder`: operators may use the provider ladder. */
+  model_access: 'off' | 'ladder'
+  /** Pause a schedule after this many failed runs in a row; 0 means never. */
+  auto_pause_after_failures: number
+  /** Archive finished runs after this many days; 0 means never. */
+  auto_archive_days: number
+  /** Never auto-archive a run with a failed or waiting partition. */
+  keep_attention_runs: boolean
+  /** Start runs that were in flight when the daemon last stopped. */
+  resume_on_start: boolean
+}
+
+export interface RuntimeSettingsView {
+  values: RuntimeSettings
+  /** The workflow this view is for, or null for the daemon-wide defaults. */
+  scope_workflow: string | null
+  /** Members this workflow overrides (always empty for the daemon-wide view). */
+  overridden: (keyof RuntimeSettings)[]
+}
+
+export type EnvironmentKind = 'local' | 'hub' | 'edge'
+
+export interface EnvironmentView {
+  id: string
+  name: string
+  kind: EnvironmentKind
+  connected: boolean
+  version?: string
+  endpoint?: string
+  detail?: string
+  last_seen_at?: Timestamp
+  error?: string
+}
+
+export interface BridgeView {
+  id: 'zeus' | 'ingest' | 'sync' | 'server' | 'remote_approvals'
+  name: string
+  state: 'running' | 'stopped' | 'not_configured' | 'locked'
+  detail: string
+}
+
+export interface EnvironmentsResult {
+  environments: EnvironmentView[]
+  bridges: BridgeView[]
+  scheduler_enabled: boolean
+}
+
+export type SourceKind = 'folder' | 'git'
+
+export interface SourceRepo {
+  id: string
+  name: string
+  kind: SourceKind
+  location: string
+  branch?: string
+  watch: boolean
+  import_mode: 'store' | 'store_validate'
+  workflows: number
+  last_sync_at?: Timestamp
+  last_result?: string
+}
+
+export interface SourceProvider {
+  id: string
+  name: string
+  region: 'global' | 'cn'
+  state: 'available' | 'not_authenticated' | 'not_installed'
+  detail: string
+  enabled: boolean
+}
+
+export interface SourcesResult {
+  repos: SourceRepo[]
+  providers: SourceProvider[]
+  auto_pull: boolean
+}
+
+export interface EvidenceSettings {
+  enabled: boolean
+  format: 'json' | 'html'
+  include_lineage: boolean
+  include_previews: boolean
+}
+
+export interface StorageRules {
+  store_location: string
+  limit_gib: number
+  retention_days: number
+  delete_failed_after_days: number
+  delete_cancelled_after_days: number
+  delete_partials_after_days: number
+  delete_logs_after_days: number
+  clear_caches_after_days: number
+  keep_lineage_referenced: boolean
+}
+
+export interface CleanupPlan {
+  artifacts: number
+  bytes: number
+  caches_bytes: number
+  logs: number
+  lines: { rule: string; artifacts: number; bytes: number }[]
+}
+
+export interface LadderProvider {
+  name: string
+  kind: 'anthropic' | 'openai' | 'openai_compatible' | 'ollama' | 'google'
+  enabled: boolean
+  base_url: string
+  model: string
+  api_key_secret?: string
+  input_per_mtok_usd_micro: number
+  output_per_mtok_usd_micro: number
+  max_output_tokens: number
+  timeout_ms: number
+  capabilities: ('chat' | 'json_schema' | 'embeddings')[]
+  allow_insecure_http: boolean
+}
+
+// ---------------------------------------------------------------- agent threads (O-17, proposed)
+//
+// A thread is a conversation between a person and an agent that works on the daemon through a closed set of tools.
+// The agent's words are untrusted text. Everything with consequences is a card made from the daemon's own answers
+// (a validation result, a plan, an approval request), and every action on a card is a button that a person presses.
+// The agent has no tool that decides an approval, reads a secret value or runs a shell.
+
+/** What the agent may do in a thread: read, also store workflow versions, or also start runs. */
+export type AgentAccess = 'read' | 'author' | 'operate'
+export type AgentThreadState = 'idle' | 'running' | 'waiting'
+
+export interface AgentModel {
+  id: string
+  label: string
+  provider: string
+  /** False for an entry the daemon cannot call yet; `note` says why. */
+  available: boolean
+  note?: string
+}
+
+export interface AgentToolInfo {
+  name: string
+  /** The least access that may call it. */
+  access: AgentAccess
+  summary: string
+}
+
+export interface AgentSettings {
+  /** Standing instructions for every thread, like an AGENTS.md. Untrusted by the daemon: never holds a secret. */
+  instructions: string
+  default_access: AgentAccess
+  default_model: string
+  /** Model spend allowed per thread, in US dollars; 0 means no model call. */
+  spend_cap_usd: number
+  /** The tools the agent may call at all (an allow-list over the tool table). */
+  tools_enabled: string[]
+  retention_days: number
+}
+
+export interface AgentThreadSummary {
+  thread_id: string
+  title: string
+  state: AgentThreadState
+  access: AgentAccess
+  model: string
+  created_at: string
+  updated_at: string
+  item_count: number
+}
+
+/** Something the person pointed the agent at with `@`. */
+export interface Mention {
+  kind: 'workflow' | 'run' | 'connector' | 'approval'
+  id: string
+  label: string
+}
+
+export interface AgentApprovalRef {
+  approval_id: string
+  kind: string
+  workflow: string
+  node?: string
+  state: string
+  requested_by: string
+}
+
+export type AgentCard =
+  | { type: 'plan'; title: string; steps: { text: string; state: 'todo' | 'doing' | 'done' }[] }
+  | { type: 'proposal'; workflow: WorkflowDoc; hash?: string; valid: boolean; diagnostics: Diagnostic[]; needs: string[]; stored?: { version: number } }
+  | { type: 'backfill'; workflow: string; from: string; to: string; to_run: number; up_to_date: number; started?: { run_id: string } }
+  | { type: 'approvals'; approvals: AgentApprovalRef[] }
+  | { type: 'run'; run_id: string; workflow: string }
+  | { type: 'table'; title: string; columns: string[]; rows: string[][]; source?: string }
+  | { type: 'connector'; connector_id: string; why: string }
+  | { type: 'retry'; run_id: string; workflow: string; node: string; cause: string; started?: { run_id: string } }
+
+interface AgentItemBase {
+  id: string
+  at: string
+}
+
+export type AgentItem =
+  | (AgentItemBase & { kind: 'user'; text: string; mentions: Mention[] })
+  | (AgentItemBase & { kind: 'assistant'; text: string; streaming: boolean })
+  | (AgentItemBase & {
+      kind: 'tool'
+      tool: string
+      summary: string
+      input?: unknown
+      output?: unknown
+      state: 'running' | 'ok' | 'error' | 'denied'
+      ms?: number
+    })
+  | (AgentItemBase & { kind: 'card'; card: AgentCard })
+  | (AgentItemBase & { kind: 'notice'; tone: 'info' | 'warn'; text: string })
+
+export interface AgentThread extends AgentThreadSummary {
+  items: AgentItem[]
+  mentions: Mention[]
+}
+
+/** What a person can press on a card. The daemon does it with the person's own role, never the agent's. */
+export type AgentAction = 'store' | 'start_backfill' | 'retry'

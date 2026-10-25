@@ -1,0 +1,41 @@
+{
+  "connector_version": 0,
+  "id": "file-tail",
+  "name": "File tail",
+  "vendor": "Ogun",
+  "category": "edge",
+  "regions": ["global", "cn"],
+  "summary": "Follow a local JSON Lines or CSV file that a logger appends to, and log its complete lines as a durable stream, replayable by byte offset.",
+  "docs_url": "https://jsonlines.org/",
+  "maturity": "built",
+  "directions": ["edge"],
+  "protocol": "file",
+  "auth": [],
+  "settings": [
+    { "name": "path", "label": "File path", "type": "string", "required": true, "help": "The file to follow. May also be set per source in ingest.json." },
+    { "name": "format", "label": "Format", "type": "enum", "required": true, "default": "jsonl", "options": ["jsonl", "csv"] },
+    { "name": "columns", "label": "CSV columns", "type": "string", "help": "Comma-separated names, only for CSV without a header line." },
+    { "name": "poll_ms", "label": "Poll interval (ms)", "type": "integer", "default": 1000 },
+    { "name": "start", "label": "Start at", "type": "enum", "default": "beginning", "options": ["beginning", "end"], "help": "For a file seen for the first time." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "Reads a file on this machine and reaches nothing outside it."
+  },
+  "operators": [
+    {
+      "op": "stream.file_tail@1",
+      "kind": "builtin",
+      "summary": "Follow a local file and log its complete lines as a stream that feeds window partitions.",
+      "outputs": [{ "name": "window" }],
+      "determinism": "nondeterministic",
+      "via": "builtin"
+    }
+  ],
+  "implementation": {
+    "path": "crates/ogun-ingest",
+    "evidence": "unit and loopback tests; not run against a real broker, network server or device"
+  },
+  "notes": "Only complete lines are read. After each commit the byte offset, the file identity and the CSV header are saved, so a restart resumes where it stopped. On rotation the old file is read to its end and the new one from offset 0; on truncation the file is read again from offset 0 (O-10 section 2.4.5)."
+}

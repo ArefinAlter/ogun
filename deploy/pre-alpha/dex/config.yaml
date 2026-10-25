@@ -1,0 +1,29 @@
+# Dex for the hosted pre-alpha hub. Secrets and password hashes come from secrets/dex.env, never from this file.
+issuer: https://ogun.103.191.50.32.sslip.io/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:18444
+frontend:
+  issuer: Ogun pre-alpha
+oauth2:
+  skipApprovalScreen: true
+  responseTypes: [code]
+enablePasswordDB: true
+staticClients:
+  - id: ogun
+    name: Ogun pre-alpha hub
+    secretEnv: OGUN_CLIENT_SECRET
+    redirectURIs:
+      - https://ogun.103.191.50.32.sslip.io/auth/callback
+staticPasswords:
+  # The owner: a person who administers the hub. Its password is in /opt/ogun-prealpha/owner-login.txt (0600).
+  - email: owner@ogun.local
+    username: owner
+    userID: 2c5f0a1e-8b7d-4e43-9a61-0d3c7b5e9f10
+    hashFromEnv: OWNER_PASSWORD_HASH
+  # The shared sample account, shown on the sign-in page. Editor role: no admin, no approvals.
+  - email: sample@example.org
+    username: sample
+    userID: 9e4b6c2d-1f3a-4d58-8c07-5a2e6f1b3d94
+    hashFromEnv: SAMPLE_PASSWORD_HASH

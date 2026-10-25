@@ -1,0 +1,49 @@
+{
+  "ir_version": 0,
+  "workflow": "rebalance-plan",
+  "version": 1,
+  "description": "Every morning: thirty days of hourly dock rollups and the shortlist of stations likely to run empty today, from the sample files server inside the hub.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "45 0 * * *"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "rollups",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "files.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://files.example.org/docks/hourly-30d.csv"
+          }
+        ]
+      }
+    },
+    {
+      "id": "shortlist",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "files.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://files.example.org/rebalance/shortlist.csv"
+          }
+        ]
+      }
+    },
+    {
+      "id": "digest",
+      "op": "hash@1",
+      "inputs": [
+        "shortlist.artifacts"
+      ]
+    }
+  ]
+}

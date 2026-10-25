@@ -1,0 +1,51 @@
+{
+  "connector_version": 0,
+  "id": "aws-glue-data-catalog",
+  "name": "AWS Glue Data Catalog",
+  "vendor": "Amazon Web Services",
+  "category": "catalog",
+  "regions": ["global"],
+  "summary": "Register the Parquet tables and partitions that Ogun publishes to Amazon S3 in the AWS Glue Data Catalog, so engines that read the Glue catalog can find them.",
+  "docs_url": "https://docs.aws.amazon.com/glue/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    },
+    {
+      "id": "instance_role",
+      "label": "IAM role of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "placeholder": "us-east-1" },
+    { "name": "database", "label": "Glue database", "type": "string", "required": true },
+    { "name": "catalog_id", "label": "Catalog ID", "type": "string", "help": "AWS account ID that owns the catalog. Empty means the caller's account." }
+  ],
+  "egress": {
+    "domains": ["glue.{region}.amazonaws.com", "sts.{region}.amazonaws.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "glue.register@1",
+      "kind": "adapter",
+      "summary": "Create or update a Glue table for published Parquet and add the partitions a publish step wrote.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Glue holds the schema and the S3 location; the data stays in S3, written by the Amazon S3 connector. Add that connector's domains to the same egress approval. Requests are signed with Signature Version 4. AWS China regions use other hosts and are not covered."
+}
