@@ -711,13 +711,54 @@ mod tests {
             "{\"instance_id\":\"t1\",\"instruction\":\"Write done.txt\"}\n",
         )
         .unwrap();
-        // Use the native shell on Windows; passing a native path through an unquoted sh
-        // script strips backslashes and makes the evaluator look for the wrong file.
+        // Keep Windows scripts in files so JSON quotes never pass through cmd /C's
+        // command-line parser. Pass paths as separate arguments to preserve spaces
+        // and backslashes, and write usage as UTF-8 without a BOM.
         #[cfg(windows)]
-        let (evaluator, agent) = (
-            vec!["cmd".into(), "/C".into(), r#"if exist "{workspace}\done.txt" (echo {"passed":true,"score":1}) else (echo {"passed":false})"#.into()],
-            vec!["cmd".into(), "/C".into(), r#"echo done>done.txt & echo {"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}>"{trajectory_file}""#.into()],
-        );
+        let (evaluator, agent) = {
+            let scripts = dir.path().join("fixture scripts");
+            std::fs::create_dir_all(&scripts).unwrap();
+            let evaluator_script = scripts.join("evaluate.ps1");
+            let agent_script = scripts.join("agent.ps1");
+            std::fs::write(
+                &evaluator_script,
+                r#"param([string]$Workspace)
+$ErrorActionPreference = 'Stop'
+if ([System.IO.File]::Exists([System.IO.Path]::Combine($Workspace, 'done.txt'))) {
+    Write-Output '{"passed":true,"score":1}'
+} else {
+    Write-Output '{"passed":false}'
+}
+"#,
+            )
+            .unwrap();
+            std::fs::write(
+                &agent_script,
+                r#"param([string]$Workspace, [string]$TrajectoryFile)
+$ErrorActionPreference = 'Stop'
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText([System.IO.Path]::Combine($Workspace, 'done.txt'), "done`n", $utf8)
+[System.IO.File]::WriteAllText($TrajectoryFile, '{"type":"usage","input_tokens":3,"output_tokens":4,"cost_usd_micro":5}' + "`n", $utf8)
+"#,
+            )
+            .unwrap();
+            let script_command = |script: &Path| {
+                vec![
+                    "powershell.exe".into(),
+                    "-NoProfile".into(),
+                    "-NonInteractive".into(),
+                    "-ExecutionPolicy".into(),
+                    "Bypass".into(),
+                    "-File".into(),
+                    script.display().to_string(),
+                    "{workspace}".into(),
+                ]
+            };
+            let evaluator = script_command(&evaluator_script);
+            let mut agent = script_command(&agent_script);
+            agent.push("{trajectory_file}".into());
+            (evaluator, agent)
+        };
         #[cfg(not(windows))]
         let (evaluator, agent) = (
             vec!["sh".into(), "-c".into(), r#"test -f "$1/done.txt" && echo '{"passed":true,"score":1}' || echo '{"passed":false}'"#.into(), "test".into(), "{workspace}".into()],
