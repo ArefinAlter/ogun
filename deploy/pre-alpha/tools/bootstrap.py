@@ -11,7 +11,7 @@ signs it in once, and mints two API tokens (both act as agents and can never dec
     secrets/agent-token     the pre-alpha service's agent, role editor
     secrets/desktop-token   the public token the desktop release links with, role editor
 
-Passwords are read from secrets/ and owner-login.txt; nothing secret is printed.
+Passwords are read from secrets/ and the owner-login.txt that setup.sh wrote beside the checkout; nothing secret is printed.
 """
 import html.parser
 import http.cookiejar
@@ -107,7 +107,7 @@ def write_secret(name, value):
 
 
 def main():
-    owner_pw = re.search(r'password:\s*(\S+)', (HERE / 'owner-login.txt').read_text()).group(1)
+    owner_pw = re.search(r'password:\s*(\S+)', (HERE.parent.parent.parent / 'owner-login.txt').read_text()).group(1)
     code_url = subprocess.run(['docker', 'compose', 'exec', '-T', 'ogun-server', 'cat', '/var/lib/ogun/ogun-server/owner-enrolment.txt'],
                               cwd=HERE, capture_output=True, text=True, check=True).stdout
     link = re.search(r'(/enroll/[A-Za-z0-9_-]+)', code_url).group(1)

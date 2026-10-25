@@ -3,6 +3,8 @@
 // decide an approval), and a person's button press on a card, with that person's own session cookie and CSRF token
 // forwarded unchanged. Only the methods the agent needs are implemented; the rest refuse.
 
+import { request as httpRequest } from 'node:http'
+
 import type { Backend } from '../../../../apps/studio/web/src/api/backend'
 import { asOgunError } from '../../../../apps/studio/web/src/api/backend'
 
@@ -32,49 +34,63 @@ function query(params: Record<string, string | number | undefined | null>): stri
 
 const p = (...segments: string[]) => '/api/v1/' + segments.map(encodeURIComponent).join('/')
 
-export async function rawCall(
+export function rawCall(
   t: RestTarget,
   cred: Credential,
   method: 'GET' | 'POST',
   path: string,
   body?: unknown,
 ): Promise<{ status: number; json: unknown; bytes?: Uint8Array }> {
+  // node:http rather than fetch: fetch drops the Host header, and ogun-server answers only its public host.
   const headers: Record<string, string> = { accept: 'application/json', host: t.host, 'x-forwarded-proto': 'https' }
   if (t.forwardedFor) headers['x-forwarded-for'] = t.forwardedFor
   if (cred.kind === 'token') headers.authorization = `Bearer ${cred.token}`
   else {
     headers.cookie = cred.cookie
-    if (method !== 'GET' && cred.csrf) headers['x-ogun-csrf'] = cred.csrf
-  }
-  if (body !== undefined) headers['content-type'] = 'application/json'
-  const ctl = new AbortController()
-  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS)
-  try {
-    const res = await fetch(t.base + path, {
-      method,
-      headers,
-      signal: ctl.signal,
-      redirect: 'manual',
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    })
-    const buf = new Uint8Array(await res.arrayBuffer())
-    if (buf.byteLength > MAX_BYTES) throw asOgunError({ code: 'api.unavailable', message: 'the hub answered with too much data' })
-    const ct = res.headers.get('content-type') ?? ''
-    let json: unknown = null
-    if (ct.includes('json')) {
-      try {
-        json = JSON.parse(new TextDecoder().decode(buf))
-      } catch {
-        json = null
-      }
+    if (method !== 'GET' && cred.csrf) {
+      headers['x-ogun-csrf'] = cred.csrf
+      // ogun-server's CSRF rule also wants a same-origin request.
+      headers.origin = `https://${t.host}`
     }
-    return { status: res.status, json, bytes: buf }
-  } catch (e) {
-    if (e && typeof e === 'object' && 'code' in e) throw e
-    throw asOgunError({ code: 'api.unavailable', class: 'unavailable', message: 'cannot reach the hub', retryable: true })
-  } finally {
-    clearTimeout(timer)
   }
+  const payload = body !== undefined ? Buffer.from(JSON.stringify(body)) : undefined
+  if (payload) {
+    headers['content-type'] = 'application/json'
+    headers['content-length'] = String(payload.byteLength)
+  }
+  const url = new URL(t.base + path)
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      { protocol: url.protocol, hostname: url.hostname, port: url.port, path: url.pathname + url.search, method, headers, timeout: TIMEOUT_MS },
+      (res) => {
+        const chunks: Buffer[] = []
+        let size = 0
+        res.on('data', (c: Buffer) => {
+          size += c.length
+          if (size > MAX_BYTES) {
+            req.destroy()
+            reject(asOgunError({ code: 'api.unavailable', message: 'the hub answered with too much data' }))
+          } else chunks.push(c)
+        })
+        res.on('end', () => {
+          const buf = new Uint8Array(Buffer.concat(chunks))
+          let json: unknown = null
+          if (String(res.headers['content-type'] ?? '').includes('json')) {
+            try {
+              json = JSON.parse(new TextDecoder().decode(buf))
+            } catch {
+              json = null
+            }
+          }
+          resolve({ status: res.statusCode ?? 0, json, bytes: buf })
+        })
+      },
+    )
+    req.on('timeout', () => req.destroy(new Error('timeout')))
+    req.on('error', () => reject(asOgunError({ code: 'api.unavailable', class: 'unavailable', message: 'cannot reach the hub', retryable: true })))
+    if (payload) req.write(payload)
+    req.end()
+  })
 }
 
 async function call<T>(t: RestTarget, cred: Credential, method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {

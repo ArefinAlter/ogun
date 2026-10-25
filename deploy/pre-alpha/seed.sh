@@ -10,7 +10,8 @@ for f in hub-heartbeat station-status trips-backfill ridership-forecast rebalanc
 done
 $C backfill trips-backfill --from 2023-01 --to 2025-12 --yes
 $C run rebalance-plan --wait || true
-$C run ridership-forecast --wait || true
+# The forecast source answers 503: the node retries with backoff and fails after its last attempt, so do not wait.
+$C run ridership-forecast || true
 $C run station-status --wait || true
 # Version 2 of rebalance-plan changes code: it waits for an approval that only a person at this host can give.
 cd_put rebalance-plan.v2.workflow.json

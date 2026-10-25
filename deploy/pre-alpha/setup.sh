@@ -18,5 +18,5 @@ chown 10001:10001 secrets/oidc-client-secret secrets/agent-token secrets/sample-
 chmod 0400 secrets/oidc-client-secret
 chmod 0600 secrets/agent-token secrets/desktop-token secrets/dex.env
 chmod 0444 secrets/sample-password
-python3 fixture/generate.py
+(umask 022 && python3 fixture/generate.py)
 echo "secrets ready (values not shown); sample files generated"
