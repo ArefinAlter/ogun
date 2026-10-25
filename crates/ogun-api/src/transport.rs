@@ -7,7 +7,9 @@
 //! closed: the connection is not interactive.
 
 use std::io;
-use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::path::Path;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 

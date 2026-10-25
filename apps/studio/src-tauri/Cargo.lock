@@ -2642,7 +2642,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-api"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "directories",
@@ -2662,7 +2662,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-edge"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2675,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ir"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "ogun-types",
  "serde",
@@ -2686,7 +2686,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-run"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -2695,7 +2695,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sched"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "ogun-ir",
  "serde",
@@ -2705,7 +2705,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-stream"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-sched",
@@ -2717,7 +2717,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-studio"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "base64 0.23.1",
  "getrandom 0.3.4",
@@ -2740,7 +2740,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sync"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2766,7 +2766,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-types"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -4241,7 +4241,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ogun-gateway"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "base64 0.23.1",
  "blake3",

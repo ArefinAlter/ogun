@@ -1,0 +1,45 @@
+{
+  "connector_version": 0,
+  "id": "grafana",
+  "name": "Grafana",
+  "vendor": "Grafana Labs",
+  "category": "observability",
+  "regions": ["cn", "global"],
+  "summary": "Push Ogun run and approval events to Grafana Loki, on Grafana Cloud or a self-hosted server, with the push API at /loki/api/v1/push.",
+  "docs_url": "https://grafana.com/docs/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication (self-hosted Loki)",
+      "fields": []
+    },
+    {
+      "id": "basic",
+      "label": "Basic authentication",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true, "help": "For Grafana Cloud, the Loki user ID of the stack." },
+        { "name": "password", "label": "Password", "secret": true, "required": true, "help": "For Grafana Cloud, an access policy token that may write logs. Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Loki host", "type": "string", "required": true, "placeholder": "loki.example.com", "help": "Host only. Grafana Cloud shows it on the stack's Loki details page." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 443, "help": "443 for Grafana Cloud or behind TLS; 3100 is the default of a self-hosted Loki." },
+    { "name": "tenant_id", "label": "Tenant ID", "type": "string", "help": "Sent as X-Scope-OrgID, for a multi-tenant Loki." },
+    { "name": "job", "label": "Job label", "type": "string", "default": "ogun", "help": "Value of the job label on every pushed stream." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [443, 3100]
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Loki receives the events as log lines: failed runs and approvals waiting for a person. The metrics (ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state) are for the Prometheus and OpenTelemetry connectors. A read-only query bridge for Grafana (ADR 0012) is planned, not built.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/loki.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

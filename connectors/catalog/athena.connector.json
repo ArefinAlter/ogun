@@ -1,0 +1,61 @@
+{
+  "connector_version": 0,
+  "id": "athena",
+  "name": "Amazon Athena",
+  "vendor": "Amazon Web Services",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run Athena queries over data in S3 and register staged Parquet partitions in Athena tables. Registration is idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://docs.aws.amazon.com/athena/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    },
+    {
+      "id": "instance_role",
+      "label": "IAM role of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "us-east-1", "placeholder": "us-east-1" },
+    { "name": "workgroup", "label": "Workgroup", "type": "string", "default": "primary" },
+    { "name": "database", "label": "Database", "type": "string", "help": "A database in the Glue Data Catalog." },
+    { "name": "results_bucket", "label": "Results bucket", "type": "string", "required": true, "help": "Bucket for query results, unless the workgroup sets its own location." },
+    { "name": "results_prefix", "label": "Results key prefix", "type": "string", "placeholder": "athena-results/" }
+  ],
+  "egress": {
+    "domains": ["athena.{region}.amazonaws.com", "sts.{region}.amazonaws.com", "s3.{region}.amazonaws.com", "{results_bucket}.s3.{region}.amazonaws.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "athena.query@1",
+      "kind": "adapter",
+      "summary": "Run a query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "athena.load@1",
+      "kind": "adapter",
+      "summary": "Register staged Parquet as a table partition with ALTER TABLE ADD PARTITION, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Athena reads and writes S3 itself; the data lives in the bucket that the Amazon S3 connector publishes to. Add that connector's domains to the same egress approval. The table must already exist."
+}

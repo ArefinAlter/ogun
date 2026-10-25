@@ -1,0 +1,63 @@
+{
+  "connector_version": 0,
+  "id": "postgresql",
+  "name": "PostgreSQL",
+  "vendor": "PostgreSQL",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into PostgreSQL, self-hosted or managed, with COPY. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://www.postgresql.org/docs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "client_certificate",
+      "label": "TLS client certificate",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "client_certificate", "label": "Client certificate (PEM)", "secret": true, "required": true },
+        { "name": "client_private_key", "label": "Client private key (PEM)", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true },
+    { "name": "port", "label": "Port", "type": "integer", "default": 5432 },
+    { "name": "database", "label": "Database", "type": "string", "required": true },
+    { "name": "sslmode", "label": "TLS mode", "type": "enum", "default": "require", "options": ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"] }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [5432]
+  },
+  "operators": [
+    {
+      "op": "postgres.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "postgres.load@1",
+      "kind": "adapter",
+      "summary": "Copy Parquet rows into a table with COPY, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Managed services (Amazon RDS, Google Cloud SQL, Azure Database for PostgreSQL) are reached the same way: set the host. Redshift and Hologres have their own connectors. Ogun does not create the table."
+}

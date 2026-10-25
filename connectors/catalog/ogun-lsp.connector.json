@@ -1,0 +1,26 @@
+{
+  "connector_version": 0,
+  "id": "ogun-lsp",
+  "name": "Ogun language server",
+  "vendor": "Ogun",
+  "category": "agent",
+  "regions": ["global", "cn"],
+  "summary": "Language Server Protocol server for *.workflow.json in any LSP client: diagnostics from the runtime's validator, hover, completion, definition, symbols and a workflow hash lens.",
+  "docs_url": "https://microsoft.github.io/language-server-protocol/",
+  "maturity": "built",
+  "directions": ["trigger"],
+  "protocol": "cli",
+  "auth": [],
+  "settings": [],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "None. A stdio process that never connects to ogund."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "crates/ogun-lsp",
+    "evidence": "Unit tests and a full LSP session over an in-memory connection; also used by the VS Code client tests. Not tried in Neovim, Helix, JetBrains or Zed."
+  },
+  "notes": "Run it as ogun lsp or ogun-lsp: stdio transport, file pattern *.workflow.json, language JSON. Diagnostics come only from ogun_ir::check and never quote configuration values. Read-only: it never runs a workflow and is not an approval surface (O-14 section 2.1). It uses the built-in operator catalogue."
+}

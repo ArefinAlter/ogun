@@ -1,117 +1,176 @@
-/* Ogun Studio design tokens: the Forge (dark, default) and Vellum (light) themes of the Ogun brand guidelines,
-   section 6. One token set; components use only these variables. The theme follows prefers-color-scheme; the
-   toggle sets data-theme on <html> for the current session only. */
-
-@font-face {
-  font-family: 'IBM Plex Sans';
-  src: url('../assets/fonts/ibm-plex-sans-vf.woff2') format('woff2');
-  font-weight: 100 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  src: url('../assets/fonts/ibm-plex-mono-400.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  src: url('../assets/fonts/ibm-plex-mono-500.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'EB Garamond';
-  src: url('../assets/fonts/eb-garamond-vf.woff2') format('woff2');
-  font-weight: 400 800;
-  font-display: swap;
-}
+/* Ogun Studio design tokens, in the shape T3 Code's interface uses (its Tailwind theme: `--background`,
+   `--foreground`, `--card`, `--muted`, `--accent`, `--primary`, `--border`, `--input`, `--ring`, `--radius`,
+   `--sidebar-*`, the status pairs `--success` and `--success-foreground`, and so on). Neutral zinc surfaces with
+   one coloured role, `--primary`, which here is Ogun's ember. The theme follows prefers-color-scheme; the
+   toggle sets data-theme on <html> for the current visit only. Fonts are the system stack, as in T3 Code; no
+   font is fetched or bundled. */
 
 :root {
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-  --font-display: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
 
-  --radius-s: 4px;
-  --radius-m: 6px;
-  --radius-l: 10px;
-  --gap-1: 4px;
-  --gap-2: 8px;
-  --gap-3: 12px;
-  --gap-4: 16px;
-  --gap-5: 24px;
-  --gap-6: 32px;
-  --sidebar: 232px;
-  --ease: cubic-bezier(0.45, 0, 0.55, 1);
+  --radius: 0.625rem; /* 10px: cards, dialogs */
+  --radius-sm: calc(var(--radius) - 4px); /* 6px: chips, pills */
+  --radius-md: calc(var(--radius) - 2px); /* 8px: buttons, inputs, rows */
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px); /* 14px: palette, large cards */
 
-  /* Forge */
-  --bg: #13110f;
-  --surface: #1c1916;
-  --raised: #2a2520;
-  --line: #3a332c;
-  --line-strong: #544a3f;
-  --text: #e9e1d0;
-  --text-2: #a99f8c;
-  --accent: #e8662e;
-  --accent-text: #e8662e;
-  --on-accent: #13110f;
-  --brass: #b89157;
-  --brass-text: #b89157;
-  --ok: #5fae9c;
-  --info: #7aa6cf;
-  --bad: #e0604a;
-  --muted-fill: #3a332c;
-  --focus: #e8662e;
-  --untrusted-bg: #241f1a;
-  --untrusted-line: #7a5a22;
-  color-scheme: dark;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --sidebar-w: 272px;
+  --topbar-h: 40px;
+  --control-h: 32px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration: 150ms;
+
+  /* Light (default): zinc. */
+  color-scheme: light;
+  --background: oklch(99.2% 0 0);
+  --foreground: oklch(27.4% 0.006 286.033);
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+  --muted: oklch(98.5% 0 0);
+  --muted-foreground: oklch(55.2% 0.016 285.938);
+  --accent: oklch(96.7% 0.001 286.375);
+  --accent-foreground: oklch(21% 0.006 285.885);
+  --secondary: oklch(98.5% 0 0);
+  --secondary-foreground: var(--foreground);
+  --border: oklch(92% 0.004 286.32);
+  --input: oklch(87.1% 0.006 286.286);
+  --primary: #9c4419; /* ember, the darker text-safe tone on light */
+  --primary-foreground: #ffffff;
+  --primary-soft: color-mix(in srgb, var(--primary) 10%, transparent);
+  --ring: var(--primary);
+  --success: oklch(69.6% 0.17 162.48);
+  --success-foreground: oklch(50.8% 0.118 165.612);
+  --warning: oklch(76.9% 0.188 70.08);
+  --warning-foreground: oklch(55.5% 0.163 48.998);
+  --error: oklch(63.7% 0.237 25.331);
+  --error-foreground: oklch(50.5% 0.213 27.518);
+  --info: oklch(62.3% 0.214 259.815);
+  --info-foreground: oklch(48.8% 0.217 264.376);
+  --sidebar: oklch(98.5% 0 0);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-muted-foreground: var(--muted-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-row-hover: oklch(99.2% 0 0);
+  --sidebar-row-selected: #ffffff;
+  --code-background: #ffffff;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --backdrop: rgb(0 0 0 / 0.4);
+
+  /* Set by the Appearance preferences (lib/themes.ts applyPrefs). */
+  --c-low: 1;
+  --c-high: 0;
+  --glass: 92%;
+  --cell-y: 8px;
+  --content-max: 1240px;
+  --line: color-mix(in oklab, color-mix(in srgb, var(--border) calc(var(--c-low) * 100%), transparent), var(--foreground) calc(var(--c-high) * 1%));
+  --line-strong: color-mix(in oklab, color-mix(in srgb, var(--input) calc(var(--c-low) * 100%), transparent), var(--foreground) calc(var(--c-high) * 1%));
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-    --bg: #f1e9d8;
-    --surface: #e9dfca;
-    --raised: #e0d4bb;
-    --line: #cbbd9f;
-    --line-strong: #a8987a;
-    --text: #1e1a16;
-    --text-2: #57503f;
-    --accent: #b5521e;
-    --accent-text: #9c4419;
-    --on-accent: #f1e9d8;
-    --brass: #7a5a22;
-    --brass-text: #7a5a22;
-    --ok: #2f6e61;
-    --info: #2c5d86;
-    --bad: #a63a24;
-    --muted-fill: #d6c8ab;
-    --focus: #9c4419;
-    --untrusted-bg: #efe2c4;
-    --untrusted-line: #7a5a22;
-    color-scheme: light;
+:root[data-density='compact'] {
+  --control-h: 28px;
+  --cell-y: 5px;
+}
+
+:root[data-width='wide'] {
+  --content-max: 1560px;
+}
+
+:root[data-width='full'] {
+  --content-max: none;
+}
+
+/* Colour-blind-safe status colours: blue for succeeded, orange for failed (the words are printed regardless). */
+:root[data-status='colorblind'] {
+  --success: oklch(62% 0.19 255);
+  --success-foreground: oklch(48% 0.2 262);
+  --error: oklch(72% 0.17 55);
+  --error-foreground: oklch(52% 0.15 45);
+}
+:root[data-status='colorblind'][data-scheme='dark'] {
+  --success-foreground: oklch(76% 0.13 250);
+  --error-foreground: oklch(80% 0.14 60);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme]) {
+    color-scheme: dark;
+    --background: oklch(14.5% 0 0);
+    --foreground: oklch(97% 0 0);
+    --card: color-mix(in srgb, oklch(14.5% 0 0) 97%, #ffffff);
+    --card-foreground: var(--foreground);
+    --popover: color-mix(in srgb, oklch(14.5% 0 0) 95%, #ffffff);
+    --popover-foreground: var(--foreground);
+    --muted: rgb(255 255 255 / 0.03);
+    --muted-foreground: #818181;
+    --accent: rgb(255 255 255 / 0.04);
+    --accent-foreground: oklch(97% 0 0);
+    --secondary: rgb(255 255 255 / 0.03);
+    --secondary-foreground: var(--foreground);
+    --border: rgb(255 255 255 / 0.06);
+    --input: rgb(255 255 255 / 0.08);
+    --primary: #e8662e;
+    --primary-foreground: #13110f;
+    --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
+    --ring: var(--primary);
+    --success-foreground: oklch(76.5% 0.177 163.223);
+    --warning-foreground: oklch(82.8% 0.189 84.429);
+    --error: #fb414a;
+    --error-foreground: oklch(70.4% 0.191 22.216);
+    --info-foreground: oklch(70.7% 0.165 254.624);
+    --sidebar: var(--card);
+    --sidebar-row-hover: var(--accent);
+    --sidebar-row-selected: var(--muted);
+    --code-background: #000000;
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.6);
+    --backdrop: rgb(0 0 0 / 0.6);
   }
 }
 
-:root[data-theme='light'] {
-  --bg: #f1e9d8;
-  --surface: #e9dfca;
-  --raised: #e0d4bb;
-  --line: #cbbd9f;
-  --line-strong: #a8987a;
-  --text: #1e1a16;
-  --text-2: #57503f;
-  --accent: #b5521e;
-  --accent-text: #9c4419;
-  --on-accent: #f1e9d8;
-  --brass: #7a5a22;
-  --brass-text: #7a5a22;
-  --ok: #2f6e61;
-  --info: #2c5d86;
-  --bad: #a63a24;
-  --muted-fill: #d6c8ab;
-  --focus: #9c4419;
-  --untrusted-bg: #efe2c4;
-  --untrusted-line: #7a5a22;
-  color-scheme: light;
+:root[data-scheme='dark'] {
+  color-scheme: dark;
+  --background: oklch(14.5% 0 0);
+  --foreground: oklch(97% 0 0);
+  --card: color-mix(in srgb, oklch(14.5% 0 0) 97%, #ffffff);
+  --card-foreground: var(--foreground);
+  --popover: color-mix(in srgb, oklch(14.5% 0 0) 95%, #ffffff);
+  --popover-foreground: var(--foreground);
+  --muted: rgb(255 255 255 / 0.03);
+  --muted-foreground: #818181;
+  --accent: rgb(255 255 255 / 0.04);
+  --accent-foreground: oklch(97% 0 0);
+  --secondary: rgb(255 255 255 / 0.03);
+  --secondary-foreground: var(--foreground);
+  --border: rgb(255 255 255 / 0.06);
+  --input: rgb(255 255 255 / 0.08);
+  --primary: #e8662e;
+  --primary-foreground: #13110f;
+  --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
+  --ring: var(--primary);
+  --success-foreground: oklch(76.5% 0.177 163.223);
+  --warning-foreground: oklch(82.8% 0.189 84.429);
+  --error: #fb414a;
+  --error-foreground: oklch(70.4% 0.191 22.216);
+  --info-foreground: oklch(70.7% 0.165 254.624);
+  --sidebar: var(--card);
+  --sidebar-row-hover: var(--accent);
+  --sidebar-row-selected: var(--muted);
+  --code-background: #000000;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.6);
+  --backdrop: rgb(0 0 0 / 0.6);
 }

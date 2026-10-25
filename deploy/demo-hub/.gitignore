@@ -1,0 +1,3 @@
+# Generated on the host that runs the hub; never commit.
+dex/dex.env
+secrets/

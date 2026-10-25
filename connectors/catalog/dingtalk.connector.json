@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "dingtalk",
+  "name": "DingTalk",
+  "vendor": "Alibaba Group",
+  "category": "notification",
+  "regions": ["cn", "global"],
+  "summary": "Post messages from Ogun workflows to a DingTalk group through a custom robot webhook. The access token inside the URL is the secret.",
+  "docs_url": "https://open.dingtalk.com/document/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "webhook",
+  "auth": [
+    {
+      "id": "robot_webhook",
+      "label": "Custom robot webhook",
+      "fields": [
+        { "name": "webhook_url", "label": "Webhook URL", "secret": true, "required": true, "help": "The robot's URL, including its access_token query parameter. It is a secret. Store it with ogun secrets set." },
+        { "name": "signing_secret", "label": "Signing secret", "secret": true, "required": false, "help": "Only when the robot's security setting is signature. Used to sign; never sent." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["oapi.dingtalk.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "notify.dingtalk@1",
+      "kind": "adapter",
+      "summary": "Post a text or Markdown message to the DingTalk group the custom robot belongs to.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "The robot's access token is part of the webhook URL, so the whole URL is stored as a secret and its query string never reaches logs, events or lineage. A custom robot must have a security setting: keyword, IP allowlist or signature. If it uses a keyword, the message must contain it.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/dingtalk.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "connector_version": 0,
+  "id": "hugging-face",
+  "name": "Hugging Face Hub",
+  "vendor": "Hugging Face",
+  "category": "source",
+  "regions": ["global"],
+  "summary": "Fetch datasets and files from the Hugging Face Hub into the artifact store, hashed with BLAKE3; a token reaches gated and private datasets.",
+  "docs_url": "https://huggingface.co/docs",
+  "maturity": "contract",
+  "directions": ["source"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "anonymous",
+      "label": "No token (public datasets)",
+      "fields": []
+    },
+    {
+      "id": "access_token",
+      "label": "User access token",
+      "fields": [
+        { "name": "access_token", "label": "Access token", "secret": true, "required": true, "help": "Created in your Hugging Face account settings. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["huggingface.co", "cdn-lfs.huggingface.co", "cdn-lfs.hf.co", "cas-bridge.xethub.hf.co"],
+    "ports": [443],
+    "note": "Large files are served from CDN hosts that the Hub redirects to and that can change. Add any other host the first run reports."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Uses the builtin hf@1 adapter for datasets and acquire@1 for single files. A gated dataset needs a token from an account that has accepted the dataset's terms. Each dataset carries its own licence; check it before use or redistribution."
+}

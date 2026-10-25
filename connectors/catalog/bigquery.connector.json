@@ -1,0 +1,58 @@
+{
+  "connector_version": 0,
+  "id": "bigquery",
+  "name": "BigQuery",
+  "vendor": "Google Cloud",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into Google BigQuery. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://cloud.google.com/bigquery/docs",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "service_account",
+      "label": "Service account key",
+      "fields": [
+        { "name": "service_account_json", "label": "Service account key (JSON)", "secret": true, "required": true, "help": "Create it in the Google Cloud console; store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "adc",
+      "label": "Application Default Credentials on the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "project_id", "label": "Project", "type": "string", "required": true, "placeholder": "my-project-123456" },
+    { "name": "location", "label": "Location", "type": "string", "default": "US", "help": "Dataset location, for example US, EU or asia-southeast1." },
+    { "name": "dataset", "label": "Default dataset", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["bigquery.googleapis.com", "bigquerystorage.googleapis.com", "oauth2.googleapis.com", "storage.googleapis.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "bigquery.query@1",
+      "kind": "adapter",
+      "summary": "Run a standard SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "bigquery.load@1",
+      "kind": "adapter",
+      "summary": "Load Parquet from a staging bucket with a BigQuery load job, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "cli",
+      "tool": "bq"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "Staging for loads goes through Cloud Storage; add the GCS connector's domains to the same egress approval."
+}

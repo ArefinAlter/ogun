@@ -1,0 +1,65 @@
+{
+  "connector_version": 0,
+  "id": "sql-server",
+  "name": "Microsoft SQL Server",
+  "vendor": "Microsoft",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into SQL Server and Azure SQL Database. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://learn.microsoft.com/en-us/sql/sql-server/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "sql_login",
+      "label": "SQL login",
+      "fields": [
+        { "name": "username", "label": "Login name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "service_principal",
+      "label": "Microsoft Entra ID service principal (Azure SQL)",
+      "fields": [
+        { "name": "tenant_id", "label": "Tenant ID", "secret": false, "required": true },
+        { "name": "client_id", "label": "Application (client) ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Server", "type": "string", "required": true, "placeholder": "myserver.database.windows.net", "help": "Host name of the server, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 1433 },
+    { "name": "database", "label": "Database", "type": "string", "required": true },
+    { "name": "encrypt", "label": "Encrypt the connection", "type": "boolean", "default": true },
+    { "name": "trust_server_certificate", "label": "Trust the server certificate without checking it", "type": "boolean", "default": false }
+  ],
+  "egress": {
+    "domains": ["{host}", "login.microsoftonline.com"],
+    "ports": [1433, 443],
+    "note": "1433 is the SQL Server default; login.microsoftonline.com on 443 is used only by the Entra ID method."
+  },
+  "operators": [
+    {
+      "op": "sqlserver.query@1",
+      "kind": "adapter",
+      "summary": "Run a T-SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "sqlserver.load@1",
+      "kind": "adapter",
+      "summary": "Bulk-insert Parquet rows into a table, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Azure Synapse dedicated SQL pools have their own connector. Ogun does not create the table."
+}

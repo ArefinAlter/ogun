@@ -1,0 +1,53 @@
+{
+  "connector_version": 0,
+  "id": "generic-webhook",
+  "name": "Generic webhook",
+  "vendor": "Any HTTPS endpoint",
+  "category": "notification",
+  "regions": ["global", "cn"],
+  "summary": "POST a JSON message from Ogun to any HTTPS endpoint you name, optionally signed with an HMAC so the receiver can check where it came from.",
+  "docs_url": "https://www.rfc-editor.org/rfc/rfc9110",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "webhook",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No signature",
+      "fields": []
+    },
+    {
+      "id": "hmac",
+      "label": "HMAC signature",
+      "fields": [
+        { "name": "signing_secret", "label": "Signing secret", "secret": true, "required": true, "help": "Shared with the receiver; used to sign, never sent. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true, "placeholder": "hooks.example.com", "help": "Host name of the receiver, without https://." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 443 },
+    { "name": "path", "label": "Path", "type": "string", "default": "/", "help": "Shown in approvals. Keep tokens out of it." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [443],
+    "note": "The host you set, on the port you set. HTTPS only."
+  },
+  "operators": [
+    {
+      "op": "notify.webhook@1",
+      "kind": "adapter",
+      "summary": "POST a JSON message to the HTTPS endpoint, with an X-Ogun-Signature header when a signing secret is set.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "HTTPS only. With a signing secret, each request carries an X-Ogun-Signature header, an HMAC of the request body, for the receiver to check. The secret itself is never sent. The path is a plain setting and appears in approvals; if the receiver hands you a URL with a token in it, that URL is a secret.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/webhook.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

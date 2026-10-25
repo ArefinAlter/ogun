@@ -1,0 +1,11 @@
+{
+  "ir_version": 0,
+  "workflow": "hub-backfill",
+  "version": 1,
+  "description": "A partitioned backfill of built-in operators only (manifest and hash), month by month. It runs for real in the demo hub's container, where no operator sandbox is installed, so a crash resumes only the unfinished months and nothing needs code.",
+  "partitions": { "kind": "time", "granularity": "month", "start": "2023-01" },
+  "nodes": [
+    { "id": "manifest", "op": "manifest@1" },
+    { "id": "digest", "op": "hash@1", "inputs": ["manifest.manifest"] }
+  ]
+}

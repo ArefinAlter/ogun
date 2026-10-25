@@ -1,0 +1,46 @@
+{
+  "connector_version": 0,
+  "id": "http-push",
+  "name": "HTTP push",
+  "vendor": "Ogun",
+  "category": "edge",
+  "regions": ["global", "cn"],
+  "summary": "Accept JSON, NDJSON or CSV records that devices POST to a local Ogun endpoint, with a bearer token, and log them as a durable stream.",
+  "docs_url": "https://www.rfc-editor.org/rfc/rfc9110",
+  "maturity": "built",
+  "directions": ["edge"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "bearer",
+      "label": "Bearer token per device or site",
+      "fields": [
+        { "name": "push_token", "label": "Push token", "secret": true, "required": true, "help": "One per line in a file that only its owner can access, named in ingest.json. Devices send it as Authorization: Bearer." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "bind", "label": "Listen address", "type": "string", "default": "127.0.0.1:8740", "help": "Host and port the bridge listens on. A bind beyond loopback should sit behind a TLS proxy or a VPN." },
+    { "name": "max_body_bytes", "label": "Largest request body (bytes)", "type": "integer", "default": 1048576, "help": "At most 16 MiB." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "Inbound only: the bridge listens on the address you set and reaches nothing outside the machine."
+  },
+  "operators": [
+    {
+      "op": "stream.http@1",
+      "kind": "builtin",
+      "summary": "Accept records pushed by HTTP POST and log them as a stream that feeds window partitions.",
+      "outputs": [{ "name": "window" }],
+      "determinism": "nondeterministic",
+      "via": "builtin"
+    }
+  ],
+  "implementation": {
+    "path": "crates/ogun-ingest",
+    "evidence": "unit and loopback tests; not run against a real broker, network server or device"
+  },
+  "notes": "The only listener the ogun-ingest bridge opens: POST /v1/streams/{workflow}/{node}/records. The reply is 202 after commit, or 503 with Retry-After while the log is full under block. It has no TLS of its own. A source without a token file does not start (O-10 section 2.4.2)."
+}

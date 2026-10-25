@@ -1,0 +1,33 @@
+{
+  "connector_version": 0,
+  "id": "alibaba-dataworks",
+  "name": "Alibaba Cloud DataWorks",
+  "vendor": "Alibaba Cloud",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "An Alibaba Cloud DataWorks Shell node calls Ogun's server bridge over HTTPS to start a run of an approved workflow and read its state. DataWorks calls Ogun; Ogun does not drive it.",
+  "docs_url": "https://www.alibabacloud.com/help/en/dataworks/",
+  "maturity": "contract",
+  "directions": ["trigger"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_token",
+      "label": "Ogun API token",
+      "fields": [
+        { "name": "ogun_api_token", "label": "Ogun API token", "secret": true, "required": true, "help": "A token a signed-in person creates; role editor to start runs. Sent as a Bearer header; keep it out of the node script." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "server_url", "label": "Ogun server URL", "type": "string", "required": true, "placeholder": "https://ogun.example.com", "help": "The public_url of ogun-server: an origin with no path." },
+    { "name": "workspace", "label": "Workspace id", "type": "string", "placeholder": "wsp_...", "help": "Sent as x-ogun-workspace. A token belongs to one workspace, so this is rarely needed." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "DataWorks calls Ogun. Nothing leaves the machine from Ogun for this connector."
+  },
+  "operators": [],
+  "notes": "Alibaba Cloud DataWorks calls Ogun and cannot approve. The node sends POST /api/v1/workflows/{name}/runs and polls GET /api/v1/runs/{run_id} (O-13 section 6.2); the bridge must be reachable from the node's resource group. A run that needs an approval waits for a person on the Ogun CLI or in Studio."
+}

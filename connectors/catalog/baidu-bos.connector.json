@@ -1,0 +1,63 @@
+{
+  "connector_version": 0,
+  "id": "baidu-bos",
+  "name": "Baidu AI Cloud BOS",
+  "vendor": "Baidu AI Cloud",
+  "category": "object_storage",
+  "regions": ["cn"],
+  "summary": "List, fetch and publish objects in Baidu AI Cloud Object Storage (BOS) through its native REST API, signed with an AK/SK pair.",
+  "docs_url": "https://cloud.baidu.com/doc/BOS/index.html",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair (AK/SK)",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID (AK)", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key (SK)", "secret": true, "required": true },
+        { "name": "security_token", "label": "STS session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "bj", "placeholder": "bj", "help": "The region code in the endpoint, for example bj, gz or su." },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Object prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["{region}.bcebos.com", "{bucket}.{region}.bcebos.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "bos.list@1",
+      "kind": "adapter",
+      "summary": "List objects under a prefix as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "bos.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "bos.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under an object prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "BOS also has an S3-compatible API; the s3-compatible connector reaches it with the endpoint setting. This manifest uses the native API."
+}

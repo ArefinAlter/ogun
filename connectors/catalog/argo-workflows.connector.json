@@ -1,0 +1,33 @@
+{
+  "connector_version": 0,
+  "id": "argo-workflows",
+  "name": "Argo Workflows",
+  "vendor": "Cloud Native Computing Foundation",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "An Argo Workflows container step starts a run of an approved Ogun workflow through ogun-server and waits for it. Argo calls Ogun; Ogun does not drive Argo.",
+  "docs_url": "https://argo-workflows.readthedocs.io/",
+  "maturity": "contract",
+  "directions": ["trigger"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "api_token",
+      "label": "Ogun API token",
+      "fields": [
+        { "name": "ogun_api_token", "label": "Ogun API token", "secret": true, "required": true, "help": "A token a signed-in person creates; role editor to start runs. Keep it in a Kubernetes Secret, not in Ogun." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "server_url", "label": "Ogun server URL", "type": "string", "required": true, "placeholder": "https://ogun.example.com", "help": "The public_url of ogun-server: an origin with no path." },
+    { "name": "workspace", "label": "Workspace id", "type": "string", "placeholder": "wsp_...", "help": "Sent as x-ogun-workspace. A token belongs to one workspace, so this is rarely needed." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "Argo calls Ogun. Nothing leaves the machine from Ogun for this connector."
+  },
+  "operators": [],
+  "notes": "Argo Workflows calls Ogun and cannot approve. A container step reaches Ogun over HTTPS through ogun-server with an API token, because ogund listens only on a local socket. A run that needs an approval waits for a person on the Ogun CLI or in Studio."
+}

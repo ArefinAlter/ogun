@@ -1,6 +1,7 @@
 //! The closed command set the webview may invoke. Each command maps to exactly one daemon method with typed
 //! parameters (the `ogun_api::methods` types, so malformed input is refused before it reaches the daemon); results
-//! pass through as the daemon's JSON. There is no command that takes a method name.
+//! pass through as the daemon's JSON. The one command that takes a method name, `prealpha_call`, relays only the
+//! closed list of the hosted pre-alpha service (`hub::PREALPHA_METHODS`), never a daemon method.
 
 use ogun_api::methods::{
     ApprovalRef, CancelRunParams, Decision, EventsSinceParams, GetArtifactParams,
@@ -64,6 +65,18 @@ pub async fn link_hub(
 pub async fn link_forget(state: State<'_, Studio>) -> StudioResult<StudioInfo> {
     state.forget_hub().await;
     Ok(state.info().await)
+}
+
+/// One method of the hosted pre-alpha service (agent threads and the settings the daemon does not implement yet),
+/// from the closed list in `hub::PREALPHA_METHODS`, over the hub link only.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn prealpha_call(
+    state: State<'_, Studio>,
+    method: String,
+    params: Value,
+    install: String,
+) -> Out {
+    state.prealpha_call(&method, params, &install).await
 }
 
 /// `daemon.status`.

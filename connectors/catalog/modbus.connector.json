@@ -1,0 +1,43 @@
+{
+  "connector_version": 0,
+  "id": "modbus",
+  "name": "Modbus",
+  "vendor": "Modbus Organization",
+  "category": "edge",
+  "regions": ["global", "cn"],
+  "summary": "Poll holding and input registers of Modbus TCP devices, or of RTU gateways over TCP, and log one record per device per poll as a durable stream.",
+  "docs_url": "https://modbus.org/",
+  "maturity": "built",
+  "directions": ["edge"],
+  "protocol": "device",
+  "auth": [],
+  "settings": [
+    { "name": "transport", "label": "Transport", "type": "enum", "required": true, "default": "tcp", "options": ["tcp", "rtu_over_tcp"], "help": "rtu_over_tcp is for a serial gateway that passes RTU frames through a TCP socket." },
+    { "name": "host", "label": "Device or gateway host", "type": "string", "required": true, "placeholder": "10.0.0.5", "help": "More devices are listed in the workflow node or in ingest.json." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 502 },
+    { "name": "unit_id", "label": "Unit ID", "type": "integer", "default": 1 },
+    { "name": "poll_ms", "label": "Poll interval (ms)", "type": "integer", "default": 10000, "help": "At least 1000." },
+    { "name": "timeout_ms", "label": "Request timeout (ms)", "type": "integer", "default": 3000 }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [502],
+    "note": "Each device or gateway you list, on its port. 502 is the Modbus TCP default."
+  },
+  "operators": [
+    {
+      "op": "stream.modbus@1",
+      "kind": "builtin",
+      "summary": "Poll Modbus registers on a schedule and log one record per device per poll as a stream.",
+      "outputs": [{ "name": "window" }],
+      "determinism": "nondeterministic",
+      "via": "builtin"
+    }
+  ],
+  "approvals": ["egress"],
+  "implementation": {
+    "path": "crates/ogun-ingest",
+    "evidence": "unit and loopback tests; not run against a real broker, network server or device"
+  },
+  "notes": "The register map is configuration, not code. A value is raw * scale_mul / scale_div in integers. Modbus cannot replay: readings the log refuses wait in a memory queue of 10000 records, then the oldest are dropped and counted. A serial line is reached only through a gateway that passes RTU frames over TCP (O-10 section 2.4.4)."
+}

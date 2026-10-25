@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ogun-export"
+version = "0.1.0"
+description = "Follows the ogund event stream and sends run, partition and approval information out of Ogun to observability, lineage and chat systems. Read-only: uses an agent credential and never approves."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Verne Ltd." }]
+requires-python = ">=3.9"
+# Only the command line imports ogun-client (lazily); the library modules and the tests need nothing installed.
+dependencies = ["ogun-client>=0.1"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+]
+
+[project.scripts]
+ogun-export = "ogun_export.cli:main"
+
+[project.urls]
+Repository = "https://github.com/ArefinAlter/ogun"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,40 @@
+{
+  "connector_version": 0,
+  "id": "apache-airflow",
+  "name": "Apache Airflow",
+  "vendor": "Apache Software Foundation",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "Start runs of approved Ogun workflow versions from Airflow DAGs, wait or defer, and sense runs and partitions. Airflow calls Ogun with an agent credential and cannot approve.",
+  "docs_url": "https://airflow.apache.org/docs/",
+  "maturity": "built",
+  "directions": ["trigger"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": true, "help": "Created once on a terminal: ogun credentials add NAME --kind agent. Default airflow. The token stays in Ogun's state directory." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "conn_id", "label": "Airflow connection id", "type": "string", "default": "ogun_default", "help": "A connection of type ogun. Its extras only name the credential; they hold no secret." },
+    { "name": "ogun_home", "label": "Ogun state directory", "type": "string", "placeholder": "/var/lib/ogun", "help": "As $OGUN_HOME. The platform default for the worker's user when empty." },
+    { "name": "profile", "label": "Profile", "type": "string", "help": "Profile whose daemon to reach." },
+    { "name": "agent_file", "label": "Credential file", "type": "string", "help": "Explicit path of the credential file instead of a name." },
+    { "name": "timeout_s", "label": "Call timeout (seconds)", "type": "integer", "default": 30, "help": "Socket timeout of one call to ogund." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "The provider reaches ogund through its local socket on the same machine (O-15 section 2); nothing leaves the host. The server bridge (ADR 0010) is for remote workers and these packages do not use it yet."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "integrations/airflow",
+    "evidence": "Built, not yet run against the real counterpart: IMPLEMENTATION_STATUS says Airflow was checked only against stub modules."
+  },
+  "notes": "Package airflow-provider-ogun: OgunHook (connection type ogun), OgunRunOperator, OgunRunSensor, OgunPartitionSensor, OgunRunTrigger. Pin workflow_hash to the version a person approved. A run that needs an approval waits for a person on the Ogun CLI or in Studio."
+}

@@ -1166,7 +1166,7 @@ fn lineage(d: &Daemon, p: &LineageParams) -> ApiResult<LineageResult> {
         outputs.insert(i.id, outs);
     }
     Ok(LineageResult {
-        events: crate::lineage::run_events(&run, &instances, &outputs),
+        events: crate::lineage::run_events(d, &run, &instances, &outputs),
     })
 }
 

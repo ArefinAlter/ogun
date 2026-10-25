@@ -1,0 +1,23 @@
+{
+  "public_url": "http://localhost:18443",
+  "listen": "0.0.0.0:8080",
+  "behind_proxy": true,
+  "trusted_proxies": ["172.30.0.0/24"],
+  "allowed_hosts": ["127.0.0.1:18443"],
+  "daemons": {
+    "default": { "ogun_home": "/var/lib/ogun", "profile": "server", "credential": "server" }
+  },
+  "oidc": {
+    "providers": [
+      {
+        "id": "demo",
+        "display_name": "Demo sign-in (Dex)",
+        "issuer": "http://localhost:18444/dex",
+        "client_id": "ogun",
+        "client_secret_file": "/etc/ogun/secrets/oidc-client-secret"
+      }
+    ]
+  },
+  "remote_approvals": false,
+  "sync": { "enabled": false }
+}

@@ -2269,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-api"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "directories",
@@ -2289,7 +2289,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-bench"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "blake3",
@@ -2313,7 +2313,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-cli"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2338,7 +2338,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-daemon"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2347,12 +2347,15 @@ dependencies = [
  "ogun-api",
  "ogun-edge",
  "ogun-ir",
+ "ogun-lineage",
  "ogun-ops",
  "ogun-run",
  "ogun-sched",
  "ogun-store",
  "ogun-stream",
+ "ogun-sync",
  "ogun-types",
+ "ogun-zeus-bridge",
  "p256 0.14.0",
  "rustix",
  "serde",
@@ -2373,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-edge"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2387,7 +2390,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ingest"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "axum",
@@ -2414,7 +2417,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ir"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2427,7 +2430,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lineage"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2448,7 +2451,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-llm"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2468,7 +2471,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lsp"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "lsp-server",
  "lsp-types",
@@ -2481,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-llm"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-llm",
@@ -2497,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-shims"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -2506,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ops"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "async-trait",
  "blake3",
@@ -2543,7 +2546,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-run"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -2553,7 +2556,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sched"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "ogun-ir",
  "serde",
@@ -2564,7 +2567,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-server"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "axum",
@@ -2607,7 +2610,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-store"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "ogun-ir",
  "ogun-run",
@@ -2623,7 +2626,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-stream"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "ogun-sched",
@@ -2635,7 +2638,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sync"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2662,7 +2665,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-types"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "serde",
  "serde_json",
@@ -2673,7 +2676,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-zeus-bridge"
-version = "0.1.0"
+version = "0.0.1-alpha"
 dependencies = [
  "blake3",
  "getrandom 0.3.4",

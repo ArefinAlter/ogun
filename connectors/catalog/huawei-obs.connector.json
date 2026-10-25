@@ -1,0 +1,63 @@
+{
+  "connector_version": 0,
+  "id": "huawei-obs",
+  "name": "Huawei Cloud OBS",
+  "vendor": "Huawei Cloud",
+  "category": "object_storage",
+  "regions": ["cn", "global"],
+  "summary": "List, fetch and publish objects in Huawei Cloud Object Storage Service (OBS), through its S3-compatible API or the native OBS API.",
+  "docs_url": "https://support.huaweicloud.com/intl/en-us/obs/index.html",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair (AK/SK)",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID (AK)", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key (SK)", "secret": true, "required": true },
+        { "name": "security_token", "label": "Security token", "secret": true, "required": false, "help": "Only for temporary access keys." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "cn-north-4", "placeholder": "cn-north-4" },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Object prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["obs.{region}.myhuaweicloud.com", "{bucket}.obs.{region}.myhuaweicloud.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "obs.list@1",
+      "kind": "adapter",
+      "summary": "List objects under a prefix as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "obs.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "obs.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under an object prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Staging store for Huawei Data Lake Insight and GaussDB(DWS) loads (see those connectors)."
+}

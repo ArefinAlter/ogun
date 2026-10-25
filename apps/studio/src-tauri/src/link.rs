@@ -116,6 +116,18 @@ fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::rename(tmp, path)
 }
 
+/// Marker file: the person chose the local daemon over the built-in hub.
+const PREFER_LOCAL: &str = "prefer-local";
+
+/// The hub a build links to when the person has chosen nothing: `OGUN_STUDIO_DEFAULT_HUB_URL` and
+/// `OGUN_STUDIO_DEFAULT_HUB_TOKEN` at build time. The pre-alpha release sets them to the hosted hub and its public
+/// sample token (shared sample data, reset every night); other builds leave them unset.
+fn builtin_hub() -> Option<HubLink> {
+    let url = option_env!("OGUN_STUDIO_DEFAULT_HUB_URL")?;
+    let token = option_env!("OGUN_STUDIO_DEFAULT_HUB_TOKEN")?;
+    HubLink::new(url, Zeroizing::new(token.to_owned()), None).ok()
+}
+
 impl Studio {
     /// Initial state: the local daemon on desktop; on mobile, the hub saved last time, if any.
     #[must_use]
@@ -125,9 +137,13 @@ impl Studio {
             data_dir,
             confirmations: Confirmations::default(),
         };
-        let initial = me
-            .saved_hub()
-            .map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h)));
+        // A hub the person saved; else the local daemon when they chose it; else the hub this build was made for
+        // (a release links to the hosted pre-alpha hub); else the local daemon.
+        let initial = match me.saved_hub() {
+            Some(h) => Link::Hub(Arc::new(h)),
+            None if me.data_dir.join(PREFER_LOCAL).exists() => Self::default_link(),
+            None => builtin_hub().map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h))),
+        };
         Self {
             link: RwLock::new(initial),
             ..me
@@ -177,6 +193,7 @@ impl Studio {
         #[cfg(desktop)]
         {
             *self.link.write().await = Link::Local(Arc::new(LocalLink::discover()?));
+            let _ = write_private(&self.data_dir.join(PREFER_LOCAL), b"local\n");
             Ok(())
         }
         #[cfg(not(desktop))]
@@ -215,6 +232,7 @@ impl Studio {
                     StudioError::unavailable(format!("cannot save the hub settings: {}", e.kind()))
                 })?;
         }
+        let _ = std::fs::remove_file(self.data_dir.join(PREFER_LOCAL));
         *self.link.write().await = Link::Hub(Arc::new(hub));
         Ok(())
     }
@@ -224,7 +242,9 @@ impl Studio {
         let (settings, token) = self.hub_files();
         let _ = std::fs::remove_file(settings);
         let _ = std::fs::remove_file(token);
-        *self.link.write().await = Self::default_link();
+        let _ = std::fs::remove_file(self.data_dir.join(PREFER_LOCAL));
+        *self.link.write().await =
+            builtin_hub().map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h)));
     }
 
     /// Calls one daemon method over the active link.
@@ -248,6 +268,26 @@ impl Studio {
                 }
                 hub.call(method, params).await
             }
+        }
+    }
+
+    /// Calls the hosted pre-alpha service over the hub link.
+    ///
+    /// # Errors
+    ///
+    /// `api.method_not_found` unless the link is a hub; the service's envelope otherwise.
+    pub async fn prealpha_call(
+        &self,
+        method: &str,
+        params: Value,
+        install: &str,
+    ) -> StudioResult<Value> {
+        match self.link().await {
+            Link::Hub(hub) => hub.prealpha_call(method, params, install).await,
+            _ => Err(StudioError::new(
+                "api.method_not_found",
+                "the pre-alpha service is only on the hosted hub",
+            )),
         }
     }
 

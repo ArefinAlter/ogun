@@ -1,0 +1,67 @@
+{
+  "connector_version": 0,
+  "id": "minio",
+  "name": "MinIO",
+  "vendor": "MinIO",
+  "category": "object_storage",
+  "regions": ["global"],
+  "summary": "List, fetch and publish objects in a self-hosted MinIO server or cluster through its S3-compatible API, at an endpoint you set.",
+  "docs_url": "https://min.io/docs/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "s3_api",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key", "secret": true, "required": true, "help": "A MinIO user's access key; prefer a service account over the root user." },
+        { "name": "secret_access_key", "label": "Secret key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials from the MinIO STS." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "endpoint", "label": "Endpoint host", "type": "string", "required": true, "placeholder": "minio.internal.example", "help": "Host name or address of the server or load balancer, without the port." },
+    { "name": "port", "label": "Port", "type": "integer", "default": 9000, "help": "9000 is the MinIO API default." },
+    { "name": "secure", "label": "Use TLS", "type": "boolean", "default": true },
+    { "name": "region", "label": "Region", "type": "string", "default": "us-east-1" },
+    { "name": "bucket", "label": "Bucket", "type": "string", "required": true },
+    { "name": "prefix", "label": "Key prefix", "type": "string" }
+  ],
+  "egress": {
+    "domains": ["{endpoint}"],
+    "ports": [9000, 443],
+    "note": "9000 is the MinIO API default; behind a TLS proxy the port is usually 443. The console on 9001 is not used."
+  },
+  "operators": [
+    {
+      "op": "minio.list@1",
+      "kind": "adapter",
+      "summary": "List keys under a prefix, with sizes and ETags, as a manifest.",
+      "outputs": [{ "name": "manifest", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "minio.get@1",
+      "kind": "adapter",
+      "summary": "Fetch objects into the artifact store, hashed with BLAKE3, resumable by range.",
+      "inputs": ["manifest"],
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "minio.put@1",
+      "kind": "adapter",
+      "summary": "Publish artifacts under a key prefix with multipart upload and a recorded digest.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Requests use path-style addressing, which MinIO accepts without further server configuration."
+}

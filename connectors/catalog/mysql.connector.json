@@ -1,0 +1,63 @@
+{
+  "connector_version": 0,
+  "id": "mysql",
+  "name": "MySQL",
+  "vendor": "Oracle",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into MySQL, self-hosted or managed. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://dev.mysql.com/doc/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true }
+      ]
+    },
+    {
+      "id": "client_certificate",
+      "label": "TLS client certificate",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "client_certificate", "label": "Client certificate (PEM)", "secret": true, "required": true },
+        { "name": "client_private_key", "label": "Client private key (PEM)", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true },
+    { "name": "port", "label": "Port", "type": "integer", "default": 3306 },
+    { "name": "database", "label": "Database", "type": "string", "required": true },
+    { "name": "ssl_mode", "label": "TLS mode", "type": "enum", "default": "REQUIRED", "options": ["DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY"] }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [3306]
+  },
+  "operators": [
+    {
+      "op": "mysql.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "mysql.load@1",
+      "kind": "adapter",
+      "summary": "Insert Parquet rows into a table in batches, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "MariaDB and managed MySQL services (Amazon RDS, Google Cloud SQL, Azure Database for MySQL) use the same protocol: set the host. TiDB, StarRocks and Doris have their own connectors. Ogun does not create the table."
+}

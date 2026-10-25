@@ -23,6 +23,9 @@ ogun-stream.workspace = true
 ogun-edge.workspace = true
 ogun-api.workspace = true
 ogun-ops.workspace = true
+ogun-sync.workspace = true
+ogun-lineage.workspace = true
+ogun-zeus-bridge.workspace = true
 zeus-types.workspace = true
 zeus-artifact.workspace = true
 zeus-fs.workspace = true
@@ -47,6 +50,7 @@ rustix.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+ogun-edge.workspace = true
 
 [lints]
 workspace = true

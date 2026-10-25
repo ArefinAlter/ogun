@@ -9,20 +9,22 @@ Ogun adopts the Zeus specifications by reference where it says so, in particular
 | [O-00](O-00-conventions.md) | Conventions delta | Draft 1 | `ogun-types` |
 | [O-01](O-01-domain-model-and-run-state-machine.md) | Domain model and run state machine | Draft 1 | `ogun-run`, `ogun-store`, executor in `ogun-daemon` |
 | [O-02](O-02-workflow-ir-v0.md) | Workflow IR v0 | Draft 1 | `ogun-ir`, [`schema/workflow-ir.v0.schema.json`](schema/workflow-ir.v0.schema.json) |
-| [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; registry, core operators, runner and sandbox in `ogun-ops`; tool shims in `ogun-op-shims`; model operators in `ogun-llm`, `ogun-op-llm` |
+| [O-03](O-03-operator-abi-v0.md) | Operator ABI v0 | Draft 1 | catalogue in `ogun-ir`; registry, core operators, runner and sandbox in `ogun-ops`; tool shims in `ogun-op-shims`; model operators (section 8) in `ogun-llm`, `ogun-op-llm` |
 | [O-04](O-04-scheduling.md) | Scheduling: triggers, partitions, backfills, budgets | Draft 1 | `ogun-sched` |
 | [O-05](O-05-lineage-and-run-records.md) | Lineage and run records | Draft 1 | `ogun-lineage`, [`schema/ogun-lineage-facets.v0.schema.json`](schema/ogun-lineage-facets.v0.schema.json) |
-| [O-06](O-06-benchmark-profile.md) | Benchmark profile | Draft 1 | `ogun-bench` (library and binary) |
+| [O-06](O-06-benchmark-profile.md) | Benchmark profile | Draft 1 | `ogun-bench` (library and the `ogun-bench` binary) |
 | [O-07](O-07-approvals-and-trust-surfaces.md) | Approvals and trust surfaces | Draft 1 | `ogun-daemon`, `ogun approve` |
 | [O-08](O-08-session-bridge.md) | Session bridge | Draft 1 | `ogun-zeus-bridge` |
 | [O-09](O-09-streams-and-windowed-partitions.md) | Streams and windowed partitions | Draft 1 | `ogun-stream`; IR rules in `ogun-ir` |
 | [O-10](O-10-edge-ingestion.md) | Edge ingestion and the ingest log | Draft 1 | `ogun-edge::log`, `ogun-ingest` |
 | [O-11](O-11-edge-hub-sync.md) | Edge-to-hub sync | Draft 1 | `ogun-edge::sync`, `ogun-sync` |
-| [O-12](O-12-platform-profiles.md) | Platform profiles: the support matrix | Draft 1 | CI matrix; `apps/studio` (desktop/mobile shells, web frontend, Android gateway) |
+| [O-12](O-12-platform-profiles.md) | Platform profiles: the support matrix | Draft 1 | CI matrix; `apps/studio` (Studio desktop and mobile shells, Studio-web frontend, Android gateway) |
 | [O-13](O-13-server-mode.md) | Server mode: users, workspaces, roles, OIDC, WebAuthn approvals | Draft 1 | `ogun-server`; `deploy/` |
 | [O-14](O-14-extension-and-integration-surfaces.md) | Extension and integration surfaces | Draft 2 | `ogun-lsp`, `ogun mcp`, `extensions/vscode`, `integrations/` |
 | [O-15](O-15-daemon-api.md) | The `ogund` local API | Draft 1 | `ogun-api`, `ogun-daemon` |
+| [O-16](O-16-connectors-and-connections.md) | Connectors, connections and exporters | Draft 1 | `connectors/`, `integrations/export`, `apps/studio/web` (Settings) |
+| [O-17](O-17-agent-threads.md) | Agent threads: a conversation over a closed tool set | Draft 1 | `apps/studio/web` (the scripted demo only; no daemon yet) |
 
-Draft 1 means: complete enough to implement against, not yet reviewed line by line by the maintainer. The ADRs they rest on (0002 to 0012) are accepted.
+Draft 1 means: complete enough to implement against, not yet reviewed line by line by the maintainer. The ADRs they rest on (0002 to 0012) are accepted; ADRs 0013 (connectors) and 0014 (agent threads) are Proposed, so O-16 and O-17 are recommendations, not contracts to build on.
 
 Conformance: `cargo test --workspace` validates every example in `examples/` against the JSON Schema and the validator, and checks that the O-01 transition table in prose matches the table in code.

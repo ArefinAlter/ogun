@@ -52,8 +52,25 @@ async fn main() -> anyhow::Result<()> {
     tokio::select! {
         () = running.wait() => {}
         r = tokio::signal::ctrl_c() => { r.context("signal handler")?; }
+        r = terminate() => { r.context("signal handler")?; }
     }
     tracing::info!("ogund stopping");
     running.stop().await;
     Ok(())
+}
+
+/// Resolves on SIGTERM (systemd, `docker stop`, Kubernetes); never on platforms without it.
+async fn terminate() -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?
+            .recv()
+            .await;
+        Ok(())
+    }
+    #[cfg(not(unix))]
+    {
+        std::future::pending::<()>().await;
+        Ok(())
+    }
 }

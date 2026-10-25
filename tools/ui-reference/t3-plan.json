@@ -1,0 +1,29 @@
+{
+  "states": [
+    { "name": "01-main", "do": [], "settle_ms": 600 },
+    { "name": "02-search", "do": [{ "click_px": [60, 64] }], "settle_ms": 800, "after": [{ "key": "escape" }] },
+    { "name": "03-thread-open", "do": [{ "click_px": [115, 596] }], "settle_ms": 1600 },
+    { "name": "04-thread-right-panel-toggle", "do": [{ "click_px": [1756, 20] }], "settle_ms": 900, "after": [{ "click_px": [1756, 20] }] },
+    { "name": "05-thread-bottom-panel-toggle", "do": [{ "click_px": [1724, 20] }], "settle_ms": 900, "after": [{ "click_px": [1724, 20] }] },
+    { "name": "06-sidebar-collapsed", "do": [{ "click_px": [1692, 20] }], "settle_ms": 900, "after": [{ "click_px": [1692, 20] }] },
+    { "name": "07-new-thread", "do": [{ "click_px": [233, 64] }], "settle_ms": 1000 },
+    { "name": "08-model-picker", "do": [{ "click_px": [795, 549] }], "settle_ms": 900, "after": [{ "key": "escape" }] },
+    { "name": "09-permissions-picker", "do": [{ "click_px": [1064, 549] }], "settle_ms": 900, "after": [{ "key": "escape" }] },
+    { "name": "10-theme-picker", "do": [{ "key": "ctrl+alt+a" }], "settle_ms": 1000, "after": [{ "key": "escape" }] },
+    { "name": "11-command-palette-ctrl-k", "do": [{ "key": "ctrl+k" }], "settle_ms": 900, "after": [{ "key": "escape" }] },
+    { "name": "12-command-palette-ctrl-shift-p", "do": [{ "key": "ctrl+shift+p" }], "settle_ms": 900, "after": [{ "key": "escape" }] },
+    { "name": "13-settings-general", "do": [{ "key": "ctrl+comma" }], "settle_ms": 1000 },
+    { "name": "14-settings-appearance", "do": [{ "click_px": [80, 140] }], "settle_ms": 1000 },
+    { "name": "15-settings-keybindings", "do": [{ "click_px": [80, 176] }], "settle_ms": 1000 },
+    { "name": "16-settings-providers", "do": [{ "click_px": [72, 248] }], "settle_ms": 1000 },
+    { "name": "17-settings-integrations", "do": [{ "click_px": [80, 284] }], "settle_ms": 1000 },
+    { "name": "18-settings-scheduled-tasks", "do": [{ "click_px": [93, 320] }], "settle_ms": 1000 },
+    { "name": "19-settings-storage", "do": [{ "click_px": [66, 392] }], "settle_ms": 1000 },
+    { "name": "20-settings-connections", "do": [{ "click_px": [80, 428] }], "settle_ms": 1000, "after": [{ "click_px": [47, 1012] }] },
+    { "name": "21-source-control", "do": [{ "click_px": [60, 1012] }], "settle_ms": 1200, "after": [{ "click_px": [47, 1012] }] },
+    { "name": "22-usage", "do": [{ "click_px": [96, 1012] }], "settle_ms": 1200, "after": [{ "click_px": [47, 1012] }] },
+    { "name": "23-appearance-cycle-1", "do": [{ "key": "ctrl+alt+shift+a" }], "settle_ms": 1200 },
+    { "name": "24-appearance-cycle-2", "do": [{ "key": "ctrl+alt+shift+a" }], "settle_ms": 1200 },
+    { "name": "25-appearance-cycle-3-back-to-start", "do": [{ "key": "ctrl+alt+shift+a" }], "settle_ms": 1200 }
+  ]
+}

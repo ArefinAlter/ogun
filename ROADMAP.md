@@ -53,7 +53,7 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
   - Done (`ogun-ops`, `ogun-op-shims`): the operator registry; every core operator of O-03 section 7 (with `acquire` on the zeus-core engine and a no-session provider, and a robots-aware same-origin `crawl`); the `jsonl-stdio/0` runner with manifests, `config_schema` checks, secrets on stdin only and redacted stderr; the bubblewrap and `sandbox-exec` sandboxes; shims for DuckDB, SQL, dbt, shell, Poppler, Tesseract, PaddleOCR, ffmpeg, pandoc, yt-dlp, rclone, git and Hugging Face. The Smart Air Python operators run unchanged.
   - Next: wiring into `ogund`; a loopback test hook for `acquire` and `crawl`; Windows sandboxing.
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
-- Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions.
+- Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions. **Met on 2026-10-23** for a 121-partition backfill of core operators (`crates/ogun-daemon/tests/exit.rs`); the same run with `acquire` over a real source is the next check.
 
 ## Streams, edge, platforms and extensions (added 2026-10-23)
 
@@ -70,15 +70,15 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   - `ogun-sync`: edge keys, signed offers, the edge client (`ogun-sync keygen`, `once`, `run`), and the hub-side offer verification and chunk assembly. Unit-tested; the hub handlers and relay routes are not wired yet.
 - Next, in order:
   1. The CI matrix passing (blocked on the account's Actions billing).
-  2. Acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy).
+  2. An acceptance run of `ogun-ingest` against `ogund` (broker restart, `ogund` restart, full log under each `when_full` policy), after the O1 exit test.
   3. Done: range-compressed partition status (`partitions.status`, `ogun partition-status`).
-  4. `ogun lsp`.
+  4. Done: `ogun lsp` (`ogun-lsp`), with the VS Code client.
   5. Server mode without remote approvals. Started 2026-10-23: O-13 is Draft 1 and `ogun-server` (OIDC, workspaces, roles, API tokens, Studio-web REST and events, MCP over HTTP, the sync relay) builds; deployment assets are in `deploy/`. It waits for `ogund` to run end to end.
-  6. Edge-to-hub sync on a hub: daemon handlers, relay routes and a soak test over a link that drops.
+  6. Done: edge-to-hub sync on a hub (`sync.offer`, `sync.chunk` in `ogund` through `ogun-sync`, the relay routes in `ogun-server`); a soak test over a link that drops is next.
   7. Remote approvals with WebAuthn, after a security review. The passkey registration and decision relay are implemented behind `remote_approvals` (off by default); the external review (O-13 section 12) is open.
   8. The Android companion and gateway. Code in `apps/studio` (companion over a hub's REST routes; gateway with MQTT, LAN HTTP push, the ingest log and signed O-11 sync); not yet built for Android or run on a device.
   9. The iOS companion. Code in `apps/studio` (read-only hub link); not yet built with Xcode.
-- The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record.
+- The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record. **Met on 2026-10-23** (`crates/ogun-daemon/tests/exit.rs`).
 
 ## Phase O2: data and model operators
 

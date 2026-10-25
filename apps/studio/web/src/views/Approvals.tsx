@@ -105,7 +105,7 @@ function whereToDecide(mobile: boolean, link: string): string {
     return 'This is a read-only hub link: an API token is never a person. Decide in Studio-web on the server with a passkey, or on the hub host.'
   }
   if (link === 'server') {
-    return 'Deciding here needs the approver role, a confirmed passkey and remote approvals enabled on this server (ADR 0010).'
+    return 'A person decides this at the terminal of the server host. Deciding in Studio-web needs remote approvals switched on for this server (off until the security review of ADR 0010), the approver role and a confirmed passkey.'
   }
   return 'This connection cannot decide approvals. The studio credential must be a human credential, and the daemon accepts Studio evidence only from the pinned ogun-studio binary.'
 }

@@ -1,0 +1,61 @@
+{
+  "connector_version": 0,
+  "id": "databricks",
+  "name": "Databricks",
+  "vendor": "Databricks",
+  "category": "warehouse",
+  "regions": ["global"],
+  "summary": "Run queries on a Databricks SQL warehouse and load Parquet partitions with COPY INTO. Loads are idempotent by partition and revision (ADR 0012).",
+  "docs_url": "https://docs.databricks.com/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "personal_access_token",
+      "label": "Personal access token",
+      "fields": [
+        { "name": "personal_access_token", "label": "Personal access token", "secret": true, "required": true, "help": "Create it in the workspace under user settings; store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "oauth_m2m",
+      "label": "OAuth machine-to-machine (service principal)",
+      "fields": [
+        { "name": "client_id", "label": "Service principal client ID", "secret": false, "required": true },
+        { "name": "client_secret", "label": "Service principal OAuth secret", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "workspace_host", "label": "Workspace host", "type": "string", "required": true, "placeholder": "adb-1234567890123456.7.azuredatabricks.net", "help": "The host of the workspace URL, without https://." },
+    { "name": "warehouse_id", "label": "SQL warehouse ID", "type": "string", "required": true },
+    { "name": "catalog", "label": "Catalog", "type": "string" },
+    { "name": "schema", "label": "Schema", "type": "string", "default": "default" }
+  ],
+  "egress": {
+    "domains": ["{workspace_host}"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "databricks.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL statement on a SQL warehouse and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    },
+    {
+      "op": "databricks.load@1",
+      "kind": "adapter",
+      "summary": "Load staged Parquet into a table with COPY INTO, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "COPY INTO reads from cloud object storage the workspace can already access; add that store's connector domains to the same egress approval. Ogun does not create the table or the storage credential."
+}

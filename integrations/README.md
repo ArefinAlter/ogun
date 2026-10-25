@@ -10,5 +10,6 @@ Ways for coding agents and data platforms to reach Ogun (O-14). Every one of the
 | [`dagster/`](dagster) | `dagster-ogun`: `OgunResource` and `ogun_workflow_asset` | `dagster` |
 | [`prefect/`](prefect) | `prefect-ogun`: the `OgunConnection` block and run tasks | `prefect` |
 | [`kestra/`](kestra) | A flow blueprint with the `ogun` CLI and `ogun-client` | `kestra` |
+| [`export/`](export) | `ogun-export`: follows the event stream and sends run, partition and approval information out to Datadog, OpenLineage, Slack, Teams, PagerDuty, DingTalk, Feishu, WeCom, Splunk, Prometheus, Elasticsearch, OpenTelemetry, New Relic, Loki and a signed webhook; read-only, with a durable outbox | `export` |
 
 The packages are not on PyPI yet; install them from this directory (`pip install ./integrations/python/ogun-client ./integrations/airflow`).

@@ -1,0 +1,48 @@
+{
+  "connector_version": 0,
+  "id": "pagerduty",
+  "name": "PagerDuty",
+  "vendor": "PagerDuty",
+  "category": "notification",
+  "regions": ["global"],
+  "summary": "Trigger, acknowledge and resolve PagerDuty alerts from Ogun workflows through Events API v2, in the US or EU service region.",
+  "docs_url": "https://developer.pagerduty.com/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "events_v2",
+      "label": "Events API v2 integration",
+      "fields": [
+        { "name": "routing_key", "label": "Routing key", "secret": true, "required": true, "help": "The integration key of an Events API v2 integration on a service. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "service_region", "label": "Service region", "type": "enum", "required": true, "default": "us", "options": ["us", "eu"], "help": "us uses events.pagerduty.com; eu uses events.eu.pagerduty.com." },
+    { "name": "severity", "label": "Default severity", "type": "enum", "default": "error", "options": ["critical", "error", "warning", "info"] },
+    { "name": "source", "label": "Event source", "type": "string", "default": "ogun", "help": "Names the system that raised the alert." }
+  ],
+  "egress": {
+    "domains": ["events.pagerduty.com", "events.eu.pagerduty.com"],
+    "ports": [443],
+    "note": "Only the host of the chosen service region is used."
+  },
+  "operators": [
+    {
+      "op": "notify.pagerduty@1",
+      "kind": "adapter",
+      "summary": "Send a trigger, acknowledge or resolve event to PagerDuty, deduplicated by key.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "Events go to /v2/enqueue on the host of the chosen region. An event that repeats a dedup_key updates the same alert instead of opening another. The routing key is a secret and never reaches logs, events or lineage.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/pagerduty.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

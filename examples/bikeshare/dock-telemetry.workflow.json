@@ -1,0 +1,94 @@
+{
+  "ir_version": 0,
+  "workflow": "dock-telemetry",
+  "version": 1,
+  "description": "Bike and dock counts, battery level and faults from docking stations over MQTT, sealed into one-minute windows and rolled up hourly. No model access.",
+  "triggers": [
+    {
+      "kind": "stream",
+      "source": "docks"
+    }
+  ],
+  "partitions": {
+    "kind": "window",
+    "source": "docks",
+    "time_field": "ts_ms",
+    "key_field": "station_id",
+    "size_ms": 60000,
+    "allowed_lateness_ms": 3600000,
+    "max_delay_ms": 120000
+  },
+  "streams": {
+    "docks": {
+      "max_buffer_bytes": 2147483648,
+      "when_full": "block",
+      "dedupe_key": [
+        "station_id",
+        "seq"
+      ]
+    }
+  },
+  "budgets": {
+    "bytes": 10737418240
+  },
+  "nodes": [
+    {
+      "id": "docks",
+      "op": "stream.mqtt@1",
+      "config": {
+        "broker": "mqtts://gateway.local:8883",
+        "topics": [
+          "city/+/telemetry"
+        ],
+        "qos": 1,
+        "username": "ogun-city",
+        "password": {
+          "secret_ref": "city_mqtt"
+        },
+        "payload": "json"
+      }
+    },
+    {
+      "id": "clean",
+      "op": "filter@1",
+      "inputs": [
+        "docks.window"
+      ],
+      "config": {
+        "drop_if_missing": [
+          "bikes"
+        ]
+      }
+    },
+    {
+      "id": "hourly",
+      "op": "window.rollup@1",
+      "inputs": [
+        "clean.artifacts"
+      ],
+      "config": {
+        "to_ms": 3600000,
+        "group_by": [
+          "station_id"
+        ],
+        "aggregates": [
+          "min",
+          "max",
+          "mean",
+          "count",
+          "p95"
+        ]
+      }
+    },
+    {
+      "id": "publish",
+      "op": "duckdb@1",
+      "inputs": [
+        "hourly.artifacts"
+      ],
+      "config": {
+        "write": "dock_hourly.parquet"
+      }
+    }
+  ]
+}

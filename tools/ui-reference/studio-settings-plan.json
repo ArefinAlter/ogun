@@ -1,0 +1,31 @@
+{
+  "shots": [
+    { "name": "s01-general", "hash": "#/settings/general" },
+    { "name": "s01b-general-workflow-scope", "hash": "#/settings/general", "js": "const sel = document.querySelectorAll('.scope-select')[0]; sel.value = 'trips-backfill'; sel.dispatchEvent(new Event('change', {bubbles: true}))", "settle_ms": 1200 },
+    { "name": "s02-appearance", "hash": "#/settings/appearance" },
+    { "name": "s03-keybindings", "hash": "#/settings/keybindings" },
+    { "name": "s04-evidence", "hash": "#/settings/evidence" },
+    { "name": "s05-providers", "hash": "#/settings/providers" },
+    { "name": "s05b-providers-add", "js": "[...document.querySelectorAll('.sgroup-actions .btn')].find(b => b.textContent.includes('Add provider')).click()", "settle_ms": 700 },
+    { "name": "s06-connectors", "hash": "#/settings/connectors", "settle_ms": 1800 },
+    { "name": "s06b-connectors-china-warehouse", "js": "[...document.querySelectorAll('.segmented button')].find(b => b.textContent.trim() === 'China').click(); [...document.querySelectorAll('.catchip')].find(b => b.textContent.includes('Warehouses')).click()", "settle_ms": 900 },
+    { "name": "s06c-connector-bigquery", "hash": "#/settings/connectors/bigquery", "settle_ms": 1600 },
+    { "name": "s06d-connector-bigquery-example", "js": "[...document.querySelectorAll('.tabs button')].find(b => b.textContent.includes('In a workflow')).click()", "settle_ms": 700 },
+    { "name": "s06e-connector-dingtalk", "hash": "#/settings/connectors/dingtalk", "settle_ms": 1400 },
+    { "name": "s07-connections", "hash": "#/settings/connections", "settle_ms": 1400 },
+    { "name": "s07b-connections-test", "js": "[...document.querySelectorAll('table tbody tr')].find(r => r.textContent.includes('analytics-bigquery')).querySelector('.btn.small').click()", "settle_ms": 1800 },
+    { "name": "s07c-connection-new", "hash": "#/settings/connections/new?connector=bigquery", "settle_ms": 1400 },
+    { "name": "s08-schedules", "hash": "#/settings/schedules", "settle_ms": 1400 },
+    { "name": "s08b-schedule-new", "js": "[...document.querySelectorAll('.page-head .btn')].find(b => b.textContent.includes('New schedule')).click()", "settle_ms": 900 },
+    { "name": "s09-sources", "hash": "#/settings/sources", "settle_ms": 1200 },
+    { "name": "s10-storage", "hash": "#/settings/storage", "settle_ms": 1400 },
+    { "name": "s10b-storage-cleanup", "js": "[...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Review cleanup')).click()", "settle_ms": 1000 },
+    { "name": "s11-environments", "hash": "#/settings/environments", "settle_ms": 1400 },
+    { "name": "s12-security", "hash": "#/settings/security", "settle_ms": 1200 },
+    { "name": "s13-archive", "hash": "#/settings/archive", "settle_ms": 1200 },
+    { "name": "s14-theme-picker", "hash": "#/", "key": "ctrl+alt+a" },
+    { "name": "s15-general-dark", "hash": "#/settings/general", "theme": "dark", "settle_ms": 1400 },
+    { "name": "s16-providers-dark", "hash": "#/settings/providers", "theme": "dark", "settle_ms": 1400 },
+    { "name": "s17-general-phone", "hash": "#/settings/general", "width": 390, "height": 844 }
+  ]
+}

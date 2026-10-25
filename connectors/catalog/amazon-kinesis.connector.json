@@ -1,0 +1,59 @@
+{
+  "connector_version": 0,
+  "id": "amazon-kinesis",
+  "name": "Amazon Kinesis Data Streams",
+  "vendor": "Amazon Web Services",
+  "category": "streaming",
+  "regions": ["global"],
+  "summary": "Read records from and write records to Amazon Kinesis Data Streams, signed with Signature Version 4, as JSON lines in a workflow.",
+  "docs_url": "https://docs.aws.amazon.com/streams/latest/dev/",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "access_keys",
+      "label": "Access key pair",
+      "fields": [
+        { "name": "access_key_id", "label": "Access key ID", "secret": true, "required": true },
+        { "name": "secret_access_key", "label": "Secret access key", "secret": true, "required": true },
+        { "name": "session_token", "label": "Session token", "secret": true, "required": false, "help": "Only for temporary credentials." }
+      ]
+    },
+    {
+      "id": "instance_role",
+      "label": "IAM role of the daemon host",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "region", "label": "Region", "type": "string", "required": true, "default": "us-east-1", "placeholder": "us-east-1" },
+    { "name": "stream_name", "label": "Stream", "type": "string", "required": true },
+    { "name": "start_position", "label": "Start position", "type": "enum", "default": "TRIM_HORIZON", "options": ["TRIM_HORIZON", "LATEST", "AT_TIMESTAMP"], "help": "Shard iterator type for kinesis.consume@1." }
+  ],
+  "egress": {
+    "domains": ["kinesis.{region}.amazonaws.com", "sts.{region}.amazonaws.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "kinesis.consume@1",
+      "kind": "adapter",
+      "summary": "Read records from a stream's shards from a start position and keep them as JSON lines.",
+      "outputs": [{ "name": "records", "media_type": "application/x-ndjson" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    },
+    {
+      "op": "kinesis.produce@1",
+      "kind": "adapter",
+      "summary": "Put records to a stream and record the shard and sequence number of each.",
+      "inputs": ["records"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "Bridging records into Ogun's stream sources (O-09) is done by ogun-ingest and is not built for Kinesis."
+}

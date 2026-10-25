@@ -14,6 +14,16 @@ describe:
 A desktop Studio can also connect to a hub read-only (Settings, "Connect to a hub"); that is how an edge is viewed
 remotely.
 
+## The pre-alpha release (0.0.1a)
+
+| | |
+|---|---|
+| Hosted | `https://ogun.103.191.50.32.sslip.io`: Studio-web on the real `ogund` and `ogun-server` with sample data, a shared sample account shown on the sign-in page, reset every night. The screens `ogund` does not implement yet (agent threads, connections, provider and storage settings) are served by the pre-alpha service under `/svc/` ([`deploy/pre-alpha`](../../deploy/pre-alpha/README.md)); About says which is which. |
+| Desktop | [Release v0.0.1a](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1a): Windows x64 (NSIS installer, portable zip) and Linux x64 (AppImage, .deb). Unsigned. It links to the hosted hub by default with a public token that acts as an agent (read-only for workflows and runs; agent threads and settings go to the pre-alpha service); Settings, Environments, "Use ogund on this machine" switches to a local daemon, and "Connect to a hub" to your own. |
+| Built how | `OGUN_STUDIO_DEFAULT_HUB_URL` and `OGUN_STUDIO_DEFAULT_HUB_TOKEN` at build time set the default hub (`src-tauri/src/link.rs`); without them a build links to the local daemon as before. `deploy/pre-alpha/release/` holds the Linux build container and the packaging script; `.github/workflows/release-prealpha.yml` does the same on Actions when started by hand. |
+
+The scripted backend stays as a build option (`npm run demo`, `build:desktop-demo:app`) for offline use and tests.
+
 ## Layout
 
 | Path | What |
@@ -33,9 +43,52 @@ npm run dev          # http://localhost:5173 (for Studio-web work: OGUN_SERVER=h
 
 `dist/` is what every shell loads: the Tauri shells embed it, and `ogun-server` serves it as Studio-web. Asset URLs
 are relative and the app routes by URL hash, so it works under any mount point and needs no server rewrites. It
-uses no inline script or style, so it runs under a strict CSP (`script-src 'self'; style-src 'self'`). Fonts (IBM
-Plex Sans and Mono, EB Garamond; SIL OFL 1.1, licences in `public/licenses/`) are bundled; nothing is fetched from
-a third party.
+uses no inline script or style, so it runs under a strict CSP (`script-src 'self'; style-src 'self'`). The
+interface follows T3 Code's conventions (`web/DESIGN.md`): system fonts, zinc surfaces, one ember accent, a
+grouped sidebar, a breadcrumb bar and a Ctrl+K command palette; nothing is fetched from a third party.
+
+### Scripted build
+
+```sh
+npm run demo                 # http://localhost:5173 on the scripted bike-share scenario (web/src/demo)
+npm run build:demo           # the same as a static build in dist-demo/; `npm run preview:demo` serves it on :4174
+npm run build:site           # the build the ogun-site project serves at /studio/ (no browser storage, strict CSP)
+npm run build:desktop-demo:app   # the Tauri shell on the scripted backend, copied to <repo>/dist/desktop/
+```
+
+`vite --mode demo` sets `VITE_OGUN_DEMO=1`; any Studio build also answers to `?demo` in the URL, except inside a
+Tauri shell, where only the `desktop-demo` mode (`VITE_OGUN_DESKTOP_DEMO=1`) turns it on. The demo backend is a
+separate chunk that a normal desktop build never loads. `WALKTHROUGH.md` (beside this file) is the walkthrough and says
+what is real and what is scripted. `scripts/sync-sample-docs.mjs` refreshes the scripted daemon's workflow documents and
+hashes from the repository's examples with the built `ogun` CLI. `scripts/sync-connectors.mjs` copies the
+connector catalog (`connectors/`) into the bundle that Settings, Connectors reads.
+
+### The agent screen and the window frame
+
+The first screen is a conversation (O-17, proposed): `src/views/Agent.tsx` and `src/views/agent`. It needs a daemon that
+offers `backend.agent`; only the scripted demo (`src/demo/agent.ts`) does today, and every other backend shows the
+screen as unavailable with the MCP commands that work now. In the Windows shell the main window has no native frame:
+the page draws its own controls (`src/ui/WindowControls.tsx`, `src/lib/shell.ts`) and the capability grants only the
+window commands they need. `DESIGN.md` lists both conventions.
+
+```sh
+npm test                                                           # tool table, Markdown reader, identity, durations
+python tools/ui-reference/smoke_studio.py --base http://localhost:4174   # includes the agent flows
+python tools/ui-reference/chrome_check.py --title "Ogun Studio" --exe ogun-studio   # real mouse input on the frame
+```
+
+### Settings
+
+Settings follow T3 Code's sections (General, Appearance, Keybindings, Evidence, Providers, Connectors,
+Connections, Schedules, Workflow sources, Storage, Environments, Security, Archive). Appearance, keybindings and
+notification choices are device preferences (`ogun-studio:prefs:v1` in the webview's storage; memory only when
+`VITE_OGUN_NO_STORAGE=1`, as on the hosted demo). Everything that belongs to the daemon (run defaults, schedules,
+connections, storage rules) goes through optional methods of the `Backend` interface; a daemon that lacks one is
+shown read-only with the words "this daemon does not ...". The contract is O-16.
+
+The Tauri shell sets `freezePrototype`, which makes `{}.constructor = x` throw. `vite.config.ts` patches the one
+place Preact does that, and `python tools/ui-reference/smoke_studio.py --freeze-prototype` checks the whole app
+under a frozen `Object.prototype`.
 
 ## Desktop
 
@@ -110,7 +163,7 @@ The Gateway page turns the phone into a field gateway (O-12 section 3; O-10; O-1
   NDJSON blob named by its BLAKE3 digest, offered as asset `gateway/<name>`, partition `w<UTC start>-s<first seq>`.
 - **Sync.** A JobScheduler job runs on an unmetered network, and only while charging unless that is turned off. It
   sends the Ed25519-signed `sync.offer` (signature over the JCS form of the offer) to the hub's
-  `/api/v1/sync/offer`, uploads the wanted chunks (768 KiB) to `/api/v1/sync/chunk`, and offers again to collect
+  `/api/v1/sync/offer`, uploads the wanted chunks (512 KiB) to `/api/v1/sync/chunk`, and offers again to collect
   acknowledgements. Only acknowledged segments are deleted, and only then are their records released from the log.
 - **Enrol.** The gateway creates its key pair on first use and shows the public key and fingerprint. A person enrols
   the key on the hub host (`edges.enroll`, on its terminal), compares fingerprints, and enters the returned `edg_` id

@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "opentelemetry",
+  "name": "OpenTelemetry",
+  "vendor": "Cloud Native Computing Foundation",
+  "category": "observability",
+  "regions": ["cn", "global"],
+  "summary": "Export Ogun metrics and events as OTLP to an OpenTelemetry Collector or any OTLP backend, over HTTP on 4318 or gRPC on 4317.",
+  "docs_url": "https://opentelemetry.io/docs/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "otlp",
+  "auth": [
+    {
+      "id": "none",
+      "label": "No authentication",
+      "fields": []
+    },
+    {
+      "id": "header",
+      "label": "Authorization header",
+      "fields": [
+        { "name": "authorization", "label": "Authorization header value", "secret": true, "required": true, "help": "Read from the exporter process environment, not Ogun's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Collector or backend host", "type": "string", "required": true, "placeholder": "localhost", "help": "Host only: no scheme and no port." },
+    { "name": "protocol", "label": "OTLP protocol", "type": "enum", "default": "http/protobuf", "options": ["http/protobuf", "http/json", "grpc"], "help": "HTTP posts to /v1/metrics and /v1/logs." },
+    { "name": "service_name", "label": "Service name", "type": "string", "default": "ogun", "help": "The service.name resource attribute." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [4317, 4318],
+    "note": "4317 is OTLP/gRPC, 4318 is OTLP/HTTP. A collector on the same machine needs no outside reach."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Metrics, sent as OTLP metrics: ogun.workflows, ogun.runs.active, ogun.approvals.pending, ogun.streams, ogun.node_instances by state. Events, sent as OTLP log records: failed runs and approvals waiting for a person.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/otlp.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

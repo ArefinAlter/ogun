@@ -1,0 +1,43 @@
+{
+  "connector_version": 0,
+  "id": "slack",
+  "name": "Slack",
+  "vendor": "Slack",
+  "category": "notification",
+  "regions": ["global"],
+  "summary": "Post messages from Ogun workflows to a Slack channel through an incoming webhook. The webhook URL is the secret.",
+  "docs_url": "https://api.slack.com/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "webhook",
+  "auth": [
+    {
+      "id": "incoming_webhook",
+      "label": "Incoming webhook",
+      "fields": [
+        { "name": "webhook_url", "label": "Webhook URL", "secret": true, "required": true, "help": "The URL Slack gives for the webhook. It is a secret. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["hooks.slack.com"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "notify.slack@1",
+      "kind": "adapter",
+      "summary": "Post a text message to the Slack channel the incoming webhook is bound to.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "A Slack incoming webhook is bound to one channel when it is created, and anyone holding its URL can post there, so the URL is stored as a secret and never reaches logs, events or lineage. Slack's own rate limits apply.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/slack.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

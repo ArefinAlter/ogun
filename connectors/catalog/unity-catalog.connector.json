@@ -1,0 +1,52 @@
+{
+  "connector_version": 0,
+  "id": "unity-catalog",
+  "name": "Databricks Unity Catalog",
+  "vendor": "Databricks",
+  "category": "catalog",
+  "regions": ["global"],
+  "summary": "Register Parquet that Ogun published to object storage as external tables in Databricks Unity Catalog, using a personal access token or OAuth.",
+  "docs_url": "https://docs.databricks.com/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "personal_access_token",
+      "label": "Personal access token",
+      "fields": [
+        { "name": "access_token", "label": "Personal access token", "secret": true, "required": true, "help": "Created in the Databricks workspace. Store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "oauth_m2m",
+      "label": "OAuth, service principal (machine to machine)",
+      "fields": [
+        { "name": "client_id", "label": "Client ID", "secret": true, "required": true },
+        { "name": "client_secret", "label": "Client secret", "secret": true, "required": true }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "workspace_host", "label": "Workspace host", "type": "string", "required": true, "placeholder": "dbc-a1b2c3d4-e5f6.cloud.databricks.com", "help": "Host name of the workspace, without https://." },
+    { "name": "catalog", "label": "Catalog", "type": "string", "required": true },
+    { "name": "schema", "label": "Schema", "type": "string", "required": true }
+  ],
+  "egress": {
+    "domains": ["{workspace_host}"],
+    "ports": [443]
+  },
+  "operators": [
+    {
+      "op": "unity.register@1",
+      "kind": "adapter",
+      "summary": "Register a published Parquet prefix as an external table in a Unity Catalog schema.",
+      "inputs": ["artifacts"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "The storage path must already be covered by an external location in Unity Catalog; Ogun does not create locations or storage credentials. Loading data with COPY INTO is a warehouse load (ADR 0012), not this connector. Check the Databricks documentation for the table API of your edition."
+}

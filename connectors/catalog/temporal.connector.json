@@ -1,0 +1,42 @@
+{
+  "connector_version": 0,
+  "id": "temporal",
+  "name": "Temporal",
+  "vendor": "Temporal Technologies",
+  "category": "orchestration",
+  "regions": ["cn", "global"],
+  "summary": "A Temporal activity starts a run of an approved Ogun workflow with the ogun CLI and waits for it. Temporal calls Ogun; Ogun does not drive Temporal.",
+  "docs_url": "https://docs.temporal.io/",
+  "maturity": "contract",
+  "directions": ["trigger"],
+  "protocol": "cli",
+  "auth": [
+    {
+      "id": "agent_credential",
+      "label": "Local agent credential (worker on the ogund host)",
+      "fields": [
+        { "name": "agent_name", "label": "Credential name", "secret": false, "required": true, "help": "Created once on a terminal: ogun credentials add NAME --kind agent. Pass it with --credential or OGUN_CREDENTIAL." }
+      ]
+    },
+    {
+      "id": "api_token",
+      "label": "Ogun API token (worker elsewhere, through ogun-server)",
+      "fields": [
+        { "name": "ogun_api_token", "label": "Ogun API token", "secret": true, "required": true, "help": "A token a signed-in person creates, role viewer or editor. Keep it in the worker's secret store." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "ogun_home", "label": "Ogun state directory", "type": "string", "help": "As $OGUN_HOME, for the worker on the ogund host." },
+    { "name": "profile", "label": "Profile", "type": "string", "help": "Profile whose daemon to reach; also OGUN_PROFILE." },
+    { "name": "server_url", "label": "Ogun server URL", "type": "string", "placeholder": "https://ogun.example.com", "help": "The public_url of ogun-server: an origin with no path. For a worker on another machine." },
+    { "name": "workspace", "label": "Workspace id", "type": "string", "placeholder": "wsp_...", "help": "Sent as x-ogun-workspace. A token belongs to one workspace, so this is rarely needed." }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "Temporal calls Ogun. Nothing leaves the machine from Ogun for this connector."
+  },
+  "operators": [],
+  "notes": "Temporal calls Ogun and cannot approve: a run that needs an approval waits for a person on the Ogun CLI or in Studio. Use one idempotency key per activity so a retry re-attaches to its run. The output of ogun run --json is not yet in the O-14 section 4 compatibility promise."
+}

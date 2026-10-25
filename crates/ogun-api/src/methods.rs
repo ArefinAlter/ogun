@@ -1081,7 +1081,8 @@ pub struct SyncChunkParams {
     pub index: u32,
     /// Chunks in total.
     pub total: u32,
-    /// Bytes, base64 (at most 768 KiB per chunk on this transport).
+    /// Bytes, base64; every chunk but the last is exactly 512 KiB (`ogun_sync::CHUNK_BYTES`), which keeps
+    /// the request under the 1 MiB line limit.
     pub data_base64: String,
 }
 

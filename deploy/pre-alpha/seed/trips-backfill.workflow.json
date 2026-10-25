@@ -1,0 +1,40 @@
+{
+  "ir_version": 0,
+  "workflow": "trips-backfill",
+  "version": 1,
+  "description": "Trips of the sample bike-share network, month by month since 2023, from the sample open-trips archive (files.example.org inside the hub), with a digest per month. A partitioned backfill of built-in operators: a month that is done never runs again.",
+  "partitions": {
+    "kind": "time",
+    "granularity": "month",
+    "start": "2023-01"
+  },
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "10 2 4 * *"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "files.example.org"
+        ],
+        "sources": [
+          {
+            "url": "http://files.example.org/open-trips/trips-{partition}.csv"
+          }
+        ]
+      }
+    },
+    {
+      "id": "digest",
+      "op": "hash@1",
+      "inputs": [
+        "fetch.artifacts"
+      ]
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import { asOgunError } from '../api'
 import type { EventView, NodeState, OgunError, RunView } from '../api/types'
 import { fmtAgo, fmtCount, fmtTime, idempotencyKey, words } from '../lib/format'
 import { href, useAsync, useBackend, useInfo, useLive } from '../lib/hooks'
+import { buildEvidence, download, evidenceHtml } from '../lib/evidence'
+import { getPrefs } from '../lib/prefs'
 import { Dag } from '../ui/Dag'
 import { Dialog, Empty, ErrorBox, Hash, Kv, Loading, PageHead, StateLabel, Tabs } from '../ui/components'
 
@@ -151,6 +153,21 @@ export function RunDetail({ runId }: { runId: string }) {
   const nodes = (r?.nodes ?? []).filter((n) => (!stateFilter || n.state === stateFilter) && (!nodeFilter || n.node === nodeFilter))
   const shown = nodes.slice(0, 500)
 
+  const evidence = useAsync(() => (backend.evidence ? backend.evidence.get() : Promise.resolve(null)), [backend])
+  const offerEvidence = !evidence.data || evidence.data.enabled
+  const saveEvidence = async () => {
+    setError(undefined)
+    try {
+      const opts = evidence.data ?? { format: 'json' as const, include_lineage: true, include_previews: false }
+      const b = await buildEvidence(backend, runId, opts, info?.appVersion ?? '')
+      const html = opts.format === 'html'
+      const ok = download(`evidence-${runId}.${html ? 'html' : 'json'}`, html ? evidenceHtml(b) : JSON.stringify(b, null, 2), html ? 'text/html' : 'application/json')
+      if (!ok) setError(asOgunError({ code: 'studio.download_blocked', class: 'unavailable', message: 'This window did not allow the download.' }))
+    } catch (e) {
+      setError(asOgunError(e))
+    }
+  }
+
   const cancel = async () => {
     setConfirmCancel(false)
     try {
@@ -167,8 +184,13 @@ export function RunDetail({ runId }: { runId: string }) {
         <a class="btn" href={href('artifacts', { run: runId })}>
           Artifacts and lineage
         </a>
+        {r && offerEvidence ? (
+          <button type="button" class="btn" onClick={() => void saveEvidence()} title="A file that says what ran, which exact workflow, and where every artifact came from">
+            Download evidence
+          </button>
+        ) : null}
         {info?.canWrite && r && !TERMINAL.has(r.state) ? (
-          <button type="button" class="btn danger" onClick={() => setConfirmCancel(true)}>
+          <button type="button" class="btn danger" onClick={() => (getPrefs().confirmCancel ? setConfirmCancel(true) : void cancel())}>
             Cancel run
           </button>
         ) : null}

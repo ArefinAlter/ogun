@@ -1,0 +1,54 @@
+{
+  "connector_version": 0,
+  "id": "tidb",
+  "name": "TiDB",
+  "vendor": "PingCAP",
+  "category": "database",
+  "regions": ["global"],
+  "summary": "Run queries and load Parquet partitions into TiDB Cloud or a self-hosted TiDB cluster over the MySQL protocol. Loads are idempotent by partition and revision.",
+  "docs_url": "https://docs.pingcap.com/tidb/stable",
+  "maturity": "contract",
+  "directions": ["source", "sink"],
+  "protocol": "sql_wire",
+  "auth": [
+    {
+      "id": "password",
+      "label": "User name and password",
+      "fields": [
+        { "name": "username", "label": "User name", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": false, "help": "Empty only for a local cluster whose root user has no password." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "host", "label": "Host", "type": "string", "required": true },
+    { "name": "port", "label": "Port", "type": "integer", "default": 4000 },
+    { "name": "database", "label": "Database", "type": "string", "required": true },
+    { "name": "tls", "label": "Use TLS", "type": "boolean", "default": true, "help": "TiDB Cloud requires TLS." }
+  ],
+  "egress": {
+    "domains": ["{host}"],
+    "ports": [4000]
+  },
+  "operators": [
+    {
+      "op": "tidb.query@1",
+      "kind": "adapter",
+      "summary": "Run a SQL query and keep the result as Parquet.",
+      "outputs": [{ "name": "tables", "media_type": "application/vnd.apache.parquet" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    },
+    {
+      "op": "tidb.load@1",
+      "kind": "adapter",
+      "summary": "Insert Parquet rows into a table in batches, once per partition and revision.",
+      "inputs": ["tables"],
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "driver"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "4000 is the default port of a TiDB server, not MySQL's 3306. TiDB has its own bulk import tools, which Ogun does not drive. Ogun does not create the table."
+}

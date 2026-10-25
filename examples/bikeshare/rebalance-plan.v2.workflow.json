@@ -1,0 +1,51 @@
+{
+  "ir_version": 0,
+  "workflow": "rebalance-plan",
+  "version": 2,
+  "description": "Every morning: thirty days of hourly dock rollups, an empty-or-full risk estimate per station, and the shortlist of stations to rebalance today.",
+  "triggers": [
+    {
+      "kind": "cron",
+      "cron": "45 0 * * *"
+    }
+  ],
+  "budgets": {
+    "wall_ms": 600000
+  },
+  "nodes": [
+    {
+      "id": "rollups",
+      "op": "duckdb@1",
+      "config": {
+        "read": "dock_hourly.parquet",
+        "last_days": 30
+      }
+    },
+    {
+      "id": "estimate",
+      "op": "python@1",
+      "inputs": [
+        "rollups.tables"
+      ],
+      "config": {
+        "as_of": "{run.date}",
+        "wet_or_cold": false
+      },
+      "code": {
+        "blake3": "8bd49e9d2379bf33d682b967615297dc731bac0d074354addd208611bcbed8e3",
+        "path": "examples/bikeshare/ops/rebalance_weather.py"
+      }
+    },
+    {
+      "id": "shortlist",
+      "op": "duckdb@1",
+      "inputs": [
+        "estimate.rows"
+      ],
+      "config": {
+        "write": "rebalance_shortlist.parquet",
+        "risk_over_pct": 70
+      }
+    }
+  ]
+}

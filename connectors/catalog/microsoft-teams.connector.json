@@ -1,0 +1,44 @@
+{
+  "connector_version": 0,
+  "id": "microsoft-teams",
+  "name": "Microsoft Teams",
+  "vendor": "Microsoft",
+  "category": "notification",
+  "regions": ["global"],
+  "summary": "Post messages from Ogun workflows to a Microsoft Teams chat or channel through a Workflows (Power Automate) webhook. The webhook URL is the secret.",
+  "docs_url": "https://learn.microsoft.com/en-us/microsoftteams/platform/",
+  "maturity": "built",
+  "directions": ["emit"],
+  "protocol": "webhook",
+  "auth": [
+    {
+      "id": "workflows_webhook",
+      "label": "Workflows webhook",
+      "fields": [
+        { "name": "webhook_url", "label": "Webhook URL", "secret": true, "required": true, "help": "The URL of the flow's HTTP trigger. It embeds a key, so it is a secret. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["*.logic.azure.com", "*.webhook.office.com"],
+    "ports": [443],
+    "note": "The host of the webhook URL varies by tenant and region. Check it against this list before approving."
+  },
+  "operators": [
+    {
+      "op": "notify.teams@1",
+      "kind": "adapter",
+      "summary": "Post a message to the Teams chat or channel the Workflows webhook is bound to.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "Use a Workflows (Power Automate) webhook. The older Office 365 connector webhooks, on webhook.office.com, are being retired by Microsoft, so new setups should not rely on them. Check the Microsoft documentation for the payload your flow expects.",
+  "implementation": {
+    "path": "integrations/export/src/ogun_export/sinks/teams.py",
+    "evidence": "Sink in ogun-export, written from public documentation and checked against a local fake in unit tests; not run against the real service."
+  }
+}

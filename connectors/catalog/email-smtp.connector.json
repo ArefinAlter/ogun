@@ -1,0 +1,51 @@
+{
+  "connector_version": 0,
+  "id": "email-smtp",
+  "name": "Email (SMTP)",
+  "vendor": "Any SMTP server",
+  "category": "notification",
+  "regions": ["global", "cn"],
+  "summary": "Send a plain-text email from Ogun through an SMTP server you name, with STARTTLS or TLS, for example a report that a person has approved.",
+  "docs_url": "https://www.rfc-editor.org/rfc/rfc5321",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "login",
+      "label": "Username and password",
+      "fields": [
+        { "name": "username", "label": "Username", "secret": false, "required": true },
+        { "name": "password", "label": "Password", "secret": true, "required": true, "help": "Store it with ogun secrets set." }
+      ]
+    },
+    {
+      "id": "none",
+      "label": "No authentication (a relay that trusts this host)",
+      "fields": []
+    }
+  ],
+  "settings": [
+    { "name": "smtp_host", "label": "SMTP host", "type": "string", "required": true, "placeholder": "smtp.example.com" },
+    { "name": "smtp_port", "label": "SMTP port", "type": "integer", "required": true, "default": 587, "help": "587 with STARTTLS or 465 with TLS are the usual submission ports." },
+    { "name": "security", "label": "Transport security", "type": "enum", "required": true, "default": "starttls", "options": ["starttls", "tls"] },
+    { "name": "from_address", "label": "From address", "type": "string", "required": true, "placeholder": "ogun@example.com" }
+  ],
+  "egress": {
+    "domains": ["{smtp_host}"],
+    "ports": [25, 465, 587],
+    "note": "The host and port you set."
+  },
+  "operators": [
+    {
+      "op": "notify.email@1",
+      "kind": "adapter",
+      "summary": "Send a plain-text email to the listed recipients through the SMTP server.",
+      "outputs": [{ "name": "receipt", "media_type": "application/json" }],
+      "determinism": "nondeterministic",
+      "via": "sdk"
+    }
+  ],
+  "approvals": ["egress", "publish"],
+  "notes": "STARTTLS or implicit TLS only; there is no plain-text option. Once sent, mail leaves the team's control, so publish is an approval. The password never reaches logs, events or lineage. Recipients and the message text come from the workflow."
+}

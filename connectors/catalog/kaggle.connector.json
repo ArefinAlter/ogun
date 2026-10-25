@@ -1,0 +1,41 @@
+{
+  "connector_version": 0,
+  "id": "kaggle",
+  "name": "Kaggle",
+  "vendor": "Kaggle",
+  "category": "source",
+  "regions": ["global"],
+  "summary": "Download Kaggle datasets into the artifact store, hashed with BLAKE3, using a Kaggle username and API key.",
+  "docs_url": "https://www.kaggle.com/docs/api",
+  "maturity": "contract",
+  "directions": ["source"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "username_key",
+      "label": "Username and API key",
+      "fields": [
+        { "name": "username", "label": "Kaggle username", "secret": false, "required": true },
+        { "name": "api_key", "label": "API key", "secret": true, "required": true, "help": "Created in your Kaggle account settings. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["www.kaggle.com"],
+    "ports": [443],
+    "note": "Downloads redirect to a storage host that is not fixed. Add the host the first run reports."
+  },
+  "operators": [
+    {
+      "op": "kaggle.fetch@1",
+      "kind": "adapter",
+      "summary": "Download the files of a Kaggle dataset into the artifact store, hashed with BLAKE3.",
+      "outputs": [{ "name": "artifacts", "media_type": "application/octet-stream" }],
+      "determinism": "nondeterministic",
+      "via": "rest"
+    }
+  ],
+  "approvals": ["egress"],
+  "notes": "Each Kaggle dataset has its own licence; check it before use or redistribution. Ogun never reads a kaggle.json file from your home directory: the key comes from Ogun's secret store."
+}

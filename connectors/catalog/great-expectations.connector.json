@@ -1,0 +1,39 @@
+{
+  "connector_version": 0,
+  "id": "great-expectations",
+  "name": "Great Expectations",
+  "vendor": "Great Expectations",
+  "category": "quality",
+  "regions": ["global"],
+  "summary": "Validate Ogun artifacts with Great Expectations Core inside a sandboxed Python code operator; with a GX Cloud token, results go to GX Cloud.",
+  "docs_url": "https://docs.greatexpectations.io/",
+  "maturity": "contract",
+  "directions": ["emit"],
+  "protocol": "sdk",
+  "auth": [
+    {
+      "id": "core",
+      "label": "GX Core, no account",
+      "fields": []
+    },
+    {
+      "id": "cloud",
+      "label": "GX Cloud",
+      "fields": [
+        { "name": "access_token", "label": "GX Cloud access token", "secret": true, "required": true, "help": "Created in GX Cloud. Store it with ogun secrets set." },
+        { "name": "organization_id", "label": "Organization ID", "secret": false, "required": true, "help": "Shown in GX Cloud." }
+      ]
+    }
+  ],
+  "settings": [
+    { "name": "cloud_host", "label": "GX Cloud API host", "type": "string", "placeholder": "api.greatexpectations.io", "help": "Only for GX Cloud. Check the GX documentation for the host of your organization." }
+  ],
+  "egress": {
+    "domains": ["{cloud_host}"],
+    "ports": [443],
+    "note": "GX Core needs no network access for data Ogun already holds. GX Cloud needs the host above."
+  },
+  "operators": [],
+  "approvals": ["code_change", "egress"],
+  "notes": "Ogun calls Great Expectations; it does not replace it. A workflow runs GX Core in the builtin python@1 code operator: out of process, sandboxed, referenced by content hash and approved by a person against the workflow hash. Ogun has no GX-specific operator. With a GX Cloud context, the GX library posts results itself."
+}

@@ -1,0 +1,36 @@
+{
+  "connector_version": 0,
+  "id": "github",
+  "name": "GitHub",
+  "vendor": "GitHub",
+  "category": "source",
+  "regions": ["global"],
+  "summary": "Fetch repositories, archives, release assets and API data from GitHub into the artifact store; a token raises rate limits and reaches private repositories.",
+  "docs_url": "https://docs.github.com/",
+  "maturity": "contract",
+  "directions": ["source"],
+  "protocol": "rest",
+  "auth": [
+    {
+      "id": "anonymous",
+      "label": "No token (public repositories)",
+      "fields": []
+    },
+    {
+      "id": "access_token",
+      "label": "Personal access token",
+      "fields": [
+        { "name": "access_token", "label": "Access token", "secret": true, "required": true, "help": "A fine-grained token with read access only. Store it with ogun secrets set." }
+      ]
+    }
+  ],
+  "settings": [],
+  "egress": {
+    "domains": ["api.github.com", "github.com", "codeload.github.com"],
+    "ports": [443],
+    "note": "Release assets and raw files are served from githubusercontent.com hosts; add the ones your workflow uses."
+  },
+  "operators": [],
+  "approvals": ["egress"],
+  "notes": "Uses the builtin git@1 adapter for clones and acquire@1 for archives, release assets and API responses. The token is sent in a header from a secret reference and never appears in a URL or a log. Each repository carries its own licence; check it before use or redistribution."
+}
