@@ -1,0 +1,27 @@
+Ogun is starting at {{ .Values.publicUrl }} (one replica: ogund and ogun-server in pod {{ include "ogun.fullname" . }}-0).
+
+1. Create the bridge credential once, on a terminal (the daemon only lets an interactive person add credentials):
+
+   kubectl exec -it -n {{ .Release.Namespace }} {{ include "ogun.fullname" . }}-0 -c ogund -- \
+     ogun --profile server credentials add server --kind bridge
+
+2. Read the one-time owner enrolment link (written because the store was empty), open it, sign in, then delete it:
+
+   kubectl exec -n {{ .Release.Namespace }} {{ include "ogun.fullname" . }}-0 -c ogun-server -- \
+     cat /var/lib/ogun/ogun-server/owner-enrolment.txt
+   kubectl exec -n {{ .Release.Namespace }} {{ include "ogun.fullname" . }}-0 -c ogun-server -- \
+     rm /var/lib/ogun/ogun-server/owner-enrolment.txt
+
+3. Approver passkeys are confirmed on the host terminal, never in the browser:
+
+   kubectl exec -it -n {{ .Release.Namespace }} {{ include "ogun.fullname" . }}-0 -c ogund -- \
+     ogun --profile server approvers confirm <credential_id> <fingerprint>
+
+{{- if .Values.server.remoteApprovals }}
+
+WARNING: server.remoteApprovals is on. ADR 0010 requires an external security review of remote approvals before
+release; do not rely on this deployment for remote approvals on an untrusted network.
+{{- end }}
+
+Backups: the volume holds the redb files and the artifact store; take them while the pod is scaled down or the
+daemon is quiesced (ADR 0010 point 5).

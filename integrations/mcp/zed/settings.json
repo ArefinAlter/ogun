@@ -1,0 +1,10 @@
+{
+  "context_servers": {
+    "ogun": {
+      "source": "custom",
+      "command": "ogun",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}

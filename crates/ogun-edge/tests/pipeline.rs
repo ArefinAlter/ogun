@@ -202,3 +202,41 @@ fn records_without_time_or_key_are_refused() {
     };
     assert!(to_record(&bad, &w, &[]).is_err());
 }
+
+#[test]
+fn composite_dedupe_keys_preserve_boundaries_and_types() {
+    let w = window();
+    let fields = vec!["first".to_owned(), "second".to_owned()];
+    let dedupe = |first, second| {
+        to_record(&ogun_edge::Logged {
+            seq: 0,
+            record: Incoming { received_ms: 0, origin: "test".into(),
+                payload: json!({"ts_ms": 0, "device_id": "d", "first": first, "second": second}) }
+        }, &w, &fields).unwrap().dedupe.unwrap()
+    };
+    assert_ne!(
+        dedupe(json!("a/b"), json!("c")),
+        dedupe(json!("a"), json!("b/c"))
+    );
+    assert_ne!(dedupe(json!(1), json!("x")), dedupe(json!("1"), json!("x")));
+    assert_eq!(dedupe(json!("a"), json!(2)), dedupe(json!("a"), json!(2)));
+}
+
+#[test]
+fn an_oversized_record_does_not_evict_the_existing_log() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = IngestLog::open(
+        &dir.path().join("oversize.redb"),
+        1024,
+        WhenFull::DropOldest,
+    )
+    .unwrap();
+    log.append(vec![reading("p", 0, 0, 1)]).unwrap();
+    let mut oversized = reading("p", 1, 0, 1);
+    oversized.payload = json!({"padding": "x".repeat(2048)});
+    let appended = log.append(vec![oversized]).unwrap();
+    assert_eq!(appended.dropped_newest, 1);
+    assert_eq!(appended.evicted_oldest, 0);
+    assert_eq!(log.len().unwrap(), 1);
+    assert_eq!(log.stats().unwrap().lost_oldest, 0);
+}

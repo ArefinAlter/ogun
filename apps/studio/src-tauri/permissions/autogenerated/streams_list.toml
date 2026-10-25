@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-streams-list"
+description = "Enables the streams_list command without any pre-configured scope."
+commands.allow = ["streams_list"]
+
+[[permission]]
+identifier = "deny-streams-list"
+description = "Denies the streams_list command without any pre-configured scope."
+commands.deny = ["streams_list"]

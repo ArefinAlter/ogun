@@ -1,13 +1,16 @@
 //! `ogun`, the Ogun command-line interface.
 //!
-//! Phase O1 starts with the commands that need no daemon: `validate`, `hash` and `diff` read
-//! workflow IR files and print what the runtime would accept, the hash an approval would bind to,
-//! and what changed between two versions. Exit status: 0 valid, 1 invalid or approval needed
-//! (`diff`), 2 usage or I/O error.
+//! Two groups of commands. Offline ones need no daemon: `validate`, `hash`, `diff`, `partitions`,
+//! `next` and `hash-file` read workflow IR files and print what the runtime would accept, the hash
+//! an approval would bind to, and what changed between two versions. The rest talk to `ogund`
+//! through the O-15 client ([`client`]): store workflows, start and watch runs, backfill, see
+//! partition coverage, and decide approvals on the terminal. Exit status: 0 success, 1 invalid,
+//! failed or approval needed, 2 usage, I/O or connection error.
 
 #![forbid(unsafe_code)]
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
+mod client;
 mod mcp;
 
 use std::path::{Path, PathBuf};
@@ -27,6 +30,12 @@ struct Cli {
     /// Print JSON instead of text.
     #[arg(long, global = true)]
     json: bool,
+    /// The credential to connect to ogund with (a file under the state directory).
+    #[arg(long, global = true, env = "OGUN_CREDENTIAL")]
+    credential: Option<String>,
+    /// Use a separate ogund profile.
+    #[arg(long, global = true, env = "OGUN_PROFILE")]
+    profile: Option<String>,
     #[command(subcommand)]
     command: Command,
 }
@@ -67,7 +76,9 @@ enum Command {
         /// The code bundle or script.
         file: PathBuf,
     },
-    /// Serve the read-only Ogun tools to a coding agent over MCP on stdio.
+    /// Serve the Ogun language server on stdio, for editors.
+    Lsp,
+    /// Serve the Ogun tools to a coding agent over MCP on stdio.
     Mcp,
     /// Show what changed between two versions and whether the new one needs an approval.
     Diff {
@@ -75,6 +86,142 @@ enum Command {
         old: PathBuf,
         /// The proposed version.
         new: PathBuf,
+    },
+    /// Start, stop and inspect ogund.
+    #[command(subcommand)]
+    Daemon(client::DaemonCmd),
+    /// Store a workflow version in ogund (with the code bundles its `code.path` members name).
+    Put {
+        /// Workflow IR, JSON.
+        file: PathBuf,
+    },
+    /// List the workflows ogund holds.
+    Workflows,
+    /// Start a run: the latest partition, named keys, or a range.
+    Run {
+        /// Workflow name.
+        workflow: String,
+        /// Version (default: latest).
+        #[arg(long)]
+        version: Option<u64>,
+        /// Partition key; repeatable.
+        #[arg(long = "partition", short = 'p')]
+        partitions: Vec<String>,
+        /// First key of a range.
+        #[arg(long, requires = "to")]
+        from: Option<String>,
+        /// Last key of a range, inclusive.
+        #[arg(long, requires = "from")]
+        to: Option<String>,
+        /// Re-run partitions already up to date.
+        #[arg(long)]
+        force: bool,
+        /// Wait for the run to finish and print its node instances.
+        #[arg(long)]
+        wait: bool,
+        /// Idempotency key (default: a fresh one).
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Plan a backfill over a range and, with --yes, start it.
+    Backfill {
+        /// Workflow name.
+        workflow: String,
+        /// First key.
+        #[arg(long)]
+        from: String,
+        /// Last key, inclusive.
+        #[arg(long)]
+        to: String,
+        /// Re-run partitions already up to date.
+        #[arg(long)]
+        force: bool,
+        /// Start it (without this the plan is only printed).
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Range-compressed partition coverage of a workflow.
+    PartitionStatus {
+        /// Workflow name.
+        workflow: String,
+        /// First key.
+        #[arg(long)]
+        from: Option<String>,
+        /// Last key.
+        #[arg(long)]
+        to: Option<String>,
+    },
+    /// List runs, newest first.
+    Runs {
+        /// Only this workflow.
+        #[arg(long)]
+        workflow: Option<String>,
+        /// At most this many.
+        #[arg(long, default_value_t = 20)]
+        limit: u32,
+    },
+    /// Show a run and its node instances.
+    Show {
+        /// Run id (`orun_...`).
+        run: String,
+    },
+    /// Cancel a run.
+    Cancel {
+        /// Run id (`orun_...`).
+        run: String,
+    },
+    /// List approvals (pending by default).
+    Approvals {
+        /// Include decided and expired ones.
+        #[arg(long)]
+        all: bool,
+    },
+    /// Approve a request after reading its facts; you type a confirmation on this terminal.
+    Approve {
+        /// Approval id (`oap_...`).
+        id: String,
+    },
+    /// Deny a request; you type a confirmation on this terminal.
+    Deny {
+        /// Approval id (`oap_...`).
+        id: String,
+    },
+    /// Manage ogund's local credentials.
+    #[command(subcommand)]
+    Credentials(client::CredCmd),
+    /// Manage secrets for `secret_ref`.
+    #[command(subcommand)]
+    Secrets(client::SecretCmd),
+    /// Manage WebAuthn approver keys proposed by an Ogun server.
+    #[command(subcommand)]
+    Approvers(client::ApproverCmd),
+    /// Enrol and list edges (on a hub).
+    #[command(subcommand)]
+    Edges(client::EdgeCmd),
+    /// Print events as JSON lines.
+    Events {
+        /// Start after this sequence number.
+        #[arg(long, default_value_t = 0)]
+        after: u64,
+        /// Keep waiting for new events.
+        #[arg(long)]
+        follow: bool,
+        /// Only this run.
+        #[arg(long)]
+        run: Option<String>,
+    },
+    /// List the artifacts a run produced.
+    Artifacts {
+        /// Run id.
+        run: String,
+    },
+    /// Print an artifact's local path, or its bytes with --cat.
+    Artifact {
+        /// BLAKE3 digest.
+        blake3: String,
+        /// Write the bytes to stdout.
+        #[arg(long)]
+        cat: bool,
     },
 }
 
@@ -112,7 +259,60 @@ fn print_diagnostics(path: &Path, report: &Report) {
 }
 
 fn run(cli: &Cli) -> Result<bool> {
+    let o = client::Opts {
+        credential: cli.credential.clone().unwrap_or_else(|| "cli".to_owned()),
+        profile: cli.profile.clone(),
+        json: cli.json,
+    };
     match &cli.command {
+        Command::Daemon(cmd) => client::daemon(&o, cmd),
+        Command::Put { file } => client::put(&o, file),
+        Command::Workflows => client::workflows(&o),
+        Command::Run {
+            workflow,
+            version,
+            partitions,
+            from,
+            to,
+            force,
+            wait,
+            idempotency_key,
+        } => client::run(
+            &o,
+            &client::RunArgs {
+                workflow: workflow.clone(),
+                version: *version,
+                partitions: partitions.clone(),
+                from: from.clone(),
+                to: to.clone(),
+                force: *force,
+                wait: *wait,
+                idempotency_key: idempotency_key.clone(),
+            },
+        ),
+        Command::Backfill {
+            workflow,
+            from,
+            to,
+            force,
+            yes,
+        } => client::backfill(&o, workflow, from, to, *force, *yes),
+        Command::PartitionStatus { workflow, from, to } => {
+            client::partition_status(&o, workflow, from.clone(), to.clone())
+        }
+        Command::Runs { workflow, limit } => client::runs(&o, workflow.clone(), *limit),
+        Command::Show { run } => client::show(&o, run),
+        Command::Cancel { run } => client::cancel(&o, run),
+        Command::Approvals { all } => client::approvals(&o, *all),
+        Command::Approve { id } => client::decide(&o, id, ogun_api::methods::Decision::Approve),
+        Command::Deny { id } => client::decide(&o, id, ogun_api::methods::Decision::Deny),
+        Command::Credentials(cmd) => client::credentials(&o, cmd),
+        Command::Secrets(cmd) => client::secrets(&o, cmd),
+        Command::Approvers(cmd) => client::approvers(&o, cmd),
+        Command::Edges(cmd) => client::edges(&o, cmd),
+        Command::Events { after, follow, run } => client::events(&o, *after, *follow, run.clone()),
+        Command::Artifacts { run } => client::artifacts(&o, run),
+        Command::Artifact { blake3, cat } => client::artifact(&o, blake3, *cat),
         Command::Validate { file } => {
             let report = load(file)?;
             if cli.json {
@@ -233,9 +433,14 @@ fn run(cli: &Cli) -> Result<bool> {
             }
             Ok(true)
         }
+        Command::Lsp => {
+            ogun_lsp::serve_stdio().map_err(|e| anyhow::anyhow!("language server: {e}"))?;
+            Ok(true)
+        }
         Command::Mcp => {
             let stdin = std::io::stdin();
-            mcp::serve(stdin.lock(), std::io::stdout().lock(), || {
+            let config = mcp_config(cli, mcp::DaemonConfig::from_env());
+            mcp::serve(config, stdin.lock(), std::io::stdout().lock(), || {
                 zeus_types::Timestamp::now().unix_millis()
             })?;
             Ok(true)
@@ -300,5 +505,52 @@ fn run(cli: &Cli) -> Result<bool> {
             }
             Ok(!d.needs_approval())
         }
+    }
+}
+
+// MCP defaults to its own agent credential, while explicit global options select its connection.
+fn mcp_config(cli: &Cli, mut config: mcp::DaemonConfig) -> mcp::DaemonConfig {
+    if let Some(profile) = &cli.profile {
+        config.profile = Some(profile.clone());
+    }
+    if let Some(credential) = &cli.credential {
+        config.credential = credential.clone();
+    }
+    config
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    #[test]
+    fn mcp_respects_global_connection_options_and_keeps_agent_default() {
+        let cli = Cli {
+            json: false,
+            credential: None,
+            profile: None,
+            command: Command::Mcp,
+        };
+        let defaults = mcp::DaemonConfig {
+            credential: "mcp".into(),
+            ..Default::default()
+        };
+        assert_eq!(mcp_config(&cli, defaults.clone()).credential, "mcp");
+        let selected = Cli::try_parse_from([
+            "ogun",
+            "--profile",
+            "separate",
+            "--credential",
+            "agent1",
+            "mcp",
+        ])
+        .unwrap();
+        let config = mcp_config(&selected, defaults);
+        assert_eq!(config.profile.as_deref(), Some("separate"));
+        assert_eq!(config.credential, "agent1");
+        assert!(matches!(
+            Cli::try_parse_from(["ogun", "lsp"]).unwrap().command,
+            Command::Lsp
+        ));
     }
 }

@@ -57,7 +57,7 @@ A local credential is `ocl_<ULID>`, a kind, a name (`[a-z0-9_-]{1,64}`) and a to
 |---|---|---|
 | `human` | A person at the CLI or Studio | Everything, but trust-changing methods need an interactive peer (section 4.4). |
 | `agent` | MCP, A2A, integrations, scripts | Read, author workflows, start and cancel runs. Never decides an approval, never manages credentials, secrets, approvers or edges. |
-| `service` | The ingest bridge, edge sync, the Zeus session bridge | Push stream records, sync, read status. |
+| `service` | The ingest bridge, edge sync, the Zeus session bridge | Push stream records, sync, read status and artifacts. |
 | `bridge` | `ogun-server` acting for its users | As agent, plus approver proposals, sync and approval decisions with WebAuthn evidence. |
 
 The credential fixes the kind. A client's `client.name` in `daemon.hello` is recorded for audit and is never trusted.
@@ -123,7 +123,7 @@ Partition selectors for `runs.start`: `{"kind": "latest"}`, `{"kind": "keys", "k
 
 `partitions.status` and `backfills.plan` compress consecutive keys with the same state (`done`, `running`, `failed`, `missing`) into `{from, to, count, state}` ranges, so a year of five-minute windows is a handful of rows, not 105 120.
 
-`streams.push`: records are `{event_time_ms, key, payload}`, at most 10 000 per call. `first_seq` is the producer's sequence number of the first record; the daemon drops records at or below the last `accepted_through` it returned for that producer, so a producer that retries after a lost response does not duplicate. `accepted_through` means durable in the daemon's ingest log: the producer may forget those records.
+`streams.push`: records are `{event_time_ms, key, payload}`, at most 10 000 per call. `first_seq` is the producer's sequence number of the first record (from 0, one per record); the daemon drops records at or below the last `accepted_through` it returned for that producer, so a producer that retries after a lost response does not duplicate. `accepted_through` means durable in the daemon's ingest log: the producer may forget those records.
 
 The exact member types are the Rust types in `ogun_api::methods`; they are the schema for this draft.
 
@@ -133,8 +133,8 @@ The exact member types are the Rust types in `ogun_api::methods`; they are the s
 
 | Methods | Kinds |
 |---|---|
-| `daemon.status`, `workflows.validate/list/get`, `runs.get/list`, `partitions.status`, `events.since`, `streams.list/status`, `edges.list` | all |
-| `workflows.put`, `runs.start/cancel`, `backfills.plan`, `approvals.list/get`, `artifacts.*`, `lineage.get` | human, agent, bridge |
+| `daemon.status`, `workflows.validate/list/get`, `runs.get/list`, `partitions.status`, `events.since`, `artifacts.list/get`, `streams.list/status`, `edges.list` | all (services read artifacts for edge sync, O-11) |
+| `workflows.put`, `runs.start/cancel`, `backfills.plan`, `approvals.list/get`, `lineage.get` | human, agent, bridge |
 | `workflows.set_enabled`, `approvers.list` | human, bridge |
 | `approvals.decide` | human (with `terminal` or `studio` evidence from an interactive peer), bridge (with `webauthn` evidence) |
 | `streams.push` | service |

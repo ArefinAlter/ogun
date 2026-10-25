@@ -1,0 +1,163 @@
+name: release
+
+# On a version tag: release archives for every platform in the O-12 matrix that has a native build, a SHA256SUMS
+# file, a GitHub release, and the container image on GHCR. `ogun-server` is in the Linux archives and the image
+# only: the server profile is a Linux feature (O-12 section 2).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-24.04, server: true }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-24.04-arm, server: true }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-24.04, server: true, musl: true }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, server: true, musl: true }
+          - { target: x86_64-apple-darwin, os: macos-15-intel }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+    defaults:
+      run:
+        shell: bash
+        working-directory: ogun
+    steps:
+      # Ogun path-depends on zeus-core as a sibling checkout (ADR 0002).
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/checkout@v5
+        with:
+          repository: ArefinAlter/zeus-core
+          path: zeus-core
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: musl toolchain
+        if: matrix.musl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          echo "CC_$(echo '${{ matrix.target }}' | tr '-' '_')=musl-gcc" >> "$GITHUB_ENV"
+      - name: build
+        run: |
+          bins="--bin ogund --bin ogun --bin ogun-ingest --bin ogun-lsp --bin ogun-sync --bin ogun-op-llm --bin ogun-op-shim"
+          if [ "${{ matrix.server }}" = "true" ]; then bins="$bins --bin ogun-server"; fi
+          cargo build --release --locked --target '${{ matrix.target }}' $bins
+      - name: package
+        run: |
+          name="ogun-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          ext=""
+          if [ "${{ runner.os }}" = "Windows" ]; then ext=".exe"; fi
+          mkdir -p "dist/$name"
+          for b in ogund ogun ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
+            f="target/${{ matrix.target }}/release/$b$ext"
+            if [ -f "$f" ]; then cp "$f" "dist/$name/"; fi
+          done
+          cp LICENSE NOTICE README.md "dist/$name/"
+          cd dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a -tzip "$name.zip" "$name" > /dev/null
+            sha256sum "$name.zip" > "$name.zip.sha256"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.target }}
+          path: |
+            ogun/dist/*.tar.gz
+            ogun/dist/*.zip
+            ogun/dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          path: dist
+          merge-multiple: true
+      - name: SHA256SUMS
+        working-directory: dist
+        run: |
+          cat *.sha256 | sed 's/ \*/  /' | sort -k 2 > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Ogun $GITHUB_REF_NAME" \
+            --prerelease \
+            --verify-tag \
+            --notes "Pre-alpha. Verify downloads against SHA256SUMS, or install with deploy/install.sh, which does. The container image is ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ogun:${GITHUB_REF_NAME#v}." \
+            dist/*.tar.gz dist/*.zip dist/SHA256SUMS
+
+  image:
+    name: container image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ctx/ogun
+      # The image reuses the static musl binaries built above, so nothing is compiled under emulation.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*-linux-musl
+          path: archives
+          merge-multiple: true
+      - name: prebuilt binaries
+        run: |
+          for pair in x86_64:amd64 aarch64:arm64; do
+            t="${pair%%:*}"; a="${pair##*:}"
+            mkdir -p "ctx/prebuilt/$a"
+            tar -xzf "archives/ogun-${GITHUB_REF_NAME}-$t-unknown-linux-musl.tar.gz" -C archives
+            for b in ogund ogun ogun-lsp ogun-ingest ogun-sync ogun-op-llm ogun-op-shim ogun-server; do
+              cp "archives/ogun-${GITHUB_REF_NAME}-$t-unknown-linux-musl/$b" "ctx/prebuilt/$a/"
+            done
+          done
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/ogun
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: ctx
+          file: ctx/ogun/deploy/Dockerfile
+          build-args: BINARIES=prebuilt
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

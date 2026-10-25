@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-partitions-status"
+description = "Enables the partitions_status command without any pre-configured scope."
+commands.allow = ["partitions_status"]
+
+[[permission]]
+identifier = "deny-partitions-status"
+description = "Denies the partitions_status command without any pre-configured scope."
+commands.deny = ["partitions_status"]
