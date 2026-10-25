@@ -36,6 +36,8 @@ jni.workspace = true
 tauri-plugin.workspace = true
 
 [dev-dependencies]
+ogun-sync.workspace = true
+ogun-api.workspace = true
 tempfile.workspace = true
 
 [lints]
