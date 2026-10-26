@@ -20,5 +20,8 @@ serde_json.workspace = true
 [target.'cfg(windows)'.dependencies]
 ogun-platform.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [lints]
 workspace = true

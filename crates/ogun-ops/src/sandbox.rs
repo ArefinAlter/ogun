@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::sync::OnceCell;
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::tools;
 
 /// Which sandbox this host offers.
@@ -101,18 +101,22 @@ impl Backend {
             Self::AppContainer(_) => Status {
                 available: true,
                 backend: "appcontainer",
-                summary: "Operators run in a Windows AppContainer inside a job object, with only the three standard handles inherited.".into(),
+                summary: "Operators run in a Windows AppContainer inside a job object, with only stdin, stdout and stderr inherited.".into(),
                 isolates: vec![
-                    "the network (an AppContainer without capabilities cannot use the network, loopback included)",
-                    "your files (the process can read and write only the folders Ogun grants it: a scratch directory, its inputs and code read-only, and the program's own folder read-only)",
-                    "other processes and the desktop (a job object with UI restrictions, a single process tree, memory and CPU-time limits, killed with the daemon)",
+                    "the network (an AppContainer without the internet capability cannot connect anywhere, loopback included; a manifest that grants network gets outbound internet and nothing else)",
+                    "your files (the program reads only its scratch folder, its inputs and code file, and its own program folder; your documents, profile and the engine's state are closed)",
+                    "writes (everything but the scratch folder is read-only or closed)",
+                    "other processes and the desktop (a job object with UI restrictions, at most 16 processes, killed when the daemon or the helper dies)",
+                    "memory and CPU time (per-process limits from the manifest)",
                     "handles (nothing is inherited except stdin, stdout and stderr)",
                 ],
                 does_not_isolate: vec![
+                    "the names of files in the folders that hold an operator's inputs, and of its sibling attempt folders (Windows lets a container open a file only if it can list the folder)",
+                    "files Windows lets every application package read (most of the Windows and Program Files folders)",
+                    "which hosts a network grant reaches (it is all or nothing)",
+                    "disk space (the scratch folder has no quota)",
                     "a flaw in Windows itself",
-                    "files that Windows lets every application read (parts of the Windows and Program Files folders)",
-                    "a program that is not run through this sandbox: an operator manifest that grants network access is refused, because an AppContainer cannot filter hosts",
-                    "disk space: the scratch directory has no quota",
+                    "a program folder that cannot be opened to the container (installed for all users outside Program Files) is copied once into the engine's state, up to 1.5 GiB; bigger needs a per-user install",
                 ],
             },
             Self::None => Status {
@@ -172,7 +176,35 @@ async fn probe() -> Backend {
         tools::find("sandbox-exec", &[PathBuf::from("/usr/bin")])
             .map_or(Backend::None, Backend::SandboxExec)
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    #[cfg(windows)]
+    {
+        let Some(helper) = tools::find("ogun-sandbox", &[]) else {
+            tracing::info!(
+                "ogun-sandbox is not installed next to ogund; operators are refused on this host"
+            );
+            return Backend::None;
+        };
+        let ok = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            tokio::process::Command::new(&helper)
+                .arg("--self-test")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status(),
+        )
+        .await;
+        match ok {
+            Ok(Ok(s)) if s.success() => Backend::AppContainer(helper),
+            _ => {
+                tracing::warn!(
+                    "the AppContainer self test failed; operators are refused on this host"
+                );
+                Backend::None
+            }
+        }
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
         Backend::None
     }
@@ -412,6 +444,14 @@ pub fn command(backend: &Backend, plan: &Plan) -> tokio::process::Command {
             inner.extend(args);
             (bwrap.clone(), inner)
         }
+        Backend::AppContainer(helper) => {
+            let plan_path = write_windows_plan(plan);
+            inner.push(plan_path.into_os_string());
+            inner.push("--".into());
+            inner.push(program.into_os_string());
+            inner.extend(args);
+            (helper.clone(), inner)
+        }
         Backend::SandboxExec(exec) => {
             inner.extend([
                 OsString::from("-p"),
@@ -436,6 +476,36 @@ pub fn command(backend: &Backend, plan: &Plan) -> tokio::process::Command {
     #[cfg(unix)]
     cmd.process_group(0);
     cmd
+}
+
+/// What the Windows helper reads (`ogun_platform::sandbox`): paths and limits, never a secret. The helper deletes the
+/// file as soon as it has read it. It sits beside the scratch directory, not inside it, where the container cannot
+/// look.
+fn write_windows_plan(plan: &Plan) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let dir = plan
+        .scratch
+        .parent()
+        .map_or_else(std::env::temp_dir, |p| p.join(".plans"));
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join(format!(
+        "{}-{}.json",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let doc = serde_json::json!({
+        "scratch": plan.scratch,
+        "read_only": plan.read_only,
+        "network": plan.network,
+        "memory_bytes": plan.memory_bytes,
+        "cpu_ms": plan.cpu_ms,
+        "env": plan.env,
+        // A private copy of a program's folder goes beside the scratch folders, in the engine's own state.
+        "cache_dir": plan.scratch.parent().and_then(Path::parent).map(|p| p.join("runtime")),
+    });
+    let _ = std::fs::write(&path, doc.to_string());
+    path
 }
 
 /// Kills a child and everything in its process group.

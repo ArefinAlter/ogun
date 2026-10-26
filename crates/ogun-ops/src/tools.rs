@@ -78,10 +78,24 @@ pub fn find(name: &str, first: &[PathBuf]) -> Option<PathBuf> {
     if p.components().count() > 1 || p.is_absolute() {
         return is_executable(p).then(|| p.to_path_buf());
     }
-    search_dirs(first)
+    let found = search_dirs(first)
         .iter()
         .flat_map(|d| candidates(d, name))
-        .find(|c| is_executable(c))
+        .find(|c| is_executable(c) && !is_store_alias(c));
+    // Windows installs Python as `python.exe`; `python3.exe` is usually only the Microsoft Store stub.
+    if found.is_none() && cfg!(windows) && name == "python3" {
+        return find("python", first);
+    }
+    found
+}
+
+/// The Microsoft Store's `python3.exe` stub opens the Store instead of running Python.
+fn is_store_alias(path: &Path) -> bool {
+    cfg!(windows)
+        && path
+            .to_string_lossy()
+            .to_lowercase()
+            .contains(r"\microsoft\windowsapps\")
 }
 
 /// Resolves the first of several alternative names.
