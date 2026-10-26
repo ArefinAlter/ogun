@@ -3,6 +3,8 @@ resolver = "3"
 members = [
     "crates/ogun-types",
     "crates/ogun-platform",
+    "crates/ogun-keystore",
+    "crates/ogun-sandbox",
     "crates/ogun-ir",
     "crates/ogun-run",
     "crates/ogun-sched",
@@ -52,6 +54,7 @@ print_stderr = "warn"
 # ---- this workspace ----
 ogun-types = { path = "crates/ogun-types", version = "0.0.1-alpha" }
 ogun-platform = { path = "crates/ogun-platform", version = "0.0.1-alpha" }
+ogun-keystore = { path = "crates/ogun-keystore", version = "0.0.1-alpha" }
 ogun-ir = { path = "crates/ogun-ir", version = "0.0.1-alpha" }
 ogun-run = { path = "crates/ogun-run", version = "0.0.1-alpha" }
 ogun-sched = { path = "crates/ogun-sched", version = "0.0.1-alpha" }

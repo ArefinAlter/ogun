@@ -3,10 +3,11 @@
 // never carry it.
 
 import type { Backend } from './backend'
+import { asOgunError } from './backend'
 import { currentCsrf, httpBackend } from './http'
 import { realSchedules } from './schedules'
 import { fetchTransport, svcInfo, svcParts } from './svc'
-import { tauriBackend, tauriSvcTransport } from './tauri'
+import { localEngineApi, localHubsApi, localSvcTransport, tauriBackend, tauriSvcTransport } from './tauri'
 
 export function inTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
@@ -58,12 +59,45 @@ function installId(): string {
   }
 }
 
-/** The desktop shell. Linked to a hub, it also reaches that hub's pre-alpha service, when the hub has one. A change
- * of link reloads the page so the right parts are built. */
+/** The desktop shell. By default it is linked to the engine it runs for itself (ADR 0015): the daemon's own
+ * methods, through the shell's closed relay, give the agent, connections, run defaults, providers, storage and the
+ * rest, and the shell adds the engine's state, the bundled samples and secret entry. Linked to a hub instead, it
+ * also reaches that hub's pre-alpha service, when the hub has one. A change of link reloads the page so the right
+ * parts are built. */
 async function desktop(): Promise<Backend> {
   const b = tauriBackend()
-  const out: Backend = { ...b, ...realSchedules(b) }
   const info = await b.info().catch(() => null)
+  const own = info && !info.mobile ? { engine: localEngineApi(), hubs: localHubsApi() } : {}
+  const out: Backend = { ...b, ...realSchedules(b), ...own }
+  if (info?.link === 'local' && !info.mobile) {
+    // Built whether or not the engine has answered yet: the page is held back while it starts (views/Engine.tsx),
+    // and a call before it is ready fails with a retryable error rather than a missing screen.
+    const t = localSvcTransport()
+    Object.assign(out, svcParts(t, { preview: true }))
+    out.setSchedulerEnabled = async (enabled) => void (await t.call('scheduler.set_enabled', { enabled }))
+    out.setWorkflowEnabled = async (name, enabled) => void (await t.call('workflows.set_enabled', { name, enabled }))
+    // Whether this engine runs agent threads is asked once, when it is ready; the sidebar and the Agent page follow
+    // the answer (a daemon without them says so, and Studio shows the page as unavailable instead of a dead chat).
+    let probe: Promise<boolean> | null = null
+    const agentOffered = () =>
+      (probe ??= t.call('agent.tools').then(
+        () => true,
+        (e) => {
+          if (asOgunError(e).code === 'api.method_not_found') return false
+          probe = null
+          throw e
+        },
+      ))
+    const baseInfo = out.info
+    out.info = async () => {
+      const i = await baseInfo()
+      if (i.link === 'local' && i.engine?.state === 'running') {
+        const ok = await agentOffered().catch(() => undefined)
+        if (ok !== undefined) i.agent = ok
+      }
+      return i
+    }
+  }
   if (info?.link === 'hub' && !info.mobile) {
     const t = tauriSvcTransport(installId())
     const ok = await t.call('agent.tools').then(() => true, () => false)

@@ -9,6 +9,7 @@ import './styles/app.css'
 import './styles/settings.css'
 import './styles/chrome.css'
 import './styles/agent.css'
+import './styles/engine.css'
 
 const root = document.getElementById('app')
 if (root) {

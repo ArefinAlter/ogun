@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import type { Backend, ShellInfo } from './api'
 import type { EventView, WorkflowSummary } from './api/types'
@@ -20,6 +20,7 @@ import { About } from './views/About'
 import { ApprovalDetail, Approvals } from './views/Approvals'
 import { Artifacts } from './views/Artifacts'
 import { Edges } from './views/Edges'
+import { EngineScreen, engineBlocks, engineTone } from './views/Engine'
 import { Gateway } from './views/Gateway'
 import { Agent, DetailsToggle } from './views/Agent'
 import { Overview } from './views/Overview'
@@ -47,6 +48,10 @@ const TITLES: Record<string, string> = {
 
 function connectionText(info: ShellInfo | null): string {
   if (!info) return 'connecting…'
+  if (info.link === 'local' && info.engine) {
+    const s = info.engine.state
+    return s === 'running' || s === 'external' ? 'Local engine' : s === 'failed' ? 'Local engine · stopped' : s === 'stopped' ? 'Local engine · closing' : 'Local engine · starting'
+  }
   if (info.link === 'local') return `ogund${info.profile ? ` · ${info.profile}` : ''}`
   if (info.link === 'hub') return `hub · ${info.hubUrl ?? ''} · read-only`
   if (info.link === 'server') return info.user ? `${info.user.name} · ${info.user.roles.join(', ') || 'no role'}` : 'not signed in'
@@ -55,8 +60,10 @@ function connectionText(info: ShellInfo | null): string {
 
 function ConnectionBadge({ info }: { info: ShellInfo | null }) {
   const text = connectionText(info)
+  const tone = info?.link === 'local' && info.engine && info.engine.state !== 'external' ? engineTone(info.engine) : info ? (info.connected ? 'ok' : 'bad') : ''
+  const title = info?.link === 'local' && info.engine ? `${text}${info.engine.version ? ` · ogund ${info.engine.version}` : ''}${info.engine.error ? ` · ${info.engine.error}` : ''}` : (info?.error?.message ?? text)
   return (
-    <span class={`conn ${info ? (info.connected ? 'ok' : 'bad') : ''}`} title={info?.error?.message ?? text}>
+    <span class={`conn ${tone}`} title={title}>
       <span class="dot" />
       <span class="name">{text}</span>
     </span>
@@ -260,12 +267,41 @@ export function App({ backend }: { backend: Backend }) {
   // The top bars are the window's title bar when the page draws its own controls (Tauri on Windows).
   // `deep`: a press anywhere in the bar moves the window, except on a button or a link.
   const drag = chrome === 'custom' ? { 'data-tauri-drag-region': 'deep' } : {}
+  // The page is remounted (so every view loads again) when the engine becomes ready after not being so.
+  const [epoch, setEpoch] = useState(0)
+  const [infoTried, setInfoTried] = useState(false)
+  const engineState = useRef<string | undefined>(undefined)
   const refresh = useCallback(() => {
     let current = true
-    backend.info().then((value) => { if (current) setInfo(value) }, () => { if (current) setInfo(null) })
+    backend.info().then(
+      (value) => {
+        if (!current) return
+        const was = engineState.current
+        const now = value.engine?.state
+        engineState.current = now
+        if (was && was !== 'running' && was !== 'external' && now === 'running') setEpoch((e) => e + 1)
+        setInfo(value)
+        setInfoTried(true)
+      },
+      () => {
+        if (current) {
+          setInfo(null)
+          setInfoTried(true)
+        }
+      },
+    )
     return () => { current = false }
   }, [backend])
   useEffect(refresh, [refresh])
+  // While Studio's own engine starts, restarts or has failed, ask every second; while it runs, every five, so a
+  // crash is noticed and the waiting page appears instead of a page of errors.
+  const watching = info?.link === 'local' && !!info.engine && info.engine.state !== 'external'
+  const waiting = watching && info?.engine?.state !== 'running'
+  useEffect(() => {
+    if (!watching) return undefined
+    const id = setInterval(refresh, waiting ? 1000 : 5000)
+    return () => clearInterval(id)
+  }, [watching, waiting, refresh])
 
   // Preferences become the look of the document, and follow the system scheme when asked to.
   useEffect(() => {
@@ -388,7 +424,7 @@ export function App({ backend }: { backend: Backend }) {
     </>
   ) : (
     <>
-      <a href={href()}>{info?.profile ?? (info?.link === 'server' ? 'server' : 'ogund')}</a>
+      <a href={href()}>{info?.link === 'local' && info.engine ? 'Local' : (info?.profile ?? (info?.link === 'server' ? 'server' : 'ogund'))}</a>
       <span class="sep">/</span>
       {detail && section === 'agent' ? (
         <>
@@ -414,7 +450,7 @@ export function App({ backend }: { backend: Backend }) {
         <a class="skip" href="#main">
           Skip to content
         </a>
-        <div class={`shell ${prefs.sidebarOpen ? '' : 'side-closed'}${chrome ? ` chrome-${chrome}` : ''}${section === 'agent' && !signedOut ? ' is-chat' : ''}`}>
+        <div key={epoch} class={`shell ${prefs.sidebarOpen ? '' : 'side-closed'}${chrome ? ` chrome-${chrome}` : ''}${section === 'agent' && !signedOut ? ' is-chat' : ''}`}>
           <aside class="side" aria-label={inSettings ? 'Settings sections' : 'Sections'}>
             <div class="brand" {...drag}>
               <button type="button" class="icon-btn brand-toggle" onClick={() => setPrefs({ sidebarOpen: false })} aria-label="Hide the sidebar" title={`Hide the sidebar (${formatCombo(bindingOf(prefs, 'sidebar.toggle')).join('+')})`}>
@@ -428,7 +464,7 @@ export function App({ backend }: { backend: Backend }) {
               </a>
               <span class="spacer" />
             </div>
-            {backend.agent && !inSettings ? (
+            {backend.agent && info?.agent !== false && !inSettings ? (
               <a class="newthread" href={href('agent')} title={`New thread (${formatCombo(bindingOf(prefs, 'agent.new')).join('+')})`}>
                 <Icon name="compose" />
                 New thread
@@ -471,7 +507,7 @@ export function App({ backend }: { backend: Backend }) {
                       ))}
                   </div>
                 ))}
-                {backend.agent ? <ThreadRows {...(section === 'agent' && detail ? { currentId: detail } : {})} /> : null}
+                {backend.agent && info?.agent !== false ? <ThreadRows {...(section === 'agent' && detail ? { currentId: detail } : {})} /> : null}
                 {prefs.sidebarWorkflows ? <WorkflowRows connected={!!info?.connected} {...(section === 'workflows' && detail ? { currentName: detail } : {})} /> : null}
               </nav>
             )}
@@ -509,7 +545,15 @@ export function App({ backend }: { backend: Backend }) {
             {chrome === 'custom' ? <WindowControls /> : null}
           </header>
           <main class={`main ${section === 'agent' && !signedOut ? 'chat' : ''}`} id="main">
-            {signedOut && section !== 'about' ? <SignIn /> : <Page path={route.path} query={route.query} />}
+            {signedOut && section !== 'about' ? (
+              <SignIn />
+            ) : info?.link === 'local' && engineBlocks(info.engine) && section !== 'about' && section !== 'settings' ? (
+              <EngineScreen engine={info.engine as NonNullable<ShellInfo['engine']>} />
+            ) : backend.kind === 'tauri' && !infoTried ? (
+              <div class="loading" aria-live="polite">connecting…</div>
+            ) : (
+              <Page path={route.path} query={route.query} />
+            )}
           </main>
         </div>
         <nav class="mobile-nav" aria-label="Sections">

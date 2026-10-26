@@ -5,7 +5,7 @@ import type { AgentAccess, AgentSettings, OgunError } from '../../api/types'
 import { ACCESS_INFO, ACCESS_ORDER, DEFAULT_INSTRUCTIONS, NEVER, TOOLS } from '../../lib/agentTools'
 import { useAgent, useAgentModels, useAgentSettings } from '../../lib/agentHooks'
 import { idempotencyKey } from '../../lib/format'
-import { href } from '../../lib/hooks'
+import { href, useBackend } from '../../lib/hooks'
 import { Chip, ErrorBox, Loading, Notice, PageHead, SettingRow, SettingsGroup, Switch } from '../../ui/components'
 
 const MAX_INSTRUCTIONS = 8000
@@ -26,6 +26,7 @@ export function looksSecret(text: string): boolean {
 
 export function AgentSettingsPage() {
   const agent = useAgent()
+  const backend = useBackend()
   const settings = useAgentSettings()
   const models = useAgentModels()
   const [error, setError] = useState<OgunError | undefined>()
@@ -147,6 +148,35 @@ export function AgentSettingsPage() {
                 }}
               />
             </SettingRow>
+            {backend.engine ? (
+              <>
+                <SettingRow title="Spend cap per day" desc="Model spend in US dollars across all threads in one UTC day. 0 means no model call at all.">
+                  <input
+                    type="number"
+                    min={0}
+                    max={10000}
+                    step={1}
+                    aria-label="Spend cap per day in US dollars"
+                    value={s.day_cap_usd}
+                    onChange={(e) => {
+                      const v = Number((e.target as HTMLInputElement).value)
+                      if (Number.isFinite(v) && v >= 0) void set({ day_cap_usd: v })
+                    }}
+                  />
+                </SettingRow>
+                <SettingRow title="Offline" desc="No model call is made while this is on. Nothing is sent to a provider either way until you allow that provider in Providers.">
+                  <Switch label="Offline" checked={s.offline} onChange={(on) => void set({ offline: on })} />
+                </SettingRow>
+                <SettingRow
+                  title="Providers allowed to receive prompts"
+                  desc={s.consented_providers.length ? <span class="mono">{s.consented_providers.join(', ')}</span> : 'None. Nothing is sent anywhere until you allow a provider.'}
+                >
+                  <a class="btn small" href={href('settings', 'providers')}>
+                    Open Providers
+                  </a>
+                </SettingRow>
+              </>
+            ) : null}
             <SettingRow title="Keep threads" desc="How long finished threads stay before they are removed. A thread holds your questions and the daemon's answers, never a secret.">
               <select aria-label="Keep threads" value={s.retention_days} onChange={(e) => void set({ retention_days: Number((e.target as HTMLSelectElement).value) })}>
                 {[7, 30, 90, 365].map((d) => (

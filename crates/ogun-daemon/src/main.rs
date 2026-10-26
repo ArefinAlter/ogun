@@ -53,6 +53,11 @@ async fn main() -> anyhow::Result<()> {
     let options = if args.supervised {
         ogun_daemon::StartOptions {
             transient_credential: Some(read_supervisor_credential().await?),
+            prefer_os_secrets: true,
+            secrets_passphrase: std::env::var("OGUN_SECRETS_PASSPHRASE")
+                .ok()
+                .filter(|p| !p.is_empty())
+                .map(zeroize::Zeroizing::new),
         }
     } else {
         ogun_daemon::StartOptions::default()

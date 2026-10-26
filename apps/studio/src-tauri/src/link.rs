@@ -19,6 +19,8 @@ use tokio::sync::RwLock;
 use zeroize::Zeroizing;
 
 use crate::approvals::Confirmations;
+#[cfg(desktop)]
+use crate::engine::{Engine, EngineInfo};
 use crate::error::{StudioError, StudioResult};
 use crate::hub::HubLink;
 #[cfg(desktop)]
@@ -77,6 +79,10 @@ pub struct StudioInfo {
     pub can_read_settings: bool,
     /// The Android field gateway is available.
     pub gateway: bool,
+    /// Studio's own engine (desktop): its state, restarts and log.
+    #[cfg(desktop)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub engine: Option<EngineInfo>,
 }
 
 /// Hub settings kept between launches. The token is kept beside it in an owner-only file.
@@ -92,6 +98,11 @@ struct HubSettings {
 pub struct Studio {
     link: RwLock<Link>,
     data_dir: PathBuf,
+    /// Studio's own daemon (desktop).
+    #[cfg(desktop)]
+    pub engine: Arc<Engine>,
+    #[cfg(desktop)]
+    local: Arc<LocalLink>,
     /// Approval decisions under review (desktop).
     pub confirmations: Confirmations,
 }
@@ -116,8 +127,8 @@ fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::rename(tmp, path)
 }
 
-/// Marker file: the person chose the local daemon over the built-in hub.
-const PREFER_LOCAL: &str = "prefer-local";
+/// Marker file: the person chose the saved hub over Studio's own engine.
+const ACTIVE_HUB: &str = "active-hub";
 
 /// The hub a build links to when the person has chosen nothing: `OGUN_STUDIO_DEFAULT_HUB_URL` and
 /// `OGUN_STUDIO_DEFAULT_HUB_TOKEN` at build time. The pre-alpha release sets them to the hosted hub and its public
@@ -129,35 +140,73 @@ fn builtin_hub() -> Option<HubLink> {
 }
 
 impl Studio {
-    /// Initial state: the local daemon on desktop; on mobile, the hub saved last time, if any.
+    /// Initial state. Desktop: Studio's own engine, started by [`Studio::start_engine`], is the default
+    /// environment; a hub the person saved and chose is the other. Mobile: the hub saved last time, if any.
     #[must_use]
     pub fn new(data_dir: PathBuf) -> Self {
-        let me = Self {
-            link: RwLock::new(Link::None),
-            data_dir,
-            confirmations: Confirmations::default(),
-        };
-        // A hub the person saved; else the local daemon when they chose it; else the hub this build was made for
-        // (a release links to the hosted pre-alpha hub); else the local daemon.
-        let initial = match me.saved_hub() {
-            Some(h) => Link::Hub(Arc::new(h)),
-            None if me.data_dir.join(PREFER_LOCAL).exists() => Self::default_link(),
-            None => builtin_hub().map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h))),
-        };
-        Self {
-            link: RwLock::new(initial),
-            ..me
+        #[cfg(desktop)]
+        {
+            let external = std::env::var("OGUN_STUDIO_ENGINE").is_ok_and(|v| v == "external");
+            let profile = if external {
+                std::env::var("OGUN_PROFILE").ok().filter(|p| !p.is_empty())
+            } else {
+                Some("studio".to_owned())
+            };
+            let paths = ogun_api::OgunPaths::discover(profile.as_deref()).unwrap_or_else(|_| {
+                ogun_api::OgunPaths::rooted(&data_dir.join("engine"), profile.as_deref())
+            });
+            let slot = crate::engine::CredentialSlot::default();
+            let engine = match Engine::locate().filter(|_| !external) {
+                Some(exe) => Engine::new(paths.clone(), exe, slot.clone()),
+                None => Engine::external(paths.clone(), slot.clone()),
+            };
+            let local = Arc::new(if external {
+                LocalLink::discover().unwrap_or_else(|_| LocalLink::supervised(paths, slot))
+            } else {
+                LocalLink::supervised(paths, slot)
+            });
+            let reset = local.clone();
+            engine.on_credential_change(move || {
+                let reset = reset.clone();
+                tauri::async_runtime::spawn(async move { reset.reset().await });
+            });
+            let me = Self {
+                link: RwLock::new(Link::None),
+                data_dir,
+                engine,
+                local,
+                confirmations: Confirmations::default(),
+            };
+            let initial = match me.saved_hub() {
+                Some(h) if me.data_dir.join(ACTIVE_HUB).exists() => Link::Hub(Arc::new(h)),
+                _ => Link::Local(me.local.clone()),
+            };
+            Self {
+                link: RwLock::new(initial),
+                ..me
+            }
+        }
+        #[cfg(not(desktop))]
+        {
+            let me = Self {
+                link: RwLock::new(Link::None),
+                data_dir,
+                confirmations: Confirmations::default(),
+            };
+            let initial = me
+                .saved_hub()
+                .map_or(Link::None, |h| Link::Hub(Arc::new(h)));
+            Self {
+                link: RwLock::new(initial),
+                ..me
+            }
         }
     }
 
+    /// Starts Studio's own engine (desktop). Called once at startup.
     #[cfg(desktop)]
-    fn default_link() -> Link {
-        LocalLink::discover().map_or(Link::None, |l| Link::Local(Arc::new(l)))
-    }
-
-    #[cfg(not(desktop))]
-    fn default_link() -> Link {
-        Link::None
+    pub fn start_engine(&self) {
+        self.engine.spawn();
     }
 
     fn hub_files(&self) -> (PathBuf, PathBuf) {
@@ -192,8 +241,8 @@ impl Studio {
     pub async fn use_local(&self) -> StudioResult<()> {
         #[cfg(desktop)]
         {
-            *self.link.write().await = Link::Local(Arc::new(LocalLink::discover()?));
-            let _ = write_private(&self.data_dir.join(PREFER_LOCAL), b"local\n");
+            *self.link.write().await = Link::Local(self.local.clone());
+            let _ = std::fs::remove_file(self.data_dir.join(ACTIVE_HUB));
             Ok(())
         }
         #[cfg(not(desktop))]
@@ -232,7 +281,9 @@ impl Studio {
                     StudioError::unavailable(format!("cannot save the hub settings: {}", e.kind()))
                 })?;
         }
-        let _ = std::fs::remove_file(self.data_dir.join(PREFER_LOCAL));
+        if remember {
+            let _ = write_private(&self.data_dir.join(ACTIVE_HUB), b"hub\n");
+        }
         *self.link.write().await = Link::Hub(Arc::new(hub));
         Ok(())
     }
@@ -242,9 +293,15 @@ impl Studio {
         let (settings, token) = self.hub_files();
         let _ = std::fs::remove_file(settings);
         let _ = std::fs::remove_file(token);
-        let _ = std::fs::remove_file(self.data_dir.join(PREFER_LOCAL));
-        *self.link.write().await =
-            builtin_hub().map_or_else(Self::default_link, |h| Link::Hub(Arc::new(h)));
+        let _ = std::fs::remove_file(self.data_dir.join(ACTIVE_HUB));
+        #[cfg(desktop)]
+        {
+            *self.link.write().await = Link::Local(self.local.clone());
+        }
+        #[cfg(not(desktop))]
+        {
+            *self.link.write().await = Link::None;
+        }
     }
 
     /// Calls one daemon method over the active link.
@@ -334,6 +391,8 @@ impl Studio {
             can_decide: false,
             can_read_settings: false,
             gateway,
+            #[cfg(desktop)]
+            engine: Some(self.engine.info()),
         };
         match self.link().await {
             Link::None => {}

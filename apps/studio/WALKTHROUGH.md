@@ -141,3 +141,25 @@ daemon story is a Linux (or WSL) story for now.
   Appearance and keybindings persist on the desktop app and the local build, and in memory on the hosted copy.
 - The agent answers six kinds of request (status, backfill, a failure, a draft, stations at risk, connectors) plus
   approvals and "explain a workflow". Anything else gets the list of what it can do.
+
+## The desktop app's own engine (0.0.1b)
+
+The Tauri desktop build is no longer a window onto a daemon you start by hand. It ships `ogund` beside itself, starts
+it with its own profile and a per-launch credential, and shows the real data. The frontend sees it as follows
+(`web/src/api/tauri.ts`, `localMap.ts`, `views/Engine.tsx`, `views/Welcome.tsx`):
+
+- **Engine state.** `studio_info` carries `engine` (`starting`, `running`, `restarting`, `failed`, `stopped`,
+  `external`). While it is not running the page is replaced by a waiting page (not a page of errors); a failure shows
+  the cause, the end of the log and a Restart button. When the engine becomes ready the whole page remounts so every
+  view loads again.
+- **Everything beyond the closed typed commands** (agent threads, connections, run defaults, the provider ladder,
+  sources, storage, archive, environments) goes through one relay, `engine_call`, with the daemon's own method
+  names. `localMap.ts` is the only place the hosted service's names are translated, and `tests/localmap.test.mjs`
+  pins it.
+- **First run.** A workspace with no workflow offers the bundled sample projects (`samples_list`, `sample_import`).
+- **Keys.** A provider key or a connection secret is typed into a masked field and sent once with `secret_put`. The
+  value is cleared from the page at once, is never in storage or a URL, and is never shown again. The agent stays
+  closed until a provider has a model, a stored key and the person's consent, offline is off and both caps are above
+  zero (`lib/agentGate.ts`, tested), and "What will be sent" shows the next request before anything leaves.
+- **Still scripted.** Only the scripted build (`npm run demo`) and the hosted pre-alpha hub answer from prepared
+  sessions; the desktop app does not.

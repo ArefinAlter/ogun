@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Ogun Studio",
   "mainBinaryName": "ogun-studio",
-  "version": "0.0.1-alpha",
+  "version": "0.0.1-beta",
   "identifier": "dev.verne.ogun.studio",
   "build": {
     "frontendDist": "../web/dist",
@@ -42,18 +42,59 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "category": "DeveloperTool",
     "publisher": "Verne Ltd.",
     "copyright": "Copyright 2026 Verne Ltd. Apache-2.0.",
-    "shortDescription": "Ogun Studio",
-    "longDescription": "Ogun Studio: workflows, runs, partitions, approvals, artifacts, lineage and streams of an Ogun daemon or hub.",
+    "shortDescription": "Ogun Studio: data workflows with their own engine",
+    "longDescription": "Ogun Studio runs its own Ogun engine on your computer: workflows, runs, partitions, approvals, artifacts, lineage, streams and agent threads, with nothing else to install or start.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.png",
       "icons/icon.ico"
-    ]
+    ],
+    "targets": [
+      "nsis",
+      "deb",
+      "appimage"
+    ],
+    "externalBin": [
+      "binaries/ogund",
+      "binaries/ogun",
+      "binaries/ogun-op-llm",
+      "binaries/ogun-op-shim",
+      "binaries/ogun-ingest",
+      "binaries/ogun-bench"
+    ],
+    "resources": {
+      "../../../examples/starter": "samples/starter",
+      "../../../examples/bikeshare": "samples/bikeshare"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Ogun"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0",
+          "libayatana-appindicator3-1"
+        ],
+        "section": "devel"
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   }
 }

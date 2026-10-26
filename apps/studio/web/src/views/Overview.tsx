@@ -4,6 +4,7 @@ import type { RunView } from '../api/types'
 import { fmtAgo, fmtCount, fmtTime } from '../lib/format'
 import { href, useAsync, useBackend, useInfo, useLive } from '../lib/hooks'
 import { ErrorBox, Kv, Loading, Notice, PageHead, StateLabel } from '../ui/components'
+import { Welcome } from './Welcome'
 
 const ACTIVE = new Set(['running', 'waiting', 'pending'])
 
@@ -79,13 +80,16 @@ export function Overview() {
   }, [all])
   return (
     <>
-      <PageHead title="Overview" sub="What this daemon holds and what it is doing now. The page follows the event stream." />
+      <PageHead title="Overview" sub={info?.link === 'local' && info.engine ? 'What your engine holds and what it is doing now. The page follows the event stream.' : 'What this daemon holds and what it is doing now. The page follows the event stream.'} />
+      {s ? <Welcome workflows={s.workflows} /> : null}
       {info && !info.connected ? (
         <Notice kind="warn">
           {info.link === 'none'
             ? 'Not connected. Connect to a hub in Settings.'
             : info.link === 'local'
-              ? 'ogund is not reachable on this machine. Start ogund, then reload.'
+              ? info.engine && info.engine.state !== 'external'
+                ? 'The engine is not answering. Restart it in Settings, Environments.'
+                : 'ogund is not reachable on this machine. Start ogund, then reload.'
               : info.link === 'server' && info.error?.code === 'api.unauthenticated'
                 ? 'Not signed in. Sign in to this server, then reload.'
                 : `Cannot reach the ${info.link === 'hub' ? 'hub' : 'server'}${info.error ? `: ${info.error.message}` : '.'}`}
@@ -169,7 +173,7 @@ export function Overview() {
       </p>
       {s ? (
         <div class="panel">
-          <h2>Daemon</h2>
+          <h2>{info?.link === 'local' && info.engine ? 'Engine' : 'Daemon'}</h2>
           <Kv
             rows={[
               ['version', <span class="mono">{s.daemon_version}</span>],
@@ -180,7 +184,9 @@ export function Overview() {
               [
                 'connection',
                 info?.link === 'local'
-                  ? `local ogund${info.profile ? ` (profile ${info.profile})` : ''}`
+                  ? info.engine && info.engine.state !== 'external'
+                    ? `Studio's own engine${info.engine.pid ? ` (process ${info.engine.pid})` : ''}`
+                    : `local ogund${info.profile ? ` (profile ${info.profile})` : ''}`
                   : info?.link === 'hub'
                     ? `hub ${info.hubUrl ?? ''} (read-only)`
                     : info?.link === 'server'

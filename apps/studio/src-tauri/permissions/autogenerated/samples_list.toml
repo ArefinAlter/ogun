@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-samples-list"
+description = "Enables the samples_list command without any pre-configured scope."
+commands.allow = ["samples_list"]
+
+[[permission]]
+identifier = "deny-samples-list"
+description = "Denies the samples_list command without any pre-configured scope."
+commands.deny = ["samples_list"]

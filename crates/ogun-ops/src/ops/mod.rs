@@ -11,6 +11,7 @@
 //! | `partition` | Splits JSON Lines inputs by a field, by UTC day or month of a time field, or into chunks of N rows. |
 //! | `map` | Metadata through the closed template set: `set`, `rename`, `remove`, `filename`. |
 //! | `join_metadata` | Adds the metadata (or JSON Lines rows) of one input node to the matching artifacts of the others. |
+//! | `parse` | JSON (optionally the part at a JSON Pointer), CSV or JSON Lines documents into JSON Lines rows. |
 //! | `window.rollup` | Integer statistics per group over sealed window batches (O-09 section 6.1). |
 //! | `crawl` | Bounded same-origin crawl through zeus-core HTTP, robots.txt honoured, no session material. |
 //! | `acquire` | Plain HTTP(S) downloads through the zeus-core engine with a no-session provider. |
@@ -23,6 +24,7 @@
 
 pub mod archive;
 pub mod files_ops;
+pub mod parse;
 pub mod records;
 pub mod rollup;
 pub mod session;

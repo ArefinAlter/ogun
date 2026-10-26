@@ -74,6 +74,10 @@ pub async fn start(paths: OgunPaths) -> DaemonResult<Running> {
 pub struct StartOptions {
     /// A credential held in memory only (see [`creds::Credentials::add_transient`]).
     pub transient_credential: Option<ogun_api::Credential>,
+    /// Keep secret values in the OS credential store when the machine has one (a desktop app's own daemon).
+    pub prefer_os_secrets: bool,
+    /// A passphrase for the encrypted-file store, for machines without a credential store.
+    pub secrets_passphrase: Option<zeroize::Zeroizing<String>>,
 }
 
 /// As [`start`], with the options of a supervised launch.
@@ -84,7 +88,11 @@ pub struct StartOptions {
 pub async fn start_with(paths: OgunPaths, options: StartOptions) -> DaemonResult<Running> {
     let endpoint = paths.endpoint();
     let listener = Listener::bind(&endpoint).await?;
-    let daemon = tokio::task::spawn_blocking(move || Daemon::open(paths))
+    let open = state::OpenOptions {
+        prefer_os_secrets: options.prefer_os_secrets,
+        secrets_passphrase: options.secrets_passphrase.clone(),
+    };
+    let daemon = tokio::task::spawn_blocking(move || Daemon::open_with(paths, &open))
         .await
         .map_err(|_| DaemonError::State("startup task failed".into()))??;
     if let Some(cred) = &options.transient_credential {

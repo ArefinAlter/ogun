@@ -58,6 +58,7 @@ pub const BUILTIN: &[OpSpec] = &[
     op("filter", &["artifacts", "rejected"], Core),
     op("map", &["artifacts"], Core),
     op("join_metadata", &["artifacts"], Core),
+    op("parse", &["artifacts"], Core),
     // Adapters that run no user code.
     op("duckdb", &["tables", "artifacts"], Adapter),
     op("pdf.extract", &["text", "tables"], Adapter),

@@ -7,7 +7,8 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { AgentAccess, Mention } from '../api/types'
 import { asOgunError } from '../api'
 import { ACCESS_INFO } from '../lib/agentTools'
-import { useAgent, useAgentModels, useAgentSettings, useAgentThread } from '../lib/agentHooks'
+import type { Readiness } from '../lib/agentGate'
+import { useAgent, useAgentModels, useAgentReadiness, useAgentSettings, useAgentThread } from '../lib/agentHooks'
 import { href, navigate, useBackend, useInfo } from '../lib/hooks'
 import { usePrefs } from '../lib/prefs'
 import { setPrefs } from '../lib/prefs'
@@ -26,6 +27,26 @@ const STARTERS: { icon: IconName; text: string; hint: string }[] = [
   { icon: 'cube', text: 'Which stations are likely to run empty or full today?', hint: 'From the latest rebalance-plan shortlist' },
   { icon: 'plug', text: 'Which connectors would I need to send alerts to Datadog and DingTalk?', hint: 'From the connector catalogue' },
 ]
+
+const STARTERS_LOCAL: { icon: IconName; text: string; hint: string }[] = [
+  { icon: 'gauge', text: 'What is running, and what is waiting for a person?', hint: 'A summary of your engine, read live' },
+  { icon: 'dag', text: 'List my workflows and say what each one does', hint: 'Reads the stored workflows' },
+  { icon: 'refresh', text: 'Why did the latest failed run fail?', hint: 'Reads the run and explains the recorded cause' },
+  { icon: 'matrix', text: 'Which partitions are missing for my daily workflows?', hint: 'Plans the range; starting a backfill is your press' },
+  { icon: 'plug', text: 'Which connectors would I need to send alerts to Slack?', hint: 'From the connector catalogue' },
+]
+
+/** Why the agent cannot answer yet, with the page that fixes it. */
+function Gate({ readiness }: { readiness: Readiness | null }) {
+  if (!readiness || readiness.ready) return null
+  return (
+    <div class="agent-gate">
+      <Notice kind="warn">
+        {readiness.message} <a href={href('settings', 'providers')}>Open Providers</a>
+      </Notice>
+    </div>
+  )
+}
 
 /** A daemon with no agent threads: say so, and show the way that works today. */
 function Unavailable() {
@@ -56,6 +77,9 @@ function Unavailable() {
 
 function NewThread() {
   const agent = useAgent()
+  const backend = useBackend()
+  const { readiness } = useAgentReadiness()
+  const starters = backend.engine ? STARTERS_LOCAL : STARTERS
   const models = useAgentModels()
   const settings = useAgentSettings()
   const [access, setAccess] = useState<AgentAccess | null>(null)
@@ -85,10 +109,11 @@ function NewThread() {
         </div>
         <div class="starters" role="list" aria-label="Start from">
           <div class="label">Start from</div>
-          {STARTERS.map((s) => (
+          {starters.map((s) => (
             <button
               type="button"
               role="listitem"
+              disabled={readiness?.ready === false}
               onClick={() => {
                 const wf = /@?(trips-backfill)/.exec(s.text)
                 void start(s.text, wf ? [{ kind: 'workflow', id: 'trips-backfill', label: 'trips-backfill' }] : [])
@@ -102,6 +127,7 @@ function NewThread() {
         </div>
         {error ? <Notice kind="error">{error}</Notice> : null}
       </div>
+      <Gate readiness={readiness} />
       <Composer
         draftKey="new"
         busy={false}
@@ -110,6 +136,7 @@ function NewThread() {
         model={effectiveModel}
         onModel={setModel}
         models={models ?? []}
+        {...(readiness?.ready === false ? { disabledReason: 'The agent cannot answer yet' } : {})}
         onSend={(t, m) => void start(t, m)}
         onStop={() => undefined}
       />
@@ -121,6 +148,7 @@ function ThreadPage({ threadId }: { threadId: string }) {
   const agent = useAgent()
   const thread = useAgentThread(threadId)
   const models = useAgentModels()
+  const { readiness } = useAgentReadiness()
   const prefs = usePrefs()
   const [error, setError] = useState<string | null>(null)
   useEffect(() => setError(null), [threadId])
@@ -142,9 +170,11 @@ function ThreadPage({ threadId }: { threadId: string }) {
             <Notice kind="error">{error}</Notice>
           </div>
         ) : null}
+        <Gate readiness={readiness} />
         <Composer
           draftKey={thread.thread_id}
           busy={thread.state === 'running'}
+          {...(readiness?.ready === false ? { disabledReason: 'The agent cannot answer yet' } : {})}
           access={thread.access}
           onAccess={(a) => void agent?.setAccess(thread.thread_id, a)}
           model={thread.model}
@@ -166,8 +196,9 @@ function ThreadPage({ threadId }: { threadId: string }) {
 
 export function Agent({ threadId }: { threadId?: string }) {
   const agent = useAgent()
+  const { info } = useInfo()
   useBackend()
-  if (!agent) return <Unavailable />
+  if (!agent || info?.agent === false) return <Unavailable />
   return threadId ? <ThreadPage threadId={threadId} /> : <NewThread />
 }
 

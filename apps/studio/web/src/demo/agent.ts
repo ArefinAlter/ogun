@@ -521,13 +521,19 @@ export function createScriptedAgent(getBackend: () => Backend, opts: AgentHostOp
   const threadListeners = new Map<string, Set<(t: AgentThread | null) => void>>()
   let seq = opts.restore?.seq ?? 0
   let seeded = opts.restore?.seeded ?? opts.seed === false
-  let settings: AgentSettings = opts.restore?.settings ?? {
+  let settings: AgentSettings = {
     instructions: DEFAULT_INSTRUCTIONS,
     default_access: 'read',
     default_model: 'scripted',
     spend_cap_usd: 2,
     tools_enabled: TOOLS.map((t) => t.name),
     retention_days: 30,
+    // The scripted agent calls no model, so these do not change what it does; they keep the settings page whole.
+    offline: false,
+    consented_providers: [],
+    day_cap_usd: 10,
+    // A snapshot saved before these members existed still loads.
+    ...(opts.restore?.settings ?? {}),
   }
   for (const t of opts.restore?.threads ?? []) {
     // A turn that was running when the host stopped is over: nothing resumes it.

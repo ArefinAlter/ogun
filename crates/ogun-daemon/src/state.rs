@@ -237,6 +237,15 @@ pub fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// What a supervising app changes about how the daemon opens its stores.
+#[derive(Debug, Default, Clone)]
+pub struct OpenOptions {
+    /// Keep secret values in the OS credential store when there is one.
+    pub prefer_os_secrets: bool,
+    /// A passphrase for the encrypted-file store.
+    pub secrets_passphrase: Option<zeroize::Zeroizing<String>>,
+}
+
 impl Daemon {
     /// Opens every store under the state directory and recovers from a crash.
     ///
@@ -244,6 +253,15 @@ impl Daemon {
     ///
     /// Any startup failure.
     pub fn open(paths: OgunPaths) -> DaemonResult<Arc<Self>> {
+        Self::open_with(paths, &OpenOptions::default())
+    }
+
+    /// As [`Daemon::open`], with the options of a supervised launch.
+    ///
+    /// # Errors
+    ///
+    /// Any startup failure.
+    pub fn open_with(paths: OgunPaths, options: &OpenOptions) -> DaemonResult<Arc<Self>> {
         let config = crate::config::Config::load(&paths.config_file())?;
         let ids = IdGenerator::new();
         let (creds, ipc_secret) = Credentials::load_or_init(&paths, &ids)?;
@@ -294,7 +312,17 @@ impl Daemon {
         env.allow_unsandboxed = config.allow_unsandboxed;
         env.workspace.clone_from(&config.workspace);
         let registry = Registry::new(env);
-        let secrets = Arc::new(SecretStore::open(paths.secrets_dir())?);
+        let secrets = Arc::new(if options.prefer_os_secrets {
+            let id = blake3::hash(paths.state_dir.display().to_string().as_bytes()).to_hex();
+            SecretStore::open_preferring_os(
+                paths.secrets_dir(),
+                paths.state_dir.join("secrets-index"),
+                &format!("Ogun secrets {}", &id.as_str()[..12]),
+                options.secrets_passphrase.as_ref(),
+            )?
+        } else {
+            SecretStore::open(paths.secrets_dir())?
+        });
         let last = store.last_event_seq()?;
         let trusted = Trusted::discover(&config);
         let streams = Streams::new(paths.state_dir.join("streams"));

@@ -584,6 +584,22 @@ export interface AgentSettings {
   /** The tools the agent may call at all (an allow-list over the tool table). */
   tools_enabled: string[]
   retention_days: number
+  /** Global offline switch: while on, no model call is made at all. */
+  offline: boolean
+  /** The ladder entries the person allowed to receive prompts. Empty by default: nothing is sent anywhere until a person ticks one. */
+  consented_providers: string[]
+  /** Model spend allowed per UTC day, in US dollars; 0 means no model call. */
+  day_cap_usd: number
+}
+
+/** Exactly what the next model request would carry, redacted: shown before anything is sent. */
+export interface AgentPreview {
+  provider: string
+  model: string
+  host: string
+  system: string
+  messages: { role: string; content: string }[]
+  tools: string[]
 }
 
 export interface AgentThreadSummary {
@@ -595,6 +611,10 @@ export interface AgentThreadSummary {
   created_at: string
   updated_at: string
   item_count: number
+  /** Model spend of this thread so far, in micro US dollars, when the daemon counts it (the real engine does). */
+  spend_usd_micro?: number
+  input_tokens?: number
+  output_tokens?: number
 }
 
 /** Something the person pointed the agent at with `@`. */
@@ -650,3 +670,73 @@ export interface AgentThread extends AgentThreadSummary {
 
 /** What a person can press on a card. The daemon does it with the person's own role, never the agent's. */
 export type AgentAction = 'store' | 'start_backfill' | 'retry'
+
+// ---------------------------------------------------------------- the desktop's own engine (ADR 0015)
+
+export type EngineStateName = 'starting' | 'running' | 'restarting' | 'failed' | 'stopped' | 'external'
+
+/** What the shell's supervisor reports about the `ogund` it runs for this Studio. */
+export interface EngineInfo {
+  state: EngineStateName
+  pid?: number
+  version?: string
+  /** The restart attempt, while `restarting`. */
+  attempt?: number
+  /** Why the last run ended, while `restarting` or `failed`. */
+  error?: string
+  restarts: number
+  log_path: string
+  state_dir: string
+}
+
+export interface EngineReport extends EngineInfo {
+  /** The end of the daemon's log, present while it is not running. */
+  log_tail: string[]
+}
+
+/** What `sandbox.status` says about running code operators (O-03 section 4). */
+export interface SandboxStatus {
+  /** Whether child operators can run at all on this machine. */
+  available: boolean
+  /** `bwrap`, `sandbox-exec`, `appcontainer` or `none`. */
+  backend: string
+  /** One plain sentence. */
+  summary: string
+  /** What the sandbox does isolate, one fact per line. */
+  isolates?: string[]
+  /** What it does not isolate, one fact per line. */
+  does_not_isolate?: string[]
+}
+
+export interface ShellPrefs {
+  /** Closing the window hides Studio to the tray; the engine keeps running and its schedules keep firing. */
+  keep_in_tray: boolean
+}
+
+export interface SampleInfo {
+  id: string
+  name: string
+  description: string
+  workflows: string[]
+  /** How many of the workflows the engine already holds. */
+  stored: number
+}
+
+export interface SampleImportResult {
+  project: string
+  workflows: { name: string; version: number; workflow_hash: string; created: boolean; approvals: number }[]
+}
+
+/** A hub this Studio can use besides its own engine. */
+export interface HubEnvironment {
+  id: string
+  name: string
+  url: string
+  auth: 'token' | 'oidc'
+  /** For `oidc`: whether tokens are held and still refresh. */
+  signed_in: boolean
+  /** The signed-in user's name, when there is one. */
+  user?: string
+  /** This is the environment Studio shows now. */
+  active: boolean
+}

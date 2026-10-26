@@ -1,0 +1,29 @@
+{
+  "ir_version": 0,
+  "workflow": "github-releases",
+  "version": 1,
+  "description": "The releases of a public GitHub repository, read from the GitHub REST API, parsed into rows, split into pre-releases and releases and listed in a manifest. Needs the internet; no model access.",
+  "budgets": { "bytes": 52428800, "wall_ms": 300000 },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["api.github.com"],
+        "sources": [{ "url": "https://api.github.com/repos/ArefinAlter/ogun/releases?per_page=30", "filename": "releases.json" }],
+        "headers": { "accept": "application/vnd.github+json" }
+      },
+      "policy": { "retries": 2 }
+    },
+    { "id": "rows", "op": "parse@1", "inputs": ["fetch.artifacts"], "config": {} },
+    {
+      "id": "published",
+      "op": "filter@1",
+      "inputs": ["rows.artifacts"],
+      "config": { "where": { "eq": { "field": "draft", "value": false } } }
+    },
+    { "id": "by_kind", "op": "partition@1", "inputs": ["published.artifacts"], "config": { "by": "prerelease" } },
+    { "id": "hash", "op": "hash@1", "inputs": ["by_kind.artifacts"] },
+    { "id": "manifest", "op": "manifest@1", "inputs": ["hash.artifacts"] }
+  ]
+}

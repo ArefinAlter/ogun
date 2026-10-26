@@ -11,6 +11,7 @@ import { fmtTime } from '../../lib/format'
 import { Chip, ErrorBox, Notice, PageHead, SettingRow, SettingsGroup, Switch } from '../../ui/components'
 import { Icon } from '../../ui/icons'
 import { ScopeBar } from '../../ui/ScopeBar'
+import { SampleImport } from '../Welcome'
 
 export const START_PAGES: [string, string][] = [
   ['agent', 'Agent (Overview when the daemon has none)'],
@@ -139,8 +140,42 @@ function RuntimeGroups() {
   )
 }
 
+/** The sandbox row: what this machine's engine really isolates, from the engine itself where it says. */
+function SandboxRow() {
+  const backend = useBackend()
+  const status = useAsync(() => (backend.engine ? backend.engine.sandboxStatus().catch(() => null) : Promise.resolve(null)), [backend])
+  const s = status.data
+  if (!backend.engine || !s)
+    return (
+      <SettingRow title={<>Operators run sandboxed <Chip>fixed</Chip></>} desc="Every child operator runs out of process under bubblewrap on Linux. Where the machine has no operator sandbox, child operators are refused unless allow_unsandboxed is set in config.json, which Studio cannot change." />
+    )
+  return (
+    <SettingRow
+      stack
+      title={
+        <>
+          Code operators {s.available ? <Chip tone="ok">sandboxed: {s.backend}</Chip> : <Chip tone="warn">disabled on this machine</Chip>} <Chip>fixed</Chip>
+        </>
+      }
+      desc={s.summary}
+    >
+      {s.isolates?.length ? (
+        <div class="desc">
+          <strong>Isolated:</strong> {s.isolates.join('; ')}.
+        </div>
+      ) : null}
+      {s.does_not_isolate?.length ? (
+        <div class="desc">
+          <strong>Not isolated:</strong> {s.does_not_isolate.join('; ')}.
+        </div>
+      ) : null}
+    </SettingRow>
+  )
+}
+
 export function GeneralSettings() {
   const p = usePrefs()
+  const backend = useBackend()
   const sample = '2026-10-24T13:15:02.123Z'
   return (
     <>
@@ -152,11 +187,18 @@ export function GeneralSettings() {
       <ScopeBar />
       <RuntimeGroups />
       <SettingsGroup title="Sandbox, egress and secrets" note="These are not settings. They are how Ogun is built, shown here so nobody wonders.">
-        <SettingRow title={<>Operators run sandboxed <Chip>fixed</Chip></>} desc="Every child operator runs out of process under bubblewrap on Linux. Windows has no operator sandbox yet: child operators are refused there unless allow_unsandboxed is set in config.json, which Studio cannot change." />
+        <SandboxRow />
         <SettingRow title={<>Egress is denied until approved <Chip>fixed</Chip></>} desc="A workflow reaches a host only after a person approves the egress for that workflow version. Benchmark runs have no network at all by default." />
         <SettingRow title={<>Secrets stay out of everything <Chip>fixed</Chip></>} desc="Provider keys, tokens and URL query strings never reach logs, events, lineage, errors, fixtures or model prompts. Studio shows secret names, never values." />
         <SettingRow title={<>Approvals are decided by people <Chip>fixed</Chip></>} desc="Only on a person's own trust surface (the terminal or Studio), bound to the request hash. No path an agent can reach decides one." />
       </SettingsGroup>
+      {backend.engine ? (
+        <SettingsGroup title="Sample projects" note="Workflows you can read, run and change. Importing stores them in your engine; a version that changes code waits for your approval before it runs.">
+          <div class="row stack">
+            <SampleImport compact />
+          </div>
+        </SettingsGroup>
+      ) : null}
       <SettingsGroup title="This device">
         <SettingRow title="Start page" desc="The page Studio opens on when the address has no page in it.">
           <select aria-label="Start page" value={p.startPage} onChange={(e) => setPrefs({ startPage: (e.target as HTMLSelectElement).value })}>

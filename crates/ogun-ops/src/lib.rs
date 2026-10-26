@@ -9,7 +9,7 @@
 //!
 //! | Module | What |
 //! |---|---|
-//! | [`ops`] | The core operators (hash, dedupe, filter, manifest, file.copy, file.move, archive.extract, partition, map, join_metadata, window.rollup, zeus.session_acquire). |
+//! | [`ops`] | The core operators (hash, dedupe, filter, manifest, file.copy, file.move, archive.extract, partition, map, join_metadata, parse, window.rollup, zeus.session_acquire). |
 //! | [`crawl`], [`acquire`] | Bounded crawling and plain HTTP(S) acquisition through zeus-core, with no session material. |
 //! | [`manifest`], [`builtin`] | Operator manifests (O-03 section 3), discovery and the manifests compiled in. |
 //! | [`runner`], [`sandbox`] | The `jsonl-stdio/0` child runner and the OS sandbox (bubblewrap, sandbox-exec). |

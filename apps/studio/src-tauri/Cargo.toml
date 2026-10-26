@@ -8,7 +8,7 @@ resolver = "3"
 members = [".", "../plugins/gateway"]
 
 [workspace.package]
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 edition = "2024"
 rust-version = "1.90"
 license = "Apache-2.0"
@@ -33,12 +33,14 @@ ogun-api = { path = "../../../crates/ogun-api" }
 ogun-types = { path = "../../../crates/ogun-types" }
 ogun-ir = { path = "../../../crates/ogun-ir" }
 ogun-edge = { path = "../../../crates/ogun-edge" }
+ogun-keystore = { path = "../../../crates/ogun-keystore" }
 ogun-sync = { path = "../../../crates/ogun-sync" }
 zeus-verify = { path = "../../../../zeus-core/crates/zeus-verify" }
 tauri-plugin-ogun-gateway = { path = "../plugins/gateway" }
 
 # ---- Tauri (the version line of the Zeus desktop client, Zeus ADR 0009) ----
-tauri = { version = "~2.11", default-features = false, features = ["wry", "compression", "common-controls-v6", "x11", "dbus"] }
+tauri = { version = "~2.11", default-features = false, features = ["wry", "compression", "common-controls-v6", "x11", "dbus", "tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2"
 tauri-build = { version = "~2.6", default-features = false, features = ["config-json"] }
 tauri-plugin = { version = "~2.6", features = ["build"] }
 
@@ -46,7 +48,10 @@ tauri-plugin = { version = "~2.6", features = ["build"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-tokio = { version = "1.53", features = ["sync", "time", "rt-multi-thread", "macros"] }
+tokio = { version = "1.53", features = ["sync", "time", "rt-multi-thread", "macros", "process", "io-util", "fs", "net"] }
+open = "5"
+url = "2.5"
+sha2 = "0.11"
 tracing = "0.1"
 zeroize = { version = "1.9", features = ["derive"] }
 getrandom = "0.3"
@@ -91,6 +96,11 @@ custom-protocol = ["tauri/custom-protocol"]
 [dependencies]
 ogun-api.workspace = true
 ogun-types.workspace = true
+ogun-keystore.workspace = true
+blake3.workspace = true
+open.workspace = true
+url.workspace = true
+sha2.workspace = true
 tauri.workspace = true
 tauri-plugin-ogun-gateway.workspace = true
 serde.workspace = true
@@ -105,6 +115,9 @@ reqwest.workspace = true
 rustls.workspace = true
 rustls-pki-types.workspace = true
 webpki-roots.workspace = true
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance.workspace = true
 
 [build-dependencies]
 tauri-build.workspace = true

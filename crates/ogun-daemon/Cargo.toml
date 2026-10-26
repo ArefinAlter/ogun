@@ -24,6 +24,7 @@ ogun-edge.workspace = true
 ogun-api.workspace = true
 ogun-ops.workspace = true
 ogun-sync.workspace = true
+ogun-keystore.workspace = true
 ogun-lineage.workspace = true
 ogun-zeus-bridge.workspace = true
 zeus-types.workspace = true

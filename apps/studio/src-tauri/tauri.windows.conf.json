@@ -15,5 +15,19 @@
         "shadow": true
       }
     ]
+  },
+  "bundle": {
+    "targets": [
+      "nsis"
+    ],
+    "externalBin": [
+      "binaries/ogund",
+      "binaries/ogun",
+      "binaries/ogun-op-llm",
+      "binaries/ogun-op-shim",
+      "binaries/ogun-ingest",
+      "binaries/ogun-bench",
+      "binaries/ogun-sandbox"
+    ]
   }
 }

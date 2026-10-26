@@ -7,6 +7,7 @@ import { CONNECTION_NAME, SECRET_NAME, categoryLabel, defaultSecretName, expandD
 import { fmtAgo, fmtTime, idempotencyKey } from '../../lib/format'
 import { href, navigate, useAsync, useBackend } from '../../lib/hooks'
 import { Chip, CodeCopy, Dialog, Empty, ErrorBox, Loading, Notice, PageHead, SettingRow, SettingsGroup, Switch } from '../../ui/components'
+import { SecretEntry } from '../../ui/SecretEntry'
 
 function StatePill({ c }: { c: ConnectionView }) {
   if (c.state === 'healthy') return <span class="state s-succeeded">healthy</span>
@@ -299,7 +300,7 @@ export function ConnectionEditor({ name, connectorId }: { name?: string; connect
           ))}
         </SettingsGroup>
       ) : null}
-      <SettingsGroup title="Authentication" note="Choose how Ogun proves who it is. Studio takes no secret value: name the secret, then store it on a terminal.">
+      <SettingsGroup title="Authentication" note={backend.engine ? 'Choose how Ogun proves who it is. A connection holds only the name of each secret; enter the value once and the engine keeps it in the credential store of this computer.' : 'Choose how Ogun proves who it is. Studio takes no secret value: name the secret, then store it on a terminal.'}>
         {manifest.auth.length > 1 ? (
           <SettingRow title="Method">
             <select aria-label="Authentication method" value={form.auth} onChange={(e) => patch({ auth: (e.target as HTMLSelectElement).value })}>
@@ -345,7 +346,9 @@ export function ConnectionEditor({ name, connectorId }: { name?: string; connect
                   )
                 ) : null}
               </div>
-              {form.secretRefs[f.name] && !have.has(form.secretRefs[f.name] as string) ? (
+              {backend.engine && form.secretRefs[f.name] && SECRET_NAME.test(form.secretRefs[f.name] as string) ? (
+                <SecretEntry name={form.secretRefs[f.name] as string} stored={have.has(form.secretRefs[f.name] as string)} onChanged={() => secrets.reload()} />
+              ) : form.secretRefs[f.name] && !have.has(form.secretRefs[f.name] as string) ? (
                 <div class="stack-tight">
                   <CodeCopy text={secretCommand(form.secretRefs[f.name] as string)} label="Copy command" />
                   {backend.demo ? (
