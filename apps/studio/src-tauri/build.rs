@@ -44,6 +44,11 @@ const COMMANDS: &[&str] = &[
     "shell_prefs_set",
     "samples_list",
     "sample_import",
+    "hub_environments",
+    "hub_signin_start",
+    "hub_signin_cancel",
+    "hub_signout",
+    "hub_use",
 ];
 
 fn main() {

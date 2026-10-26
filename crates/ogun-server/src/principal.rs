@@ -26,6 +26,9 @@ const SESSION_CONTEXT: &str = "ogun-server 2026-10 session v1";
 const CSRF_CONTEXT: &str = "ogun-server 2026-10 csrf v1";
 const TOKEN_CONTEXT: &str = "ogun-server 2026-10 api token v1";
 const TOKEN_PREFIX: &str = "ogt1_";
+/// The prefix of a native session token (Studio desktop, O-13 section 4.3): a person's session presented as a
+/// bearer.
+pub const NATIVE_PREFIX: &str = "ogs1_";
 const TOUCH_EVERY: Duration = Duration::from_secs(60);
 
 /// The store key of a session secret.
@@ -173,9 +176,13 @@ pub fn authenticate(
                 .map_err(|_| ServerError::unauthenticated("malformed Authorization header"))?
                 .to_owned(),
         );
-        let bearer = text
-            .strip_prefix("Bearer ")
-            .ok_or_else(|| ServerError::unauthenticated("only Bearer API tokens are accepted"))?;
+        let bearer = text.strip_prefix("Bearer ").ok_or_else(|| {
+            ServerError::unauthenticated("only Bearer API tokens and sessions are accepted")
+        })?;
+        if let Some(secret) = bearer.trim().strip_prefix(NATIVE_PREFIX) {
+            // A bearer header is not ambient authority: no CSRF header, no Origin check.
+            return session_principal(state, secret, None, now);
+        }
         let bad = || ServerError::unauthenticated("the API token is not valid");
         let (id, secret) = parse_token(bearer.trim()).ok_or_else(bad)?;
         let mut token = state.store.token(id)?.ok_or_else(bad)?;
@@ -201,7 +208,18 @@ pub fn authenticate(
     }
     let secret = cookie(headers, SESSION_COOKIE)
         .ok_or_else(|| ServerError::unauthenticated("sign in first"))?;
-    let key = session_key(&secret);
+    session_principal(state, &secret, Some((method, headers)), now)
+}
+
+/// A person's session by its secret. A cookie request carries `csrf` (the method and headers to check); a bearer
+/// request does not.
+fn session_principal(
+    state: &AppState,
+    secret: &str,
+    csrf_check: Option<(&Method, &HeaderMap)>,
+    now: Timestamp,
+) -> ServerResult<Principal> {
+    let key = session_key(secret);
     let expired_session = || ServerError::unauthenticated("the session has ended; sign in again");
     let mut session: SessionRecord = state.store.session(&key)?.ok_or_else(expired_session)?;
     let idle = Duration::from_secs(state.cfg.sessions.idle_timeout_minutes * 60);
@@ -215,8 +233,10 @@ pub fn authenticate(
         .user(session.user_id)?
         .filter(|u| !u.disabled)
         .ok_or_else(expired_session)?;
-    let csrf = csrf_token(&secret);
-    if !matches!(*method, Method::GET | Method::HEAD) {
+    let csrf = csrf_token(secret);
+    if let Some((method, headers)) = csrf_check
+        && !matches!(*method, Method::GET | Method::HEAD)
+    {
         let given = headers
             .get(CSRF_HEADER)
             .and_then(|v| v.to_str().ok())

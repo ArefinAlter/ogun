@@ -17,6 +17,7 @@ pub mod commands;
 pub mod engine;
 pub mod error;
 pub mod hub;
+pub mod hubs;
 pub mod link;
 #[cfg(desktop)]
 pub mod local;
@@ -186,6 +187,16 @@ pub fn run() {
             local_cmds::samples_list,
             #[cfg(desktop)]
             local_cmds::sample_import,
+            #[cfg(desktop)]
+            local_cmds::hub_environments,
+            #[cfg(desktop)]
+            local_cmds::hub_signin_start,
+            #[cfg(desktop)]
+            local_cmds::hub_signin_cancel,
+            #[cfg(desktop)]
+            local_cmds::hub_signout,
+            #[cfg(desktop)]
+            local_cmds::hub_use,
         ])
         .build(tauri::generate_context!());
     let app = match app {

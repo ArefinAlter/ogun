@@ -108,7 +108,14 @@ pub async fn providers(State(s): St) -> Response {
         .into_iter()
         .map(|(id, name)| json!({ "id": id, "display_name": name, "login_url": format!("/auth/login?provider={id}") }))
         .collect();
-    Json(json!({ "providers": list })).into_response()
+    // What a desktop application needs to sign in by itself (O-13 section 4.3): public facts only.
+    let native: Vec<_> = s
+        .oidc
+        .list_native()
+        .into_iter()
+        .map(|(id, name, issuer, client_id)| json!({ "id": id, "display_name": name, "issuer": issuer, "client_id": client_id }))
+        .collect();
+    Json(json!({ "providers": list, "native": native })).into_response()
 }
 
 async fn login_inner(s: &AppState, ip: ClientIp, u: &Uri) -> ServerResult<Response> {
@@ -328,7 +335,98 @@ pub async fn callback(
     }
 }
 
-/// `POST /auth/logout` (CSRF header required).
+/// The body of `POST /auth/native`.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeBody {
+    provider: String,
+    id_token: String,
+    #[serde(default)]
+    nonce: Option<String>,
+}
+
+async fn native_inner(s: &AppState, ip: ClientIp, body: NativeBody) -> ServerResult<Response> {
+    s.limiter.check_ip(Class::Auth, ip.0)?;
+    if body.id_token.len() > 16 * 1024 {
+        return Err(ServerError::new(
+            "server.sign_in_failed",
+            "the ID token is too large",
+        ));
+    }
+    let id = s
+        .oidc
+        .verify_native(&body.provider, &body.id_token, body.nonce.as_deref())
+        .await?;
+    // No sign-up here: an identity without an account must accept an invitation in a browser first.
+    let user = s
+        .store
+        .user_by_identity(&id.issuer, &id.subject)?
+        .ok_or_else(|| {
+            ServerError::new(
+                "server.sign_in_failed",
+                "there is no account for this identity; ask a workspace owner for an invitation link",
+            )
+        })?;
+    if user.disabled {
+        return Err(ServerError::new(
+            "server.sign_in_failed",
+            "this account is disabled",
+        ));
+    }
+    s.store
+        .update_profile(user.user_id, &id.display_name, id.email.as_deref())?;
+    let secret = random_token()?;
+    let now = Timestamp::now();
+    s.store.put_session(
+        &session_key(&secret),
+        &SessionRecord {
+            user_id: user.user_id,
+            provider: body.provider.clone(),
+            created_at: now,
+            last_seen_at: now,
+        },
+    )?;
+    tracing::info!(user = %user.user_id, provider = %body.provider, client = %ip.0, "signed in natively");
+    let mut r = Json(json!({
+        "token": format!("{}{}", crate::principal::NATIVE_PREFIX, secret.as_str()),
+        "expires_in_s": s.cfg.sessions.absolute_timeout_hours * 3600,
+        "idle_timeout_minutes": s.cfg.sessions.idle_timeout_minutes,
+        "user": {
+            "user_id": user.user_id.to_string(),
+            "display_name": id.display_name,
+            "email": id.email,
+        },
+    }))
+    .into_response();
+    r.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    Ok(r)
+}
+
+/// `POST /auth/native` (O-13 section 4.3): an ID token the desktop application obtained with authorization code
+/// and PKCE, exchanged for the hub's own session as a bearer.
+pub async fn native(
+    State(s): St,
+    Extension(ip): Extension<ClientIp>,
+    body: Result<Json<NativeBody>, axum::extract::rejection::JsonRejection>,
+) -> Response {
+    let Ok(Json(body)) = body else {
+        return ServerError::new(
+            "api.invalid_params",
+            "the body is not {provider, id_token, nonce}",
+        )
+        .into_response();
+    };
+    match native_inner(&s, ip, body).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::info!(client = %ip.0, code = %e.code(), "native sign-in failed");
+            e.into_response()
+        }
+    }
+}
+
+/// `POST /auth/logout` (CSRF header required for a cookie; a native bearer needs none).
 pub async fn logout(State(s): St, m: Method, h: HeaderMap) -> Response {
     let r = (|| {
         let p = authenticate(&s, &m, &h)?;

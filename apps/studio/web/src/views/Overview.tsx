@@ -188,7 +188,7 @@ export function Overview() {
                     ? `Studio's own engine${info.engine.pid ? ` (process ${info.engine.pid})` : ''}`
                     : `local ogund${info.profile ? ` (profile ${info.profile})` : ''}`
                   : info?.link === 'hub'
-                    ? `hub ${info.hubUrl ?? ''} (read-only)`
+                    ? info.hubUser ? `hub ${info.hubUrl ?? ''} (${info.hubUser}${info.hubRole ? `, ${info.hubRole}` : ''})` : `hub ${info.hubUrl ?? ''} (read-only)`
                     : info?.link === 'server'
                       ? `ogun-server${info.user ? `, signed in as ${info.user.name}` : ''}`
                       : 'none',

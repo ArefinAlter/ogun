@@ -189,6 +189,25 @@ impl Oidc {
         v
     }
 
+    /// Providers that accept desktop applications: id, name, issuer and the public client id (all public).
+    #[must_use]
+    pub fn list_native(&self) -> Vec<(String, String, String, String)> {
+        let mut v: Vec<_> = self
+            .providers
+            .values()
+            .filter_map(|p| {
+                Some((
+                    p.cfg.id.clone(),
+                    p.cfg.display_name.clone(),
+                    p.cfg.issuer.clone(),
+                    p.cfg.native_client_id.clone()?,
+                ))
+            })
+            .collect();
+        v.sort();
+        v
+    }
+
     fn provider(&self, id: &str) -> ServerResult<&Provider> {
         self.providers
             .get(id)
@@ -394,12 +413,52 @@ impl Oidc {
         self.verify(p, &d, &id_token, nonce).await
     }
 
+    /// Verifies an ID token an application obtained itself (authorization code with PKCE at the provider's public
+    /// client) and returns the identity (O-13 section 4.3). The audience may be the provider's `client_id` or its
+    /// `native_client_id`; a `nonce` claim must equal the one the application sent (a token the provider issued on
+    /// a refresh carries none, and then the application sends none); the token must have been issued within the
+    /// last ten minutes.
+    ///
+    /// # Errors
+    ///
+    /// `server.sign_in_failed` naming the failed check, never the token.
+    pub async fn verify_native(
+        &self,
+        provider: &str,
+        id_token: &str,
+        nonce: Option<&str>,
+    ) -> ServerResult<Identity> {
+        let p = self.provider(provider)?;
+        if p.cfg.native_client_id.is_none() {
+            return Err(failed(
+                provider,
+                "this provider has no client for desktop applications",
+            ));
+        }
+        if nonce.is_some_and(|n| n.len() < 16 || n.len() > 256) {
+            return Err(failed(provider, "the nonce is malformed"));
+        }
+        let d = self.discovery(p).await?;
+        self.verify_with(p, &d, id_token, nonce, true).await
+    }
+
     async fn verify(
         &self,
         p: &Provider,
         d: &Discovery,
         id_token: &str,
         nonce: &str,
+    ) -> ServerResult<Identity> {
+        self.verify_with(p, d, id_token, Some(nonce), false).await
+    }
+
+    async fn verify_with(
+        &self,
+        p: &Provider,
+        d: &Discovery,
+        id_token: &str,
+        nonce: Option<&str>,
+        native: bool,
     ) -> ServerResult<Identity> {
         let id = &p.cfg.id;
         let header = jsonwebtoken::decode_header(id_token)
@@ -437,9 +496,13 @@ impl Oidc {
                     .ok_or_else(|| failed(id, "no key in the key set matches the ID token"))?
             }
         };
+        let mut accepted: Vec<&str> = vec![p.cfg.client_id.as_str()];
+        if native && let Some(n) = p.cfg.native_client_id.as_deref() {
+            accepted.push(n);
+        }
         let mut v = Validation::new(header.alg);
         v.set_issuer(&[&p.cfg.issuer]);
-        v.set_audience(&[&p.cfg.client_id]);
+        v.set_audience(&accepted);
         v.set_required_spec_claims(&["exp", "iss", "aud", "sub"]);
         v.leeway = 60;
         let data = jsonwebtoken::decode::<Claims>(id_token, &key, &v).map_err(|e| {
@@ -449,20 +512,30 @@ impl Oidc {
             )
         })?;
         let c = data.claims;
-        match c.nonce {
-            Some(n) if ct_eq(n.as_bytes(), nonce.as_bytes()) => {}
+        match (c.nonce.as_deref(), nonce) {
+            (Some(n), Some(given)) if ct_eq(n.as_bytes(), given.as_bytes()) => {}
+            // A refreshed ID token has no nonce (OIDC Core 12.2): only a native exchange may say so.
+            (None, None) if native => {}
             _ => return Err(failed(id, "the ID token's nonce does not match")),
         }
         if let Value::Array(auds) = &c.aud
             && auds.len() > 1
-            && c.azp.as_deref() != Some(p.cfg.client_id.as_str())
+            && !c.azp.as_deref().is_some_and(|a| accepted.contains(&a))
         {
             return Err(failed(id, "the ID token's azp is not this client"));
         }
+        let now_s = crate::util::now_ms() / 1000;
         if let Some(iat) = c.iat
-            && iat > crate::util::now_ms() / 1000 + 60
+            && iat > now_s + 60
         {
             return Err(failed(id, "the ID token was issued in the future"));
+        }
+        if native {
+            // A stolen ID token is useless to replay after ten minutes.
+            match c.iat {
+                Some(iat) if iat >= now_s - 600 - 60 => {}
+                _ => return Err(failed(id, "the ID token is too old; sign in again")),
+            }
         }
         if c.sub.is_empty() || c.sub.len() > 255 {
             return Err(failed(id, "the ID token's subject is not usable"));

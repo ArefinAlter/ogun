@@ -239,3 +239,44 @@ pub async fn sample_import(
 ) -> StudioResult<ImportResult> {
     crate::sample::import(&state, &samples_root(&app)?, &id).await
 }
+
+/// The hubs the person signed in to with the browser.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn hub_environments(state: State<'_, Studio>) -> StudioResult<Vec<crate::hubs::HubView>> {
+    Ok(state.hub_list().await)
+}
+
+/// Signs in to a hub: the system browser opens the identity provider's page (authorization code with PKCE), the
+/// shell receives the redirect on a loopback port, and the hub gives it a session. Tokens never reach the webview.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn hub_signin_start(
+    state: State<'_, Studio>,
+    url: String,
+    ca_pem: Option<String>,
+) -> StudioResult<Option<crate::hubs::HubView>> {
+    state.hub_sign_in(&url, ca_pem).await.map(Some)
+}
+
+/// Gives up on a sign-in that is waiting for the browser.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn hub_signin_cancel(state: State<'_, Studio>) -> StudioResult<()> {
+    state.hubs.cancel_sign_in();
+    Ok(())
+}
+
+/// Signs out of a hub (the hub ends the session and the shell forgets its tokens); on a hub that is signed out
+/// already, removes it from the list.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn hub_signout(state: State<'_, Studio>, id: String) -> StudioResult<()> {
+    state.hub_sign_out(&id).await
+}
+
+/// Uses a signed-in hub (signing in again silently if its session ended).
+#[tauri::command(rename_all = "snake_case")]
+pub async fn hub_use(
+    state: State<'_, Studio>,
+    id: String,
+) -> StudioResult<crate::link::StudioInfo> {
+    state.use_signed_in_hub(&id).await?;
+    Ok(state.info().await)
+}

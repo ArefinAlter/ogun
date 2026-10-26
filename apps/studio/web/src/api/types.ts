@@ -737,6 +737,11 @@ export interface HubEnvironment {
   signed_in: boolean
   /** The signed-in user's name, when there is one. */
   user?: string
+  /** The role in the workspace Studio addresses on that hub. */
+  role?: string
+  workspace?: string
+  /** The approver flag on the hub (deciding still needs a passkey on the hub itself). */
+  approver?: boolean
   /** This is the environment Studio shows now. */
   active: boolean
 }

@@ -29,6 +29,10 @@ interface RustInfo {
   mobile: boolean
   link: 'none' | 'local' | 'hub'
   hub_url?: string
+  hub_user?: string
+  hub_role?: string
+  hub_workspace?: string
+  hub_approver?: boolean
   profile?: string
   connected: boolean
   error?: OgunError
@@ -64,6 +68,9 @@ function mapInfo(i: RustInfo): ShellInfo {
     mobile: i.mobile,
     link: i.link,
     ...(i.hub_url ? { hubUrl: i.hub_url } : {}),
+    ...(i.hub_user ? { hubUser: i.hub_user } : {}),
+    ...(i.hub_role ? { hubRole: i.hub_role } : {}),
+    ...(i.hub_workspace ? { hubWorkspace: i.hub_workspace } : {}),
     ...(i.profile ? { profile: i.profile } : {}),
     connected: i.connected,
     ...(i.error ? { error: i.error } : {}),

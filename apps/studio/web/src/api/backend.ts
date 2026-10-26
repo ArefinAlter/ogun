@@ -74,6 +74,10 @@ export interface ShellInfo {
   /** `local` (ogund on this machine), `hub` (a server, read-only), `server` (Studio-web) or `none`. */
   link: 'local' | 'hub' | 'server' | 'none'
   hubUrl?: string
+  /** A hub reached with a browser sign-in: who the hub says you are, your role and the workspace Studio addresses. */
+  hubUser?: string
+  hubRole?: string
+  hubWorkspace?: string
   profile?: string
   connected: boolean
   error?: OgunError

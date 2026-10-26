@@ -190,6 +190,11 @@ pub struct OidcProviderConfig {
     pub issuer: String,
     /// Client id registered at the provider.
     pub client_id: String,
+    /// The provider's public client for desktop applications (authorization code with PKCE, loopback redirect,
+    /// no secret). Its ID tokens are accepted at `POST /auth/native` (O-13 section 4.3). Without it, native
+    /// sign-in is refused for this provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_client_id: Option<String>,
     /// File holding the client secret.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_secret_file: Option<PathBuf>,

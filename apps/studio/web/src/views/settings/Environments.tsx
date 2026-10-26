@@ -121,7 +121,13 @@ function HubsGroup({ onAdd, onChanged }: { onAdd: () => void; onChanged: () => v
               {h.name} {h.active ? <Chip tone="ok">in use</Chip> : null} <Chip>{h.auth === 'oidc' ? 'browser sign-in' : 'API token, read-only'}</Chip> {h.auth === 'oidc' ? (h.signed_in ? <Chip tone="ok">signed in</Chip> : <Chip tone="warn">signed out</Chip>) : null}
             </>
           }
-          desc={[h.url, h.user ? `signed in as ${h.user}` : ''].filter(Boolean).join(' · ')}
+          desc={[
+            h.url,
+            h.user ? `signed in as ${h.user}` : '',
+            h.role ? `${h.role}${h.workspace ? ` in ${h.workspace}` : ''}${h.approver ? ', approver' : ''}` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         >
           <span class="inline">
             {h.active ? (
@@ -133,9 +139,9 @@ function HubsGroup({ onAdd, onChanged }: { onAdd: () => void; onChanged: () => v
                 Use this hub
               </button>
             )}
-            {h.auth === 'oidc' && h.signed_in ? (
+            {h.auth === 'oidc' ? (
               <button type="button" class="btn small ghost" onClick={() => void act(() => backend.hubs?.signOut(h.id) ?? Promise.resolve())}>
-                Sign out
+                {h.signed_in ? 'Sign out' : 'Remove'}
               </button>
             ) : null}
           </span>
@@ -313,7 +319,7 @@ export function EnvironmentsSettings() {
           <div class="panel">
             <Kv
               rows={[
-                ['link', info?.link === 'local' ? `ogund on this machine${info.profile ? `, profile ${info.profile}` : ''}` : info?.link === 'hub' ? `hub ${info.hubUrl ?? ''}, read-only` : info?.link === 'server' ? 'ogun-server, signed in' : 'not connected'],
+                ['link', info?.link === 'local' ? `ogund on this machine${info.profile ? `, profile ${info.profile}` : ''}` : info?.link === 'hub' ? (info.hubUser ? `hub ${info.hubUrl ?? ''}, signed in as ${info.hubUser}${info.hubRole ? ` (${info.hubRole})` : ''}; approvals are decided on the hub` : `hub ${info.hubUrl ?? ''}, read-only`) : info?.link === 'server' ? 'ogun-server, signed in' : 'not connected'],
                 ['state', info?.connected ? 'connected' : info?.error ? `${info.error.message} [${info.error.code}]` : 'not connected'],
                 ['platform', info?.platform ?? ''],
               ]}
