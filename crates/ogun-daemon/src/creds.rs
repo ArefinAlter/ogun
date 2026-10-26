@@ -66,6 +66,8 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> ApiResult<()> {
 pub struct Credentials {
     file: std::path::PathBuf,
     rows: BTreeMap<CredentialId, StoredCredential>,
+    /// Rows that live only in this process (a supervising app's per-launch credential); never written to disk.
+    transient: std::collections::BTreeSet<CredentialId>,
 }
 
 impl Credentials {
@@ -110,7 +112,11 @@ impl Credentials {
                 )));
             }
         }
-        let mut me = Self { file, rows };
+        let mut me = Self {
+            file,
+            rows,
+            transient: std::collections::BTreeSet::new(),
+        };
         if me.rows.is_empty() {
             me.add(paths, ids, "cli", ClientKind::Human)?;
         }
@@ -119,7 +125,11 @@ impl Credentials {
 
     fn save(&self) -> ApiResult<()> {
         let mut text = Zeroizing::new(String::new());
-        for c in self.rows.values() {
+        for c in self
+            .rows
+            .values()
+            .filter(|c| !self.transient.contains(&c.id))
+        {
             text.push_str(&c.to_line());
         }
         write_private(&self.file, text.as_bytes())
@@ -178,6 +188,44 @@ impl Credentials {
         self.rows.insert(stored.id, stored.clone());
         self.save()?;
         Ok((stored, path))
+    }
+
+    /// Registers a credential held only in memory: the supervising app (`ogund --supervised`) sends one on
+    /// stdin at every launch, so there is no token file for another program to read and a restart of the app
+    /// replaces it. An earlier transient credential of the same name is revoked.
+    ///
+    /// # Errors
+    ///
+    /// `api.invalid_params` unless it is a `human` credential named `studio`.
+    pub fn add_transient(&mut self, cred: &Credential) -> ApiResult<()> {
+        if cred.kind != ClientKind::Human || cred.name != "studio" {
+            return Err(ApiError::invalid_params(
+                "a supervising app may only register a human credential named studio",
+            ));
+        }
+        let old: Vec<CredentialId> = self
+            .transient
+            .iter()
+            .copied()
+            .filter(|id| self.rows.get(id).is_some_and(|c| c.name == cred.name))
+            .collect();
+        for id in old {
+            self.rows.remove(&id);
+            self.transient.remove(&id);
+        }
+        self.rows.insert(
+            cred.id,
+            StoredCredential {
+                id: cred.id,
+                kind: cred.kind,
+                name: cred.name.clone(),
+                auth_key: cred.token.auth_key(),
+                created_at: Timestamp::now(),
+                revoked: false,
+            },
+        );
+        self.transient.insert(cred.id);
+        Ok(())
     }
 
     /// Revokes a credential and deletes its token file.

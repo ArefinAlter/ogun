@@ -1,4 +1,4 @@
-//! The O1 exit tests (ROADMAP): `ogund` killed with SIGKILL in the middle of work, restarted, and the
+//! The O1 exit tests (ROADMAP): `ogund` killed (SIGKILL on Unix, `TerminateProcess` on Windows) in the middle of work, restarted, and the
 //! work resumes exactly where it stopped.
 //!
 //! * Batch: a partitioned backfill over 121 days. Partitions finished before the kill are not run again,
@@ -6,8 +6,6 @@
 //! * Stream twin: records pushed into an open window survive the kill (the daemon's ingest log is
 //!   replayed at restart), a retried push is not ingested twice, and the window then seals with exactly
 //!   those records.
-
-#![cfg(unix)]
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -54,7 +52,7 @@ async fn connect(paths: &OgunPaths, credential: &str) -> Client {
 }
 
 fn kill(mut child: Child) {
-    // `Child::kill` is SIGKILL on Unix: no shutdown path runs.
+    // `Child::kill` is SIGKILL on Unix and TerminateProcess on Windows: no shutdown path runs.
     child.kill().expect("kill -9");
     let _ = child.wait();
 }

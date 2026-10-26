@@ -64,13 +64,32 @@ impl Running {
 ///
 /// # Errors
 ///
-/// Any startup failure, including another `ogund` already listening.
+/// Any startup failure, including another `ogun` daemon already listening.
 pub async fn start(paths: OgunPaths) -> DaemonResult<Running> {
+    start_with(paths, StartOptions::default()).await
+}
+
+/// What a supervising app adds to a start.
+#[derive(Debug, Default)]
+pub struct StartOptions {
+    /// A credential held in memory only (see [`creds::Credentials::add_transient`]).
+    pub transient_credential: Option<ogun_api::Credential>,
+}
+
+/// As [`start`], with the options of a supervised launch.
+///
+/// # Errors
+///
+/// Any startup failure, including another daemon already listening.
+pub async fn start_with(paths: OgunPaths, options: StartOptions) -> DaemonResult<Running> {
     let endpoint = paths.endpoint();
     let listener = Listener::bind(&endpoint).await?;
     let daemon = tokio::task::spawn_blocking(move || Daemon::open(paths))
         .await
         .map_err(|_| DaemonError::State("startup task failed".into()))??;
+    if let Some(cred) = &options.transient_credential {
+        state::lock(&daemon.creds).add_transient(cred)?;
+    }
     tracing::info!(endpoint = %endpoint, state = %daemon.paths.state_dir.display(), "ogund listening");
     daemon.streams.activate_all(&daemon);
     let tasks = vec![

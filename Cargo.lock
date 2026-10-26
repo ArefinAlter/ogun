@@ -2275,6 +2275,7 @@ dependencies = [
  "directories",
  "getrandom 0.3.4",
  "ogun-ir",
+ "ogun-platform",
  "ogun-run",
  "ogun-sched",
  "ogun-types",
@@ -2542,6 +2543,16 @@ dependencies = [
  "zeus-types",
  "zeus-verify",
  "zip",
+]
+
+[[package]]
+name = "ogun-platform"
+version = "0.0.1-alpha"
+dependencies = [
+ "thiserror",
+ "tokio",
+ "tracing",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

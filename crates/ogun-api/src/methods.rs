@@ -165,8 +165,12 @@ pub struct AuthenticateResult {
     pub kind: ClientKind,
     /// The credential's label.
     pub name: String,
-    /// The daemon saw an interactive peer (a process with a controlling terminal running a pinned Ogun binary).
+    /// The daemon saw an interactive peer (a process with a controlling terminal running a pinned Ogun binary,
+    /// or the pinned Ogun Studio binary).
     pub interactive: bool,
+    /// Which trust surface the daemon verified (`terminal`, `studio` or `none`). Absent from older daemons.
+    #[serde(default)]
+    pub surface: crate::policy::Surface,
     /// Methods this connection may call.
     pub methods: Vec<String>,
 }

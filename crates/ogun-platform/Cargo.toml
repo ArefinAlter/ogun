@@ -1,0 +1,21 @@
+[package]
+name = "ogun-platform"
+description = "The few operating-system calls Ogun needs that safe Rust cannot make: Windows named-pipe peers and access control, and the Windows operator sandbox. The only crates with unsafe code are this one and the helper binary built on it."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+tokio.workspace = true
+windows-sys.workspace = true
+
+[lints]
+workspace = true

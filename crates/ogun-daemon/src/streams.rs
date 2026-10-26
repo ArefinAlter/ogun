@@ -625,6 +625,7 @@ mod tests {
             name: "test".into(),
             peer: Default::default(),
             interactive: false,
+            surface: Default::default(),
         };
         crate::handlers::dispatch(
             &d,

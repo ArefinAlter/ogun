@@ -154,6 +154,11 @@ impl Trusted {
                 me.cli.push(c);
             }
         }
+        for p in &config.trusted_studio_binaries {
+            if let Ok(c) = p.canonicalize() {
+                me.studio.push(c);
+            }
+        }
         me
     }
 
