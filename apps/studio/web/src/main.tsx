@@ -10,6 +10,7 @@ import './styles/settings.css'
 import './styles/chrome.css'
 import './styles/agent.css'
 import './styles/engine.css'
+import './styles/bench.css'
 
 const root = document.getElementById('app')
 if (root) {

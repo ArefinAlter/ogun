@@ -12,6 +12,10 @@ import type {
   AgentToolInfo,
   ApprovalView,
   ArchiveItem,
+  BenchList,
+  BenchReplay,
+  BenchRuntimeId,
+  BenchStatus,
   CleanupPlan,
   ConnectionInput,
   ConnectionTestResult,
@@ -80,6 +84,8 @@ export interface ShellInfo {
   gateway: boolean
   /** The daemon runs agent threads (O-17). */
   agent?: boolean
+  /** The engine runs benchmarks (`bench.*`, O-06): the desktop's own engine only. */
+  bench?: boolean
   workspaceId?: string
   workspaces?: { workspace_id: string; name: string; role: string; approver: boolean }[]
   /** Studio-web: the signed-in user. */
@@ -165,6 +171,18 @@ export interface EngineApi {
   sandboxStatus(): Promise<SandboxStatus>
 }
 
+/** Benchmarks (O-06, ADR 0005) on the engine Studio runs for itself. The harness denies the network to every run. */
+export interface BenchApi {
+  /** The runtimes this computer can use, the suites, and the runs so far (newest first). */
+  list(): Promise<BenchList>
+  /** Starts the sample suite on a runtime that can deny the network; refused where none can. Returns at once. */
+  run(params: { runtime: BenchRuntimeId; seeds: number[]; suite?: string }, idempotencyKey?: string): Promise<{ id: string }>
+  status(id: string): Promise<BenchStatus>
+  cancel(id: string, idempotencyKey?: string): Promise<{ cancelled: boolean; state?: string }>
+  /** Checks one trajectory's hash chain again and returns its first events. */
+  replay(id: string, agentRun: string): Promise<BenchReplay>
+}
+
 /** Hubs this Studio is signed in to or has a token for, besides its own engine (desktop only). */
 export interface HubsApi {
   list(): Promise<HubEnvironment[]>
@@ -185,6 +203,8 @@ export interface Backend {
   readonly engine?: EngineApi
   /** Present on the desktop: hubs signed in to with a browser, or reached with a token. */
   readonly hubs?: HubsApi
+  /** Present when the desktop's own engine offers benchmarks. Not on a hub, in a browser or on the scripted backend. */
+  bench?: BenchApi
   /** Present when the daemon manages data connections (the demo does; the O-15 daemon does not yet). */
   readonly connections?: ConnectionsApi
   /** Trigger schedules of every stored workflow, with pause and resume where the daemon allows it. */

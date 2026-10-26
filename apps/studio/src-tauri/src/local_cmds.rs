@@ -67,6 +67,7 @@ pub const ENGINE_METHODS: &[&str] = &[
     "bench.run",
     "bench.status",
     "bench.cancel",
+    "bench.replay",
     "sandbox.status",
 ];
 

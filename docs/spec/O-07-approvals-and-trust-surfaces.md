@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-01, O-02 section 9, O-15 |
-| Decided by | ADR 0002 decision 6, ADR 0003 decision 3, ADR 0010 decision 4; Zeus ADR 0007 applied unchanged |
+| Decided by | ADR 0002 decision 6, ADR 0003 decision 3, ADR 0010 decision 4, ADR 0015 (Windows peers, the Studio surface); Zeus ADR 0007 applied unchanged |
 | Implemented by | `ogun-daemon` (`approvals`, `webauthn`), `ogun-api` (policy table, evidence types), `ogun approve` and `ogun deny` in `ogun-cli` |
 
 ## 1. Purpose
@@ -33,7 +33,7 @@ An approved code hash stays approved for that workflow: rolling back to it, or k
 
 | Channel | Evidence | Checked by the daemon |
 |---|---|---|
-| Terminal | `{"channel": "terminal"}` | The connection's credential is `human`; the peer process has a controlling terminal and runs a pinned `ogun` binary (O-15 section 4.4). The CLI shows the facts and asks the person to type the first eight characters of the request hash, read from `/dev/tty` (`CONIN$` on Windows), never from stdin. |
+| Terminal | `{"channel": "terminal"}` | The connection's credential is `human`; the peer runs a pinned `ogun` binary, and on Linux has a controlling terminal (O-15 section 4.4; on Windows the pinned image path is the whole check). The CLI shows the facts and asks the person to type the first eight characters of the request hash, read from `/dev/tty` (`CONIN$` on Windows), never from stdin. |
 | Studio | `{"channel": "studio"}` | The credential is `human` and the peer runs the pinned `ogun-studio` binary. Studio shows the facts and needs an explicit click that names the decision. |
 | WebAuthn | `{"channel": "webauthn", ...}` | The connection is a `bridge`; remote approvals are enabled; the assertion verifies against an approver key a person confirmed on the host terminal (O-15 section 7). |
 
@@ -50,7 +50,7 @@ Every other combination is `approval.channel_required`, and agents and services 
 
 ## 6. Honest limit
 
-As Zeus ADR 0007 point 5: a program that runs as the same OS user with shell access can read the same credential files and drive a pseudo-terminal. The kind separation, the peer checks, the typed confirmation, the request hash, the rate limits and expiry narrow this; they do not remove it. On macOS and Windows this draft cannot inspect peers, so no connection is interactive there and terminal approvals are unavailable until the platform modules exist (O-15 section 4.4); Studio-web with WebAuthn is the alternative.
+As Zeus ADR 0007 point 5: a program that runs as the same OS user with shell access can read the same credential files and drive a pseudo-terminal. The kind separation, the peer checks, the typed confirmation, the request hash, the rate limits and expiry narrow this; they do not remove it. On Windows the daemon inspects the pipe's client (process id and executable image, O-15 section 4.4), so terminal and Studio approvals work there; on macOS it cannot yet, so no connection is interactive there and approvals are unavailable until the platform module exists; Studio-web with WebAuthn is the alternative. On Windows the check for the terminal surface is the pinned executable's path alone, because Windows offers no equivalent of a controlling terminal to test.
 
 ## 7. Conformance
 

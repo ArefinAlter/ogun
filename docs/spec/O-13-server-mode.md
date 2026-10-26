@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-00, O-11, O-12, O-14, O-15 |
-| Decided by | ADR 0010 (self-hosted server mode), ADR 0009 (platforms), ADR 0011 (no agent approval surface), Zeus ADRs 0007 and 0010 (applied unchanged) |
+| Decided by | ADR 0010 (self-hosted server mode), ADR 0009 (platforms), ADR 0011 (no agent approval surface), ADR 0015 (Studio desktop signs in to a hub; section 4.3), Zeus ADRs 0007 and 0010 (applied unchanged) |
 | Implemented by | `ogun-server` (crate and binary); deployment assets in `deploy/`; operator guide in `docs/self-hosting.md` |
 
 ## 1. Purpose
@@ -85,12 +85,30 @@ An invitation is a one-time code (32 random bytes, base64url) in a link `https:/
 - `ogun-server invite --workspace <wsp_> --role <role> [--approver]` prints another link from the host (recovery when no owner can sign in).
 - Owners and admins create invitations in Studio-web (`POST /api/v1/workspaces/{id}/invites`) within the rules of section 3.3.
 
+### 4.3 Native sign-in (Studio desktop)
+
+A desktop application cannot hold the browser's cookie, and an API token is an agent. A person using Studio on their own computer signs in to a hub like this instead (ADR 0015):
+
+1. **The app talks to the identity provider, not the hub, for the sign-in.** It reads the provider's discovery document, generates a PKCE verifier (32 random bytes, `S256`), a `state` and a `nonce`, opens the **system browser** at the authorization endpoint with `response_type=code`, and listens for exactly one request on a loopback address (`http://127.0.0.1:<random port>/callback`). The person authenticates in the browser; the app never shows a login form and never sees a password. The app exchanges the code at the token endpoint as a **public client** (no client secret, the PKCE verifier proves the exchange), checks `state` and the ID token's `nonce`, and keeps the tokens in the operating system's credential store (Windows Credential Manager, the Linux Secret Service), never in a file, the webview or a log. It refreshes the ID token with the refresh token before it expires and, on sign-out, forgets its tokens. The identity provider must have a client for this: for example a Dex static client with `public: true`, which accepts a loopback redirect on any port.
+2. **The hub exchanges the ID token for its own session.** `POST /auth/native` with `{provider, id_token, nonce}` (JSON):
+   - the provider is one configured in `server.json`; its optional member `native_client_id` names the public client the app used;
+   - the ID token is verified as in section 4.1 item 4 (algorithm allow-list, signature by the provider's JWKS, `iss`, `exp`, `iat` not in the future), with these differences: the audience must be the provider's `client_id` **or** its `native_client_id`, and the `nonce` claim must equal the `nonce` the app sent (constant time), because the hub did not choose it. The ID token must also have been issued within the last ten minutes, which bounds the replay of a stolen one;
+   - an identity with no user is refused with `server.sign_in_failed`. There is no sign-up here: invitations are accepted in a browser (section 4.2), and then the same person can sign in natively;
+   - a disabled user is refused;
+   - the route is rate-limited like the other sign-in routes (section 6.4 item 3);
+   - on success the hub creates a **session record of the same kind as a browser session** (section 5.1: the same store, idle and absolute timeouts, roles and approver flag) and returns `{token, expires_in_s, idle_timeout_minutes, user}`. `token` is `ogs1_` followed by 32 random bytes in base64url; the store keeps only the digest, as for a cookie.
+3. **Using the session.** The app sends `Authorization: Bearer ogs1_...` and, with several workspaces, `x-ogun-workspace`. The hub resolves it exactly as a cookie session: the user's role in the workspace, the approver flag, the same `Access` checks. It is a **person**, never an agent: it is not an API token (`ogt1_`), the agent ceiling of section 5.2 does not apply, and the token routes' rule that only a person's session creates tokens is satisfied by it. A bearer header is not ambient authority, so the CSRF header and the `Origin` check of section 5.1 item 3 do not apply to it.
+4. **Ending it.** `POST /auth/logout` with the bearer ends the session; the app calls it on sign-out, then forgets its tokens. When the session expires the app signs in again silently with its refresh token (a new ID token, a new `POST /auth/native`); when the identity provider refuses the refresh, the app shows "signed out" and asks the person to sign in.
+5. **Why not accept the ID token as the bearer on every request?** An ID token is a statement to the client, not a credential for an API; it cannot be revoked, it carries no idle timeout, its lifetime is the provider's, every request would need a signature check and a JWKS fetch, and a leaked one would work until it expires. A session the hub issues is revocable (logout, disabling the user, removing the membership), expires on the hub's own timeouts, appears in the hub's audit log by `usr_` id, and reuses every rule already written for browser sessions.
+6. **What it adds to the threat model.** A stolen `ogs1_` token is a stolen cookie (section 11): the holder acts as that user until the idle or absolute timeout or logout. It is kept in the credential store and sent only over TLS (or loopback HTTP, section 6.4 item 6). Nothing here weakens the approval rules.
+7. **Approvals.** A native session may read approvals like any viewer. Deciding one still needs a WebAuthn assertion bound to the request hash from a passkey a person confirmed on the host's terminal, relayed only when `remote_approvals` is on (section 8); the assertion's origin must be the hub's public origin, which a desktop application cannot produce. **Studio desktop never decides a hub approval**; it shows it and sends the person to Studio-web. Agents on the hub (API tokens, MCP) remain read-only for approvals.
+
 ## 5. Sessions and API tokens
 
 ### 5.1 Browser sessions
 
 1. A session id is 32 random bytes in base64url, sent as `__Host-ogun_session=<id>; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=<absolute>`. The store keeps only a BLAKE3-derived digest of it.
-2. A session ends after `sessions.idle_timeout_minutes` without a request (default 120) or `sessions.absolute_timeout_hours` after sign-in (default 12), whichever comes first. Event streams do not count as activity. `POST /auth/logout` ends it.
+2. A session ends after `sessions.idle_timeout_minutes` without a request (default 120) or `sessions.absolute_timeout_hours` after sign-in (default 12), whichever comes first. Event streams do not count as activity. `POST /auth/logout` ends it. A native session (section 4.3) is a session record of the same kind with the same timeouts, presented as a bearer token instead of a cookie.
 3. Every cookie-authenticated request other than `GET` and `HEAD` MUST carry the header `x-ogun-csrf` with the session's CSRF token, and an `Origin`, when present, equal to the public origin; otherwise it fails with `server.csrf_failed`. The CSRF token is derived from the session id (BLAKE3 `derive_key`), never stored, and returned by `GET /api/v1/me`.
 
 ### 5.2 API tokens
@@ -148,7 +166,7 @@ Base path `/api/v1`. Bodies and results are the `ogun_api::methods` types (snake
 | `POST /workspaces/{id}/invites` (`{role, approver?}`) | none | admin (owner for admin, owner and the flag), session |
 | `GET /tokens`, `POST /tokens` (`{name, role?, expires_in_days?}`), `DELETE /tokens/{token_id}` | none | session |
 
-Sign-in routes outside `/api/v1`: `GET /auth/providers`, `GET /auth/login`, `GET /auth/callback`, `POST /auth/logout`, `GET /enroll/{code}`.
+Sign-in routes outside `/api/v1`: `GET /auth/providers`, `GET /auth/login`, `GET /auth/callback`, `POST /auth/native` (section 4.3), `POST /auth/logout` (cookie with CSRF header, or a native bearer), `GET /enroll/{code}`. Every route marked "session" above also accepts a native session; the passkey and decision routes then still fail unless the WebAuthn data carries the hub's origin (section 4.3 item 7).
 
 Differences from the Studio-web contract the frontend was written against, all additive: the workspace header and query parameter; `GET /passkeys`; the `/workspaces` and `/tokens` routes; `GET /auth/providers`; `GET /me` returns `{kind, user, workspaces, csrf_token, session_expires_at, remote_approvals, rp_id}` for a session and `{kind: "token", acts_as: "agent", user, token}` for a token; `GET /artifacts/{blake3}` returns `{artifact, content_url}` and drops the daemon-local `path`, which a web client has no use for; rate limits answer 429 with `server.rate_limited`.
 
@@ -253,7 +271,7 @@ The server's own verification is defence in depth and gives a person a clear err
 | `state_dir` | `$OGUN_SERVER_HOME` or the platform state dir | The server store. |
 | `studio_dir` | searched | The Studio-web build. |
 | `daemons` | `{"default": {}}` | Name to `{ogun_home?, profile: "server", credential: "server", pool_size: 4}`. |
-| `oidc.providers` | `[]` | `{id, display_name, issuer, client_id, client_secret_file?, client_secret_env?, scopes: ["openid","email","profile"], token_auth?, algorithms: ["RS256","ES256","PS256"]}`. |
+| `oidc.providers` | `[]` | `{id, display_name, issuer, client_id, native_client_id?, client_secret_file?, client_secret_env?, scopes: ["openid","email","profile"], token_auth?, algorithms: ["RS256","ES256","PS256"]}`. `native_client_id` is the identity provider's public client for desktop applications (section 4.3); without it `POST /auth/native` answers `server.sign_in_failed`. |
 | `sessions` | `{idle_timeout_minutes: 120, absolute_timeout_hours: 12}` | Section 5.1. |
 | `limits` | section 6.4 | `per_ip_per_minute`, `per_token_per_minute`, `auth_per_ip_per_minute`, `sync_per_ip_per_minute`, `max_body_bytes`, `max_connections`, `max_sse_streams`. |
 | `webauthn` | `{rp_id: <public host>, rp_name: "Ogun", attestation: "none"}` | `rp_id` must be the public host or a parent domain of it. |
@@ -273,6 +291,7 @@ Commands: `ogun-server serve [--behind-proxy] [--listen <addr>] [--init-if-empty
 |---|---|---|
 | An agent with an API token (or a prompt-injected agent) tries to approve | Tokens act as agents; the bridge enforces the agent rows of the policy table; approval routes need a session and a WebAuthn assertion; MCP has no deciding tool | None by this path |
 | A stolen API token | 256-bit secret, verifier-only storage, workspace scope, viewer or editor ceiling, expiry, revocation, per-token rate limit | The holder acts as an agent until revocation |
+| A stolen native session token (`ogs1_`) or ID token | The session is the hub's own, revocable and with the same timeouts as a cookie session; the hub accepts an ID token only at `POST /auth/native` (audience, nonce, issued within ten minutes) and never as a bearer; the app keeps tokens in the OS credential store | The holder acts as that user until timeout or logout, as with a stolen cookie |
 | A stolen session cookie | `HttpOnly`, `Secure`, `SameSite=Strict`, `__Host-` prefix, idle and absolute expiry; deciding still needs the person's authenticator with user verification | The holder can read and edit as that user until expiry |
 | Cross-site request forgery | `SameSite=Strict`, the derived CSRF header and the `Origin` check on every cookie request that changes state | None known |
 | Login CSRF and code injection | `state` single use and bound to the browser cookie, PKCE, nonce in the ID token | None known |

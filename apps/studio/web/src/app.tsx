@@ -19,6 +19,7 @@ import { WindowControls } from './ui/WindowControls'
 import { About } from './views/About'
 import { ApprovalDetail, Approvals } from './views/Approvals'
 import { Artifacts } from './views/Artifacts'
+import { BenchmarkDetail, Benchmarks } from './views/Benchmarks'
 import { Edges } from './views/Edges'
 import { EngineScreen, engineBlocks, engineTone } from './views/Engine'
 import { Gateway } from './views/Gateway'
@@ -37,6 +38,7 @@ const TITLES: Record<string, string> = {
   workflows: 'Workflows',
   runs: 'Runs',
   partitions: 'Partitions',
+  benchmarks: 'Benchmarks',
   approvals: 'Approvals',
   artifacts: 'Artifacts',
   streams: 'Streams',
@@ -87,6 +89,8 @@ function Page({ path, query }: { path: string[]; query: URLSearchParams }) {
       return a ? <RunDetail runId={a} /> : <Runs {...(q('workflow') ? { workflow: q('workflow') as string } : {})} />
     case 'partitions':
       return <Partitions {...(q('workflow') ? { workflow: q('workflow') as string } : {})} />
+    case 'benchmarks':
+      return a ? <BenchmarkDetail runId={a} /> : <Benchmarks />
     case 'approvals':
       return a ? <ApprovalDetail approvalId={a} /> : <Approvals {...(q('state') ? { state: q('state') as string } : {})} />
     case 'artifacts':

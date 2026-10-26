@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-00, O-01, O-02 |
-| Decided by | ADR 0003 decision 3; ADR 0004 |
+| Decided by | ADR 0003 decision 3; ADR 0004; ADR 0016 (`parse@1`, `export@1`); ADR 0017 (the Windows sandbox) |
 | Implemented by | Catalogue (section 7) in `ogun-ir`; registry, core operators, manifests, `jsonl-stdio/0` runner and sandbox (sections 2 to 6) in `ogun-ops`; tool shims in `ogun-op-shims`; model operators (section 8) in `ogun-llm` and `ogun-op-llm` |
 
 ## 1. Purpose
@@ -80,7 +80,16 @@ Details of version 0:
 - **More lines.** `usage` (`provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd_micro`) from model operators, and `log` (`message`). Unknown line types are ignored. A line longer than 1 MiB, a line that is not JSON, or a checkpoint over 64 KiB is `op.protocol_violation`. An output on a port the manifest does not declare, or a path outside the scratch directory after resolving links, is `op.sandbox_violation`. Output metadata holds no floating-point numbers; the runner turns any into integers or decimal text.
 - **Errors.** A child's envelope keeps a registered `op.*`, `llm.*`, `secret.*` or `artifact.*` code (and `run.budget_exhausted`); any other code becomes `op.operator_failed`, or `op.operator_transient` when the child marked a transient class retryable, with the child's code in `details.operator_code`.
 - **stderr.** At most 64 KiB per attempt, lines cut at 2 KiB; every resolved secret value (raw and percent-encoded) and every URL query is removed before a line becomes a run log entry.
-- **Sandbox.** Linux: bubblewrap (new namespaces, network unshared unless granted, read-only system directories, inputs, code, workspace and tools, read-write scratch, private `/tmp`, no home directory, `--die-with-parent`, `--new-session`, capabilities dropped). macOS: `sandbox-exec` with a generated deny-by-default profile. `memory_bytes` and `cpu_ms` become address-space and CPU-time limits. Where no sandbox is available (Windows in this version), child operators are refused with `op.sandbox_unavailable` unless the daemon runs a development profile that allows unsandboxed operators; every such attempt is logged. Cancellation kills the child's process group.
+- **Sandbox.** Linux: bubblewrap (new namespaces, network unshared unless granted, read-only system directories, inputs, code, workspace and tools, read-write scratch, private `/tmp`, no home directory, `--die-with-parent`, `--new-session`, capabilities dropped). macOS: `sandbox-exec` with a generated deny-by-default profile. Windows: an AppContainer inside a job object, started by the helper `ogun-sandbox` beside `ogund` (ADR 0017): no network unless the manifest grants `network: any` (then outbound internet, no host filtering), read-only inputs, code file and program folder, a read-write scratch directory, only stdin, stdout and stderr inherited, at most 16 processes, killed when the daemon or the helper dies. `memory_bytes` and `cpu_ms` become address-space and CPU-time limits (a per-process memory limit and CPU-time limit on Windows). Where no sandbox is available (no bubblewrap or user namespaces on Linux, no helper or a failed self test on Windows), child operators are refused with `op.sandbox_unavailable` unless the daemon runs a development profile that allows unsandboxed operators; every such attempt is logged. Cancellation kills the child's process group (on Windows, the helper and with it the job).
+
+The backends and what `sandbox.status` (O-15) reports for each:
+
+| Backend | Host | Notes |
+|---|---|---|
+| `bwrap` | Linux | Needs bubblewrap and working user namespaces. |
+| `sandbox-exec` | macOS | Deprecated by Apple; not a boundary against a determined program. |
+| `appcontainer` | Windows | `ogun-sandbox`, section 4 above and ADR 0017: a Windows AppContainer profile (`dev.verne.ogun.operator`) shared by all operators, in a job object. Not a boundary against a flaw in Windows. A program folder that cannot be opened to the profile (installed for all users outside Program Files) is copied once into the engine's state, up to 1.5 GiB. The Windows installer carries an embeddable Python (standard library only). `powershell.exe` did not start inside it. |
+| `none` | any | Child operators are refused. |
 
 WASI components are under evaluation as a second protocol (research OR2).
 
@@ -101,10 +110,11 @@ The validator checks references against this catalogue. Every entry is major ver
 | `acquire` | core | `artifacts` |
 | `zeus.session_acquire` | core | `artifacts` |
 | `crawl` | core | `urls`, `documents` |
-| `file.copy`, `file.move`, `archive.extract`, `hash`, `partition`, `map`, `join_metadata` | core | `artifacts` |
+| `file.copy`, `file.move`, `archive.extract`, `hash`, `partition`, `map`, `join_metadata`, `parse` | core | `artifacts` |
 | `dedupe` | core | `artifacts`, `duplicates` |
 | `filter` | core | `artifacts`, `rejected` |
 | `manifest` | core | `manifest` |
+| `export` | core | `receipts` |
 | `duckdb` | adapter | `tables`, `artifacts` |
 | `pdf.extract` | adapter | `text`, `tables` |
 | `tesseract`, `paddleocr` | adapter | `text` |
@@ -121,6 +131,34 @@ The validator checks references against this catalogue. Every entry is major ver
 | `embedding.generate` | model | `vectors` |
 | `window.rollup` | core | `artifacts` |
 | `stream.mqtt`, `stream.http`, `stream.lorawan`, `stream.modbus`, `stream.file_tail` | source | `window` |
+
+### 7.1 `parse@1` and `export@1` (ADR 0016)
+
+Both run in the engine (kind `core`) and add no way to run code.
+
+**`parse@1`** reads each input and writes one JSON Lines file of rows, the form `filter`, `partition` and `window.rollup` read.
+
+| Member | Meaning |
+|---|---|
+| `format` | `json`, `csv` or `jsonl`. Default: from the input's media type, then its extension; if neither tells, the node fails with `op.input_invalid` naming the input. |
+| `pointer` | An RFC 6901 JSON Pointer to the part of a JSON document that holds the rows. Default: the whole document. |
+| `delimiter` | One character, CSV only. Default `,`. |
+| `max_rows` | At most this many rows per input; beyond it `op.limit_exceeded`. Default 1 000 000, at most 10 000 000. |
+
+A JSON array gives one row per element, an object one row, a scalar `{"value": ...}`. CSV needs a header row and every field is text. A JSON document is read whole (at most 256 MiB); CSV and JSON Lines stream. The output carries the input's metadata plus `rows` and `source_blake3`.
+
+**`export@1`** delivers each input to a **connection** (O-16 section 5) and writes one receipts file.
+
+| Member | Meaning |
+|---|---|
+| `connection` | Required. The name of a connection. Never a URL, host, path or secret: a workflow holds none (`ir.inline_code`, `ir.secret_inline` and `ir.url_credentials` still apply to every member). |
+| `to` | A template of the closed language of Zeus 08 section 5.1 over the item's fields, naming the relative path or object key under the connection's root. Default: the input's file name. A path that is absolute, contains `..`, a backslash or a drive letter is refused. |
+| `table` | SQLite only. Default: the input's file stem. |
+| `mode` | SQLite only: `append` (default) or `replace`. |
+
+Receipts (`receipts`, a JSON Lines file) say, per input, connection, connector, target, BLAKE3, size, and rows (SQLite) or ETag (S3); they hold no secret and no URL query. Drivers in this version: `local-files` (an existing absolute directory), the S3 family (`s3-compatible`, `minio`, `aws-s3`, `cloudflare-r2`, `backblaze-b2`; AWS Signature Version 4 to the connection's own endpoint, no redirects, needs the environment's network access, else `op.network_denied`) and `sqlite` (JSON Lines rows into a table). Any other connector fails the node with `op.config_invalid`.
+
+Validator rules (O-02 section 10): `ir.export_needs_connection` (no `config.connection`) and `ir.export_needs_approval` (`policy.approval` is not `always`). An `always` node raises a `policy` approval for every node instance (O-07 section 2), so every delivery is a person's decision.
 
 ## 8. Model operators
 

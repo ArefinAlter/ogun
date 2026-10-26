@@ -167,6 +167,7 @@ A diagnostic is `{"severity", "code", "path", "message"}` as in Zeus 08 section 
 | `ir.node_has_no_inputs` | warning | Section 5 |
 | `ir.op_invalid`, `ir.op_unknown`, `ir.op_version_unknown`, `ir.inline_code`, `ir.secret_inline`, `ir.url_credentials`, `ir.session_in_acquire` | error | Section 6 |
 | `ir.code_required`, `ir.code_unexpected`, `ir.code_hash_invalid`, `ir.shell_needs_approval`, `ir.llm_budget_required` | error | Section 7 |
+| `ir.export_needs_connection`, `ir.export_needs_approval` | error | O-03 section 7.1 (an `export` node names a connection and has `policy.approval: always`) |
 | `ir.window_invalid`, `ir.stream_source_unknown`, `ir.stream_buffer_required`, `ir.source_has_inputs`, `ir.stream_requires_window`, `ir.stream_single_source` | error | Section 11, O-09 section 9 |
 
 ## 11. Streams

@@ -4,6 +4,7 @@
 
 import type { Backend } from './backend'
 import { asOgunError } from './backend'
+import { benchApi, probeBench } from './bench'
 import { currentCsrf, httpBackend } from './http'
 import { realSchedules } from './schedules'
 import { fetchTransport, svcInfo, svcParts } from './svc'
@@ -88,13 +89,19 @@ async function desktop(): Promise<Backend> {
           throw e
         },
       ))
+    // Benchmarks: the same question, asked with an id that cannot exist (nothing runs). The answer is kept once
+    // it is known, so a restart of the engine does not make the page flicker out of the sidebar.
+    out.bench = benchApi(t)
+    let benchKnown: boolean | undefined
     const baseInfo = out.info
     out.info = async () => {
       const i = await baseInfo()
       if (i.link === 'local' && i.engine?.state === 'running') {
         const ok = await agentOffered().catch(() => undefined)
         if (ok !== undefined) i.agent = ok
+        benchKnown ??= await probeBench(t)
       }
+      if (i.link === 'local' && benchKnown !== undefined) i.bench = benchKnown
       return i
     }
   }

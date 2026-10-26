@@ -740,3 +740,131 @@ export interface HubEnvironment {
   /** This is the environment Studio shows now. */
   active: boolean
 }
+
+// ---------------------------------------------------------------- benchmarks (O-06, ADR 0005)
+// `bench.*` on the engine Studio runs for itself. The engine starts the `ogun-bench` harness with a cleared
+// environment and a state directory of its own; the screens only read what it produced.
+
+/** Where a benchmark run executes: this computer with the network denied, or a container runtime. */
+export type BenchRuntimeId = 'local' | 'docker' | 'podman'
+
+/** One place a benchmark can run, and whether this computer can really deny the network there. */
+export interface BenchRuntime {
+  id: BenchRuntimeId
+  title: string
+  available: boolean
+  /** `local_appcontainer`, `local_netns` or `container`; null when it is not available. */
+  isolation: string | null
+  /** One plain sentence about how the network is denied, or why it cannot be. */
+  note: string
+}
+
+/** A suite the engine offers. Today only the sample suite. */
+export interface BenchSuite {
+  id: string
+  title: string
+  adapter: string
+  tasks: string[]
+  agents: string[]
+  note: string
+}
+
+/** `interrupted`: the engine stopped while the run was going. */
+export type BenchRunState = 'running' | 'finished' | 'failed' | 'cancelled' | 'interrupted'
+
+/** What `bench.list` says about one run. */
+export interface BenchRunSummary {
+  id: string
+  suite: string
+  runtime: string
+  state: BenchRunState
+  started_at: string
+  finished_at?: string | null
+  /** Rows the harness has written so far. */
+  runs: number
+  passed: number
+  /** The isolation the first row recorded; null before any row exists. */
+  isolation: string | null
+  /** Connections the loopback probe accepted while the run went on. Zero means the network stayed closed. */
+  probe_hits: number
+  error?: string | null
+}
+
+export interface BenchList {
+  /** The harness answered. False when `ogun-bench` is missing or did not answer. */
+  available: boolean
+  runtimes: BenchRuntime[]
+  suites: BenchSuite[]
+  /** The adapters the harness has (`harbor`, `spider2_dbt`, `ade_bench`); none is offered here. */
+  adapters: string[]
+  runs: BenchRunSummary[]
+}
+
+/** How an agent run ended (O-06). */
+export type BenchOutcome = 'completed' | 'failed' | 'timed_out' | 'cancelled' | 'error'
+
+/** One row of a run's results table: one agent on one task with one seed. */
+export interface BenchRow {
+  agent_run: string
+  benchmark: string
+  task_id: string
+  agent: string
+  agent_version: string
+  model?: string | null
+  seed: number
+  outcome: BenchOutcome
+  passed: boolean
+  score_ppm: number
+  agent_ms: number
+  wall_ms: number
+  tool_calls: number
+  failed_tool_calls: number
+  files_touched: number
+  cached: boolean
+  isolation: string
+  error_code?: string | null
+}
+
+/** Per-agent totals (integers only; rates are parts per million). */
+export interface BenchAgentSummary {
+  agent: string
+  agent_version: string
+  model?: string | null
+  runs: number
+  errors: number
+  scored: number
+  passed: number
+  pass_rate_ppm: number
+  mean_score_ppm: number
+  timed_out: number
+  mean_agent_ms: number
+  tool_calls: number
+}
+
+export interface BenchStatus {
+  run: BenchRunSummary & { seeds: number[] }
+  rows: BenchRow[]
+  agents: BenchAgentSummary[]
+  matrix_blake3: string | null
+  /** The results table as Markdown, once the harness has finished. */
+  markdown: string | null
+  /** The last lines of the harness's own log. */
+  log_tail: string | null
+}
+
+/** One trajectory event as `bench.replay` returns it. The text in it came from the agent. */
+export interface BenchEvent {
+  seq: number
+  at: string
+  elapsed_ms: number
+  type: string
+  [field: string]: unknown
+}
+
+export interface BenchReplay {
+  /** The hash chain of the trajectory checked out. */
+  verified: boolean
+  summary: { events: number; head_blake3: string; tool_calls: number; failed_tool_calls: number; agent_ms: number } | null
+  error: string | null
+  events: BenchEvent[]
+}

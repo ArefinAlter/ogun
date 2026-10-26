@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-00, O-01, O-02, O-04, O-07, O-09, O-11 |
-| Decided by | ADR 0002 (product boundary), ADR 0006 (no `zeus-api`), Zeus ADRs 0002, 0007 and 0010 (applied unchanged) |
+| Decided by | ADR 0002 (product boundary), ADR 0006 (no `zeus-api`), ADR 0015 (Studio owns its engine: the Studio surface, Windows peers), Zeus ADRs 0002, 0007 and 0010 (applied unchanged) |
 | Implemented by | `ogun-api` (endpoint, framing, handshake, methods, policy table, client); `ogun-daemon` (`ogund`, the server side) |
 
 ## 1. Purpose
@@ -18,9 +18,9 @@ The API has the shape of Zeus 05 (one local listener, newline-delimited JSON-RPC
 1. `ogund` MUST have exactly one listener, the local IPC endpoint. HTTP surfaces (Studio-web, MCP over HTTP, A2A, edge sync over HTTPS, HTTP push ingest) are separate bridge processes that connect to this endpoint as clients (Zeus ADR 0010 pattern).
 2. The state directory is `$OGUN_HOME` when set, otherwise `$XDG_STATE_HOME/ogun` (Linux), `~/Library/Application Support/Ogun` (macOS) or `%LOCALAPPDATA%\Ogun` (Windows). A profile `<p>` uses `profiles/<p>` beneath it and has its own daemon.
 3. Unix: the endpoint is `<runtime_dir>/ogun/ogund.sock` (`ogund-<p>.sock` for a profile). The directory MUST be owned by the user with mode `0700`, the socket `0600`. When the path would not fit `sun_path`, the daemon uses `<tmp>/ogun-<h>/ogund.sock` with `h` the first 12 hex digits of BLAKE3 over the state directory and profile.
-4. Windows: the endpoint is `\\.\pipe\ogund-<h>` with `h` the first 16 hex digits of the same digest. The pipe MUST reject remote clients and MUST be created as the first instance, so a squatter makes the daemon fail to start rather than serve beside it.
+4. Windows: the endpoint is `\\.\pipe\ogund-<h>` with `h` the first 16 hex digits of the same digest. The pipe MUST reject remote clients and MUST be created as the first instance, so a squatter makes the daemon fail to start rather than serve beside it. Its access list MUST name only the user who runs the daemon (a protected DACL with one allow entry for that user's SID; the default list of a named pipe lets every user read), so no other account can open it.
 5. A daemon that finds a live endpoint MUST exit; a stale Unix socket (nothing answers) is replaced.
-6. Files in the state directory: `ipc.secret` (`0600`), `credentials/` (`0700`, one `<name>.token` per local credential, `0600`), `credentials.table` (the daemon's verifiers), `runs.redb` (the run store, O-01), `artifacts/` (a Zeus 13 store instance), `scratch/`, `secrets/` (`0700`), `config.json`, `ogund.lock`.
+6. Files in the state directory: `ipc.secret` (`0600`), `credentials/` (`0700`, one `<name>.token` per local credential, `0600`), `credentials.table` (the daemon's verifiers), `runs.redb` (the run store, O-01), `artifacts/` (a Zeus 13 store instance), `scratch/`, `secrets/` (`0700`), `config.json`, `ogund.lock`. The methods of section 5.1 add `settings/` (small JSON documents replaced atomically: `connections.json`, `agent.json`, `agent-threads/<thr_>.json`, `runtime.json`, `storage.json`, `evidence.json`), `llm.json` and `llm-ledger.jsonl` (O-03 section 8), and `logs/ogund.log` when Studio supervises the daemon.
 
 ## 3. Framing
 
@@ -51,11 +51,13 @@ client                                               ogund
 
 A local credential is `ocl_<ULID>`, a kind, a name (`[a-z0-9_-]{1,64}`) and a token `ot1_<64 hex>`. The token file holds one line: `<id> <kind> <name> <token>`. On first start `ogund` creates `ipc.secret` and a `human` credential named `cli`. Further credentials are made with `credentials.add` (section 6), which writes the token file and never returns the token over the wire.
 
+A **supervised** daemon (`ogund --supervised`, ADR 0015) has no token file for its app's credential. It reads one line from its standard input within 20 seconds, `<ocl_id> human studio <token>` (the token-file format), keeps that credential in memory only, and prints one JSON line on standard output when it listens (`{"event":"ready","version","endpoint","pid"}`). When the app closes the daemon's standard input the daemon stops: in-flight attempts checkpoint, and the process exits. A supervised daemon also creates a persistent `service` credential named `ingest` for the ingest bridge the app starts beside it.
+
 ### 4.3 Client kinds
 
 | Kind | Who | Ceiling |
 |---|---|---|
-| `human` | A person at the CLI or Studio | Everything, but trust-changing methods need an interactive peer (section 4.4). |
+| `human` | A person at the CLI or Studio | Everything, but the interactive rows need a verified surface: the CLI (all of them) or Studio (those marked `studio`, section 6). |
 | `agent` | MCP, A2A, integrations, scripts | Read, author workflows, start and cancel runs. Never decides an approval, never manages credentials, secrets, approvers or edges. |
 | `service` | The ingest bridge, edge sync, the Zeus session bridge | Push stream records, sync, read status and artifacts. |
 | `bridge` | `ogun-server` acting for its users | As agent, plus approver proposals, sync and approval decisions with WebAuthn evidence. |
@@ -67,9 +69,20 @@ The credential fixes the kind. A client's `client.name` in `daemon.hello` is rec
 At accept time the daemon inspects the peer:
 
 1. Unix: the peer's uid MUST equal the daemon's effective uid; otherwise the connection is refused.
-2. Linux: the daemon reads `/proc/<pid>/stat` (`tty_nr`) and `/proc/<pid>/exe`. A connection is **interactive** when the peer has a controlling terminal and its executable is one of the daemon's pinned binaries: the `ogun` and `ogun-studio` files next to `ogund`, plus any listed under `trusted_binaries` in `config.json`.
-3. macOS and Windows: the daemon does not inspect peers in this draft, so no connection is interactive there. Methods that need an interactive peer fail with `api.permission_denied`; approvals on those platforms wait for a later draft that adds platform modules (`LOCAL_PEERPID` and `GetNamedPipeClientProcessId`) or for Studio-web with WebAuthn. This is a known gap, tracked in `docs/IMPLEMENTATION_STATUS.md`.
-4. **Honest limit** (as Zeus ADR 0007 point 5): a program that runs as the same user with shell access can read the same credential files and drive a pseudo-terminal. Kind separation, the peer checks, the request hash, the typed confirmation code (O-07) and rate limits narrow this; they do not remove it.
+2. Linux: the daemon reads `/proc/<pid>/stat` (`tty_nr`) and `/proc/<pid>/exe`.
+3. Windows: the daemon asks the system which process holds the client end of the pipe (`GetNamedPipeClientProcessId`) and which executable that process runs (`QueryFullProcessImageNameW`); the client cannot choose either answer. A failed lookup leaves the peer unknown, which is no surface. Windows has no equivalent of a controlling terminal, so every Windows peer counts as having one and the pinned image path is the whole check.
+4. macOS: the daemon does not inspect peers in this draft, so no connection has a surface there. Methods that need one fail with `api.permission_denied`; approvals on macOS wait for a later draft that adds `LOCAL_PEERPID` or for Studio-web with WebAuthn. This is a known gap, tracked in `docs/IMPLEMENTATION_STATUS.md`.
+5. **Surfaces.** After a `human` credential authenticates, the daemon assigns the connection a surface from what it found, and returns it in `daemon.authenticate` (`surface`, with `interactive` true when it is not `none`). Credentials of any other kind never get one.
+
+| Surface | When | May call |
+|---|---|---|
+| `terminal` | The peer has a controlling terminal (Linux; always true on Windows) and its executable is a pinned binary: the `ogun` file next to `ogund`, or a path in `trusted_binaries` of `config.json` | Every interactive row |
+| `studio` | The peer's executable is the pinned `ogun-studio` file next to `ogund`, or a path in `trusted_studio_binaries`. Studio is a window; no terminal is needed | The interactive rows marked `studio` in the policy table (`secrets.put`, `secrets.delete`, `daemon.shutdown`), and `approvals.decide` with `studio` evidence |
+| `none` | Anything else | The rows that need no surface |
+
+Trust-changing rows (`credentials.add`, `credentials.revoke`, `approvers.confirm`, `approvers.revoke`, `edges.enroll`) stay terminal-only: Studio cannot call them. Pinned paths are compared after canonicalisation.
+
+6. **Honest limit** (as Zeus ADR 0007 point 5): a program that runs as the same user with shell access can read the same credential files and drive a pseudo-terminal, and one that can start the pinned executable can present itself as that surface. Kind separation, the peer checks, the request hash, the typed confirmation code (O-07), the in-memory credential of a supervised daemon and rate limits narrow this; they do not remove it.
 
 ## 5. Methods
 
@@ -80,7 +93,7 @@ Strings that came from outside Ogun (descriptions, operator messages, remote err
 | Method | Parameters | Result |
 |---|---|---|
 | `daemon.hello` | `protocol`, `client {name, version}`, `client_nonce` | `protocol`, `daemon_version`, `profile?`, `server_nonce`, `server_proof` |
-| `daemon.authenticate` | `credential_id`, `proof` | `kind`, `name`, `interactive`, `methods` |
+| `daemon.authenticate` | `credential_id`, `proof` | `kind`, `name`, `interactive`, `surface`, `methods` |
 | `daemon.status` | none | counters: `workflows`, `runs_active`, `approvals_pending`, `streams`, `last_event_seq`, `scheduler_enabled`, `started_at` |
 | `daemon.shutdown` | none | `{}`; in-flight attempts checkpoint first |
 | `workflows.validate` | `workflow` | `ok`, `workflow_hash?`, `diagnostics` |
@@ -127,6 +140,22 @@ Partition selectors for `runs.start`: `{"kind": "latest"}`, `{"kind": "keys", "k
 
 The exact member types are the Rust types in `ogun_api::methods`; they are the schema for this draft.
 
+### 5.1 Methods of Studio's engine
+
+`ogund` also serves the methods Studio's pages and agent screen call. Their members are specified where they are used: O-16 (connections, run defaults, environments, storage, evidence, providers), O-17 (agent threads) and O-06 section 14 (benchmark runs). The table lists who may call each (the single table is `ogun_api::policy::METHODS`). None of the `human` rows below needs a surface; any `human` connection may call them. None decides an approval, reads a secret value or runs code.
+
+| Methods | Kinds |
+|---|---|
+| `agent.models`, `agent.tools`, `connections.list` | human, agent, bridge |
+| `agent.settings.get`, `agent.settings.put`, `agent.threads.list/get/create/rename/delete`, `agent.access.set`, `agent.send`, `agent.stop`, `agent.act`, `agent.preview` | human |
+| `connections.put`, `connections.delete`, `connections.test` | human |
+| `runtime.get`, `environments.list`, `evidence.get`, `storage.info`, `storage.rules`, `storage.cleanup_plan`, `ladder.get` | human, bridge |
+| `runtime.set`, `runtime.reset`, `scheduler.set_enabled`, `evidence.set`, `storage.set_rules`, `storage.set_retention`, `storage.cleanup`, `storage.clear_caches`, `ladder.put` | human |
+| `sandbox.status` | all |
+| `bench.list`, `bench.status`, `bench.replay`, `bench.run`, `bench.cancel` | human |
+
+`agent.threads.list` and `agent.threads.get` take `since` (a revision number) and `wait_ms` (at most 30 000): with nothing newer than `since` the daemon holds the call, the long-poll form of section 8, so a thread streams to every Studio that has it open. `sandbox.status` returns `{available, backend, summary, isolates[], does_not_isolate[]}` in plain words (O-03 section 7, backends). `environments.list` returns `{environments[], bridges[], scheduler_enabled}`. Studio's shell relays a closed list of these methods to its webview; some names on that list (`sources.*`, `schedules.*`, `archive.*`, `evidence.bundle`) have no row in the table and answer `api.method_not_found` (O-16 section 5).
+
 ## 6. Policy
 
 `ogun_api::policy::METHODS` is the single table of which kinds may call which method, and which methods need an interactive peer. A method missing from the table is `api.method_not_found` for everyone. The table, in summary:
@@ -141,13 +170,16 @@ The exact member types are the Rust types in `ogun_api::methods`; they are the s
 | `sync.offer`, `sync.chunk` | service, bridge |
 | `approvers.propose` | bridge |
 | `credentials.list`, `secrets.list` | human |
-| `daemon.shutdown`, `credentials.add/revoke`, `secrets.put/delete`, `approvers.confirm/revoke`, `edges.enroll` | human, interactive peer only |
+| `credentials.add/revoke`, `approvers.confirm/revoke`, `edges.enroll` | human, `terminal` surface only |
+| `daemon.shutdown`, `secrets.put/delete` | human, `terminal` or `studio` surface |
+| Studio's methods (section 5.1) | as listed there |
 
 Rules that the table alone does not express:
 
 1. `approvals.decide` with `terminal` evidence: the connection is `human` and interactive, and the peer executable is the pinned `ogun` binary. With `studio` evidence: `human`, and the peer executable is the pinned `ogun-studio` binary. With `webauthn` evidence: the connection is `bridge`, the approver key is confirmed (section 7) and the assertion verifies. Any other combination is `approval.channel_required`. Agents and services never reach a decision, whatever evidence they send (constraint 3).
 2. A decision names the approval's `request_hash`; a mismatch is `approval.hash_mismatch`. A decided approval cannot be decided again. At most 50 approvals are pending and at most 10 decisions are accepted per minute (Zeus ADR 0007).
-3. `secrets.put` values are zeroized after they are written; secrets never appear in events, logs, errors or lineage (constraint 4). `secrets.list` returns names only.
+3. A row marked `studio` in the policy table is open to the `terminal` and the `studio` surface; every other interactive row only to `terminal`. `ogun_api::policy::Surface::admits` is the one place that decides this.
+4. `secrets.put` values are zeroized after they are written; secrets never appear in events, logs, errors or lineage (constraint 4). `secrets.list` returns names only.
 
 ## 7. WebAuthn approvers
 
@@ -164,4 +196,4 @@ A self-hosted server (O-13) relays decisions from Studio-web. The daemon never t
 
 ## 9. Conformance
 
-`cargo test -p ogun-api` checks the handshake (round trip, replay with another nonce, wrong secret), credential file round trips (and that `Debug` never prints a token), the policy table (unique methods; agents and services can never call decide, credential, secret, approver-confirm, edge-enrol or shutdown methods; interactive rows are human-only) and the Linux `tty_nr` parser. `cargo test -p ogun-daemon` runs the daemon on a temporary state directory and drives it through the client.
+`cargo test -p ogun-api` checks the handshake (round trip, replay with another nonce, wrong secret), credential file round trips (and that `Debug` never prints a token), the policy table (unique methods; agents and services can never call decide, credential, secret, approver-confirm, edge-enrol or shutdown methods; interactive rows are human-only) and the Linux `tty_nr` parser. `cargo test -p ogun-daemon` runs the daemon on a temporary state directory and drives it through the client, including the Studio surface and the Studio-only methods, the agent loop against mock providers (`tests/agent.rs`), and the O1 exit tests (a 121-partition backfill and a stream window surviving a killed daemon; `tests/exit.rs`, also on Windows). The Windows peer inspection is tested in-process (`ogun-platform`); the named pipe's client lookup is exercised by the daemon tests on Windows.

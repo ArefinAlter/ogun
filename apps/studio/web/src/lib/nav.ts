@@ -19,6 +19,7 @@ export const NAV: NavItem[] = [
   { id: 'workflows', label: 'Workflows', icon: 'dag', group: 'Operate' },
   { id: 'runs', label: 'Runs', icon: 'play', group: 'Operate' },
   { id: 'partitions', label: 'Partitions', icon: 'matrix', group: 'Operate' },
+  { id: 'benchmarks', label: 'Benchmarks', icon: 'flask', group: 'Operate', show: (i) => !!i?.bench },
   { id: 'approvals', label: 'Approvals', icon: 'seal', group: 'Trust' },
   { id: 'artifacts', label: 'Artifacts and lineage', icon: 'cube', group: 'Data' },
   { id: 'streams', label: 'Streams', icon: 'wave', group: 'Data' },

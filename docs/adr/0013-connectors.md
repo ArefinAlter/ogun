@@ -2,11 +2,17 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-24 |
-| Decided by | Pending the maintainer |
+| Decided by | Accepted by the maintainer's instruction of 2026-10-26 |
 | Refines | ADR 0004 (integrate, do not replace) and ADR 0012 (data platforms call Ogun; data and lineage flow out) |
 | Specifies | O-16 |
+
+> **Note on this acceptance.** The maintainer's instruction of 2026-10-26 (to make the desktop applications standalone
+> and release them as 0.0.1b) was given to the build agent, and the agent recorded this record as accepted in order to
+> build on it. The maintainer should confirm the acceptance in the record (for example by replacing this note with
+> "Decided by: Maintainer, <date>"). Decision 3's last sentence (Studio never asks for a secret value) is amended for the
+> desktop shell by ADR 0015 decision 10, which is Proposed.
 
 ## Context
 
