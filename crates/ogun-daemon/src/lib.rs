@@ -98,7 +98,15 @@ pub async fn start_with(paths: OgunPaths, options: StartOptions) -> DaemonResult
         .await
         .map_err(|_| DaemonError::State("startup task failed".into()))??;
     if let Some(cred) = &options.transient_credential {
-        state::lock(&daemon.creds).add_transient(cred)?;
+        let mut creds = state::lock(&daemon.creds);
+        creds.add_transient(cred)?;
+        // A supervising app also runs the ingest bridge, which needs its own `service` credential.
+        creds.ensure(
+            &daemon.paths,
+            &daemon.ids,
+            "ingest",
+            ogun_api::ClientKind::Service,
+        )?;
     }
     tracing::info!(endpoint = %endpoint, state = %daemon.paths.state_dir.display(), "ogund listening");
     daemon.streams.activate_all(&daemon);

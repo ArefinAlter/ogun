@@ -385,6 +385,26 @@ impl Engine {
         self.set_credential(Some(credential));
         self.set(EngineState::Running { pid, version });
         tracing::info!(pid, "the engine is running");
+        // The ingest bridge runs beside the daemon for as long as the daemon does.
+        let ingest = self
+            .exe
+            .parent()
+            .map(|d| d.join(format!("ogun-ingest{}", std::env::consts::EXE_SUFFIX)))
+            .filter(|p| p.is_file());
+        let ingest_task = ingest.map(|exe| {
+            let profile = self.paths.profile.clone();
+            let log = self.log.with_file_name("ingest.log");
+            tauri::async_runtime::spawn(supervise_ingest(exe, profile, log))
+        });
+        struct AbortOnDrop(Option<tauri::async_runtime::JoinHandle<()>>);
+        impl Drop for AbortOnDrop {
+            fn drop(&mut self) {
+                if let Some(t) = self.0.take() {
+                    t.abort();
+                }
+            }
+        }
+        let _ingest_guard = AbortOnDrop(ingest_task);
 
         enum Why {
             Exited(String),
@@ -420,6 +440,45 @@ impl Engine {
                 }
             }
         }
+    }
+}
+
+/// Runs `ogun-ingest` for the engine's profile and starts it again when it exits. Dropping the task kills it.
+async fn supervise_ingest(exe: PathBuf, profile: Option<String>, log: PathBuf) {
+    let mut failures = 0u32;
+    loop {
+        let started = Instant::now();
+        let out = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log);
+        let mut cmd = Command::new(&exe);
+        if let Some(p) = &profile {
+            cmd.arg("--profile").arg(p);
+        }
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .kill_on_drop(true);
+        match out {
+            Ok(f) => cmd.stderr(Stdio::from(f)),
+            Err(_) => cmd.stderr(Stdio::null()),
+        };
+        #[cfg(windows)]
+        {
+            cmd.creation_flags(0x0800_0000);
+        }
+        match cmd.spawn() {
+            Ok(mut child) => {
+                let _ = child.wait().await;
+            }
+            Err(e) => tracing::warn!(error = %e.kind(), "the ingest bridge could not start"),
+        }
+        failures = if started.elapsed() > Duration::from_secs(60) {
+            0
+        } else {
+            (failures + 1).min(6)
+        };
+        tokio::time::sleep(Duration::from_secs(2u64.pow(failures.max(1)))).await;
     }
 }
 

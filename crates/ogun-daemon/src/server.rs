@@ -11,7 +11,7 @@ use ogun_api::methods::{
 use ogun_api::policy::Surface;
 use ogun_api::transport::{Listener, Peer, Stream};
 use ogun_api::{ApiError, ApiResult, policy};
-use ogun_types::CredentialId;
+use ogun_types::{CredentialId, Timestamp};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tokio::io::BufReader;
@@ -172,6 +172,12 @@ async fn handle(d: &Arc<Daemon>, s: &mut Session, peer: &Peer, req: Request) -> 
             } else {
                 Surface::None
             };
+            if c.kind == ClientKind::Service && c.name == "ingest" {
+                d.ingest_seen_ms.store(
+                    Timestamp::now().unix_millis(),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
+            }
             let interactive = surface.is_interactive();
             let conn = Conn {
                 kind: c.kind,
@@ -220,6 +226,12 @@ async fn handle(d: &Arc<Daemon>, s: &mut Session, peer: &Peer, req: Request) -> 
                         "{method} needs the ogun CLI on a terminal (an interactive human connection)"
                     )
                 }));
+            }
+            if conn.kind == ClientKind::Service && conn.name == "ingest" {
+                d.ingest_seen_ms.store(
+                    Timestamp::now().unix_millis(),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
             }
             crate::handlers::dispatch(d, &conn, method, req.params).await
         }

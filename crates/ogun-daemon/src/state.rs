@@ -226,6 +226,8 @@ pub struct Daemon {
     pub hub: ogun_sync::hub::ChunkAssembler,
     /// Settings, connections, the agent and benchmarks behind Studio's screens.
     pub studio: crate::studio::Studio,
+    /// When the ingest bridge last authenticated, Unix ms (0: never since this start).
+    pub ingest_seen_ms: std::sync::atomic::AtomicI64,
 }
 
 impl std::fmt::Debug for Daemon {
@@ -332,6 +334,8 @@ impl Daemon {
             .ok()
             .and_then(|e| e.parent().map(Path::to_path_buf))
         {
+            // The Python Studio ships (`python/` beside the app) is where `python3` is found on Windows.
+            env.operator_dirs.push(dir.join("python"));
             env.operator_dirs.push(dir);
         }
         env.model_access = config.model_access;
@@ -374,6 +378,7 @@ impl Daemon {
             llm_budget_lock: Mutex::new(()),
             hub,
             studio,
+            ingest_seen_ms: std::sync::atomic::AtomicI64::new(0),
         });
         Ok(daemon)
     }

@@ -190,6 +190,37 @@ impl Credentials {
         Ok((stored, path))
     }
 
+    /// Makes sure a live credential of this name and kind exists (and its token file), creating it when not.
+    ///
+    /// # Errors
+    ///
+    /// As [`Credentials::add`].
+    pub fn ensure(
+        &mut self,
+        paths: &OgunPaths,
+        ids: &IdGenerator,
+        name: &str,
+        kind: ClientKind,
+    ) -> ApiResult<()> {
+        if self
+            .rows
+            .values()
+            .any(|c| !c.revoked && c.name == name && c.kind == kind)
+            && paths.credential_file(name).exists()
+        {
+            return Ok(());
+        }
+        if let Some(old) = self
+            .rows
+            .values()
+            .find(|c| !c.revoked && c.name == name)
+            .map(|c| c.id)
+        {
+            self.revoke(paths, old)?;
+        }
+        self.add(paths, ids, name, kind).map(|_| ())
+    }
+
     /// Registers a credential held only in memory: the supervising app (`ogund --supervised`) sends one on
     /// stdin at every launch, so there is no token file for another program to read and a restart of the app
     /// replaces it. An earlier transient credential of the same name is revoked.

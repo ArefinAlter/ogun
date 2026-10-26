@@ -3,3 +3,4 @@
 /gen/
 # Sidecar binaries staged by scripts/stage-sidecars.mjs (one per target triple).
 /binaries/
+/binaries/python/

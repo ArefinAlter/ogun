@@ -43,6 +43,12 @@ struct EvidenceSet {
     patch: serde_json::Map<String, Value>,
 }
 
+/// The bridge authenticates at start and again whenever it reconnects; it counts as running for five minutes after.
+fn ingest_recent(d: &Daemon) -> bool {
+    let seen = d.ingest_seen_ms.load(std::sync::atomic::Ordering::Relaxed);
+    seen > 0 && ogun_types::Timestamp::now().unix_millis() - seen < 300_000
+}
+
 fn environments(d: &Arc<Daemon>) -> ApiResult<Value> {
     let edges = ListEdgesResult {
         edges: d
@@ -96,8 +102,9 @@ fn environments(d: &Arc<Daemon>) -> ApiResult<Value> {
     let bridges = json!([
         {"id": "zeus", "name": "Zeus session bridge", "state": if d.config.zeus_bridge.is_some() { "running" } else { "not_configured" },
          "detail": "Sources behind a browser sign-in go through zeusd as Zeus jobs; Ogun never reads browser sessions."},
-        {"id": "ingest", "name": "Ingest bridge", "state": "not_configured",
-         "detail": "ogun-ingest pushes MQTT, LoRaWAN, Modbus, file-tail and HTTP records into stream sources (O-10)."},
+        {"id": "ingest", "name": "Ingest bridge",
+         "state": if ingest_recent(d) { "running" } else { "stopped" },
+         "detail": "ogun-ingest reads MQTT, LoRaWAN, Modbus, file-tail and HTTP sources into stream windows (O-10). Studio starts it with the engine; it connects when a stream workflow is stored."},
         {"id": "sync", "name": "Edge sync", "state": "not_configured",
          "detail": "ogun-sync sends sealed windows from an edge to a hub (O-11)."},
         {"id": "server", "name": "Ogun server", "state": "not_configured",

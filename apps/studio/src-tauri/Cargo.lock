@@ -3123,7 +3123,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-api"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "directories",
@@ -3144,7 +3144,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-edge"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -3157,7 +3157,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ir"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "ogun-types",
  "serde",
@@ -3168,7 +3168,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-keystore"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "argon2",
  "base64 0.23.1",
@@ -3186,8 +3186,10 @@ dependencies = [
 
 [[package]]
 name = "ogun-platform"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
+ "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -3196,7 +3198,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-run"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -3205,7 +3207,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sched"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "ogun-ir",
  "serde",
@@ -3215,7 +3217,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-stream"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "ogun-sched",
@@ -3256,7 +3258,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sync"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -3282,7 +3284,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-types"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "serde",
  "serde_json",

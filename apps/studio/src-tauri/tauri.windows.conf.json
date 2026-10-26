@@ -28,6 +28,9 @@
       "binaries/ogun-ingest",
       "binaries/ogun-bench",
       "binaries/ogun-sandbox"
-    ]
+    ],
+    "resources": {
+      "binaries/python": "python"
+    }
   }
 }
