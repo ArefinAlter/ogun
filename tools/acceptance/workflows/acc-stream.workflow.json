@@ -1,0 +1,36 @@
+{
+  "ir_version": 0,
+  "workflow": "acc-stream",
+  "version": 1,
+  "description": "Acceptance: a JSON Lines file tailed as a stream, cut into one-minute event-time windows, rolled up per station, hashed and listed. The path is set by the acceptance run.",
+  "triggers": [{ "kind": "stream", "source": "events" }],
+  "partitions": {
+    "kind": "window",
+    "source": "events",
+    "time_field": "ts_ms",
+    "key_field": "station_id",
+    "size_ms": 60000,
+    "allowed_lateness_ms": 3600000,
+    "max_delay_ms": 5000
+  },
+  "streams": {
+    "events": { "max_buffer_bytes": 16777216, "when_full": "block", "dedupe_key": ["station_id", "seq"] }
+  },
+  "budgets": { "bytes": 104857600 },
+  "nodes": [
+    {
+      "id": "events",
+      "op": "stream.file_tail@1",
+      "config": { "path": "SET-BY-THE-RUN", "format": "jsonl", "poll_ms": 500, "start": "beginning" }
+    },
+    { "id": "clean", "op": "filter@1", "inputs": ["events.window"], "config": { "drop_if_missing": ["bikes"] } },
+    {
+      "id": "rollup",
+      "op": "window.rollup@1",
+      "inputs": ["clean.artifacts"],
+      "config": { "to_ms": 60000, "group_by": ["station_id"], "aggregates": ["count", "min", "max", "sum"] }
+    },
+    { "id": "hash", "op": "hash@1", "inputs": ["rollup.artifacts"] },
+    { "id": "manifest", "op": "manifest@1", "inputs": ["hash.artifacts"] }
+  ]
+}

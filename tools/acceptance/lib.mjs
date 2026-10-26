@@ -16,8 +16,16 @@ const { chromium } = require('@playwright/test')
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 export function ps(command) {
-  return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8' }).trim()
+  try {
+    return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8' }).trim()
+  } catch (e) {
+    // A command that finds nothing exits 1 under -ErrorAction; that is an empty answer, not a failure.
+    return String(e.stdout ?? '').trim()
+  }
 }
+
+/** Every app this process started, so a failed scenario cannot leave one running. */
+export const started = new Set()
 
 /** Children of a process: [{pid, name, cmd}]. */
 export function children(pid) {
@@ -107,6 +115,7 @@ export class App {
     this.proc.stdout.on('data', (d) => out.push(String(d)))
     this.proc.stderr.on('data', (d) => out.push(String(d)))
     this.output = out
+    started.add(this.proc.pid)
     const deadline = Date.now() + 60000
     for (;;) {
       try {
@@ -226,7 +235,7 @@ export async function waitFor(fn, { ms = 30000, every = 400, what = 'condition' 
 }
 
 export async function http(url, opts = {}) {
-  const r = await fetch(url, opts)
+  const r = await fetch(url, { signal: AbortSignal.timeout(15000), ...opts })
   const text = await r.text()
   let json
   try {

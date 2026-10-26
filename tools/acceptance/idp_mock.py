@@ -37,6 +37,8 @@ CLIENTS = {
 USERS = {
     "alice@example.com": {"password": "alice-password", "sub": "alice", "name": "Alice Example"},
     "bob@example.com": {"password": "bob-password", "sub": "bob", "name": "Bob Example"},
+    # Signs in at the provider but has no account on the hub.
+    "mallory@example.com": {"password": "mallory-password", "sub": "mallory", "name": "Mallory Example"},
 }
 CODES = {}
 REFRESH = {}

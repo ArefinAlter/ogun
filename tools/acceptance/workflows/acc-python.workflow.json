@@ -1,0 +1,26 @@
+{
+  "ir_version": 0,
+  "workflow": "acc-python",
+  "version": 1,
+  "description": "Acceptance: rows from a local fixture summarised by a python code operator that also probes what the sandbox refuses. The code hash and the probe settings are filled in by the acceptance run.",
+  "budgets": { "bytes": 52428800, "wall_ms": 300000 },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["fixture.localtest.me"],
+        "sources": [{ "url": "http://fixture.localtest.me:38417/releases.json", "filename": "releases.json" }]
+      }
+    },
+    { "id": "rows", "op": "parse@1", "inputs": ["fetch.artifacts"], "config": {} },
+    {
+      "id": "summary",
+      "op": "python@1",
+      "inputs": ["rows.artifacts"],
+      "config": {},
+      "code": { "blake3": "SET-BY-THE-RUN", "path": "ops/summarize.py" }
+    },
+    { "id": "hash", "op": "hash@1", "inputs": ["summary.rows"] }
+  ]
+}

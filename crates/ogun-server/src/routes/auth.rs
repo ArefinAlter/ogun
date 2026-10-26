@@ -430,8 +430,9 @@ pub async fn native(
 pub async fn logout(State(s): St, m: Method, h: HeaderMap) -> Response {
     let r = (|| {
         let p = authenticate(&s, &m, &h)?;
-        if let crate::principal::Principal::Session { key, .. } = &p {
+        if let crate::principal::Principal::Session { key, user, .. } = &p {
             s.store.delete_session(key)?;
+            tracing::info!(user = %user.user_id, "signed out");
         }
         Ok::<_, ServerError>(())
     })();

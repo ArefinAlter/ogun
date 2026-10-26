@@ -186,10 +186,15 @@ pub async fn import(studio: &Studio, root: &Path, id: &str) -> StudioResult<Impo
             .map_err(|_| StudioError::invalid("a bundled workflow does not parse"))?;
         let params = PutWorkflowParams {
             code: code_bundles(root, &doc)?,
+            // A fresh key each time: a replayed key would return the first answer (`created: true`) even when
+            // nothing is new; the daemon's own check on the stored hash says whether the version already exists.
             idempotency_key: format!(
-                "sample-{}-{}",
+                "sample-{}-{}-{}",
                 project.id,
-                file.trim_end_matches(".workflow.json")
+                file.trim_end_matches(".workflow.json"),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_millis())
             ),
             workflow: doc,
         };
