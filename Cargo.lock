@@ -1342,6 +1342,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fallible-iterator"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
+
+[[package]]
+name = "fallible-streaming-iterator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
+
+[[package]]
 name = "fancy-regex"
 version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1730,6 +1742,15 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a596f1b20ed2cc5ecac41a164aaebc7258057060f06c0cf7a2ba3991ee7990fb"
+dependencies = [
+ "hashbrown",
 ]
 
 [[package]]
@@ -2294,6 +2315,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libsqlite3-sys"
+version = "0.39.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14a5f01b87b92705d07b433c06f96cbc764637d81a0bffb5734ce17cf0f9a2b3"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2598,7 +2630,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-api"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "directories",
@@ -2619,7 +2651,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-bench"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "blake3",
@@ -2643,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-cli"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2667,18 +2699,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogun-connectors"
+version = "0.0.1-beta"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ogun-daemon"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "blake3",
  "clap",
+ "futures",
  "ogun-api",
+ "ogun-connectors",
  "ogun-edge",
  "ogun-ir",
  "ogun-keystore",
  "ogun-lineage",
+ "ogun-llm",
  "ogun-ops",
  "ogun-run",
  "ogun-sched",
@@ -2688,6 +2731,8 @@ dependencies = [
  "ogun-types",
  "ogun-zeus-bridge",
  "p256 0.14.0",
+ "regex",
+ "reqwest",
  "rustix",
  "serde",
  "serde_json",
@@ -2697,6 +2742,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "ulid",
  "zeroize",
  "zeus-artifact",
  "zeus-control",
@@ -2707,7 +2753,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-edge"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2721,7 +2767,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ingest"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "axum",
@@ -2748,7 +2794,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ir"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2761,7 +2807,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-keystore"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "argon2",
  "base64 0.23.1",
@@ -2780,7 +2826,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lineage"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2801,7 +2847,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-llm"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2821,7 +2867,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lsp"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "lsp-server",
  "lsp-types",
@@ -2834,7 +2880,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-llm"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "ogun-llm",
@@ -2850,7 +2896,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-shims"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "serde",
  "serde_json",
@@ -2859,7 +2905,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ops"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "async-trait",
  "blake3",
@@ -2872,10 +2918,13 @@ dependencies = [
  "ogun-ir",
  "ogun-types",
  "regex",
+ "reqwest",
+ "rusqlite",
  "rustix",
  "scraper",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "tar",
  "tempfile",
  "thiserror",
@@ -2896,7 +2945,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-platform"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "thiserror",
  "tokio",
@@ -2906,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-run"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "serde",
  "serde_json",
@@ -2916,7 +2965,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sandbox"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "ogun-platform",
  "serde",
@@ -2925,7 +2974,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sched"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "ogun-ir",
  "serde",
@@ -2936,7 +2985,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-server"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "axum",
@@ -2979,7 +3028,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-store"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "ogun-ir",
  "ogun-run",
@@ -2995,7 +3044,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-stream"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "ogun-sched",
@@ -3007,7 +3056,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-sync"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -3034,7 +3083,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-types"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "serde",
  "serde_json",
@@ -3045,7 +3094,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-zeus-bridge"
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 dependencies = [
  "blake3",
  "getrandom 0.3.4",
@@ -3800,6 +3849,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsqlite-vfs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "353b74f9810d5b085b6c42c9d86a5f0fdb795553235cdd48753b32e3809d18a7"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "rumqttc"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3818,6 +3876,21 @@ dependencies = [
  "tokio-rustls",
  "tokio-stream",
  "tokio-util",
+]
+
+[[package]]
+name = "rusqlite"
+version = "0.41.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c026b4444579e8d754556c6c75d040d69c4a44283cdb648ab8a8d5965c2cfa8"
+dependencies = [
+ "bitflags 2.13.2",
+ "fallible-iterator",
+ "fallible-streaming-iterator",
+ "hashlink",
+ "libsqlite3-sys",
+ "smallvec",
+ "sqlite-wasm-rs",
 ]
 
 [[package]]
@@ -4427,6 +4500,16 @@ checksum = "7ef958a98b9d5da290cfc78946e9f3e61e1e62a18db0d92cac0b83cc161491a9"
 dependencies = [
  "base64ct",
  "der 0.8.2",
+]
+
+[[package]]
+name = "sqlite-wasm-rs"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36bd8e29bf08189a005b2df1df99823aa0861cabe9044e5f31ed54ca292ee618"
+dependencies = [
+ "cc",
+ "rsqlite-vfs",
 ]
 
 [[package]]
@@ -5096,6 +5179,12 @@ dependencies = [
  "outref",
  "vsimd",
 ]
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"

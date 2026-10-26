@@ -30,6 +30,8 @@ pub enum Backend {
     Bwrap(PathBuf),
     /// `sandbox-exec` at this path.
     SandboxExec(PathBuf),
+    /// The Windows AppContainer helper (`ogun-sandbox`) at this path.
+    AppContainer(PathBuf),
     /// No OS sandbox.
     None,
 }
@@ -41,9 +43,96 @@ impl Backend {
         match self {
             Self::Bwrap(_) => "bwrap",
             Self::SandboxExec(_) => "sandbox-exec",
+            Self::AppContainer(_) => "appcontainer",
             Self::None => "none",
         }
     }
+}
+
+/// What the sandbox of this host does and does not isolate, in words Studio shows as they are.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Status {
+    /// Whether child operators (adapters, code, model operators) can run here without the unsandboxed escape.
+    pub available: bool,
+    /// `bwrap`, `sandbox-exec`, `appcontainer` or `none`.
+    pub backend: &'static str,
+    /// One sentence.
+    pub summary: String,
+    /// What it isolates.
+    pub isolates: Vec<&'static str>,
+    /// What it does not.
+    pub does_not_isolate: Vec<&'static str>,
+}
+
+impl Backend {
+    /// The status words for this backend.
+    #[must_use]
+    pub fn status(&self) -> Status {
+        match self {
+            Self::Bwrap(_) => Status {
+                available: true,
+                backend: "bwrap",
+                summary: "Operators run in bubblewrap: new namespaces, an empty root with read-only system directories, no network unless granted.".into(),
+                isolates: vec![
+                    "the network (a separate network namespace unless the manifest grants it)",
+                    "the file system (only the inputs, the code file and tool directories read-only, and a scratch directory)",
+                    "processes, IPC and host name (new PID, IPC and UTS namespaces)",
+                    "privileges (all capabilities dropped, a new session, killed with the daemon)",
+                    "memory and CPU time (address-space and CPU limits)",
+                ],
+                does_not_isolate: vec![
+                    "a flaw in the Linux kernel's namespace code",
+                    "timing and other side channels shared with the host",
+                ],
+            },
+            Self::SandboxExec(_) => Status {
+                available: true,
+                backend: "sandbox-exec",
+                summary: "Operators run under sandbox-exec with a generated deny-by-default profile.".into(),
+                isolates: vec![
+                    "the file system (read only the paths the operator is granted, write only scratch)",
+                    "the network unless granted",
+                ],
+                does_not_isolate: vec![
+                    "sandbox-exec is deprecated by Apple and is not a security boundary against a determined program",
+                    "memory beyond the address-space limit",
+                ],
+            },
+            Self::AppContainer(_) => Status {
+                available: true,
+                backend: "appcontainer",
+                summary: "Operators run in a Windows AppContainer inside a job object, with only the three standard handles inherited.".into(),
+                isolates: vec![
+                    "the network (an AppContainer without capabilities cannot use the network, loopback included)",
+                    "your files (the process can read and write only the folders Ogun grants it: a scratch directory, its inputs and code read-only, and the program's own folder read-only)",
+                    "other processes and the desktop (a job object with UI restrictions, a single process tree, memory and CPU-time limits, killed with the daemon)",
+                    "handles (nothing is inherited except stdin, stdout and stderr)",
+                ],
+                does_not_isolate: vec![
+                    "a flaw in Windows itself",
+                    "files that Windows lets every application read (parts of the Windows and Program Files folders)",
+                    "a program that is not run through this sandbox: an operator manifest that grants network access is refused, because an AppContainer cannot filter hosts",
+                    "disk space: the scratch directory has no quota",
+                ],
+            },
+            Self::None => Status {
+                available: false,
+                backend: "none",
+                summary: if cfg!(windows) {
+                    "No operator sandbox is available on this machine: code operators (python, sql, dbt, shell, polars) and adapters are not run. Core operators run in the engine without one.".into()
+                } else {
+                    "No operator sandbox is available on this machine (bubblewrap is missing or cannot create namespaces): code operators and adapters are not run. Core operators still run.".into()
+                },
+                isolates: vec![],
+                does_not_isolate: vec!["everything: child operators are refused rather than run without a sandbox"],
+            },
+        }
+    }
+}
+
+/// The status of this host's sandbox.
+pub async fn status() -> Status {
+    detect().await.status()
 }
 
 static DETECTED: OnceCell<Backend> = OnceCell::const_new();

@@ -195,7 +195,10 @@ pub async fn dispatch(d: &Arc<Daemon>, conn: &Conn, method: &str, p: Value) -> A
             result(&ListEdgesResult { edges })
         }
         name::SYNC_OFFER | name::SYNC_CHUNK => crate::sync::handle(d, method, p),
-        _ => Err(ApiError::new("api.method_not_found", "no such method")),
+        _ => match Box::pin(crate::studio::dispatch(d, conn, method, p)).await {
+            Some(r) => r,
+            None => Err(ApiError::new("api.method_not_found", "no such method")),
+        },
     }
 }
 
@@ -295,7 +298,7 @@ fn status(d: &Daemon) -> ApiResult<StatusResult> {
         approvals_pending: pending,
         streams: d.streams.list().len() as u64,
         last_event_seq: d.store.last_event_seq().map_err(store_err)?,
-        scheduler_enabled: d.config.scheduler_enabled,
+        scheduler_enabled: d.studio.runtime.scheduler_enabled(),
     })
 }
 
@@ -801,7 +804,20 @@ fn run_view(d: &Daemon, run: &RunRecord, with_nodes: bool) -> ApiResult<RunView>
         partition_count: run.partitions.len() as u64,
         created_at: run.created_at,
         nodes: if with_nodes {
-            instances.iter().map(node_view).collect()
+            instances
+                .iter()
+                .map(|i| {
+                    let mut v = node_view(i);
+                    if matches!(i.state, NodeState::Failed | NodeState::RetryScheduled) {
+                        v.error = d
+                            .store
+                            .get_doc(Collection::Errors, &i.id.to_string())
+                            .ok()
+                            .flatten();
+                    }
+                    v
+                })
+                .collect()
         } else {
             vec![]
         },
@@ -816,6 +832,7 @@ fn node_view(i: &NodeInstance) -> NodeView {
         state: i.state,
         attempt: i.attempt,
         last_cause: i.last_cause,
+        error: None,
         updated_at: i.updated_at,
     }
 }
@@ -1076,7 +1093,11 @@ fn list_artifacts(d: &Daemon, p: &ListArtifactsParams) -> ApiResult<ListArtifact
             .get_doc(Collection::Outputs, &i.id.to_string())
             .map_err(store_err)?
             .unwrap_or_default();
-        artifacts.extend(outs.iter().map(|o| artifact_view(&run, &i, o)));
+        artifacts.extend(
+            outs.iter()
+                .filter(|o| !o.removed)
+                .map(|o| artifact_view(&run, &i, o)),
+        );
     }
     Ok(ListArtifactsResult { artifacts })
 }

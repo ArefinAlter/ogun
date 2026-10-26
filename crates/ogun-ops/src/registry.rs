@@ -453,6 +453,12 @@ async fn run_core(
         "map" => blocking(job, simple::map).await,
         "join_metadata" => blocking(job, simple::join_metadata).await,
         "parse" => blocking(job, parse::parse).await,
+        "export" => {
+            let fut = crate::export::export(&job, env);
+            tokio::time::timeout(timeout, fut)
+                .await
+                .unwrap_or(Err(CoreFail::Cancelled))
+        }
         "filter" => blocking(job, records::filter).await,
         "partition" => blocking(job, records::partition).await,
         "file.copy" => blocking(job, files_ops::copy).await,

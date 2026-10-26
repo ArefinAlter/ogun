@@ -110,6 +110,12 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `credential.not_found` | `not_found` | no | No such local credential. |
 | `credential.name_taken` | `conflict` | no | A live credential already has that name. |
 | `secret.not_found` | `not_found` | no | A `secret_ref` names no stored secret. |
+| `connection.not_found` | `not_found` | no | No connection by that name (O-16). |
+| `agent.thread_not_found` | `not_found` | no | No such agent thread (O-17). |
+| `agent.not_available` | `unavailable` | no | The thread cannot call a model: offline, no consent for the provider, no key, a spend cap of zero or reached (O-17 section 7). |
+| `agent.secret_refused` | `invalid_request` | no | A message or instruction looks like a secret; it is refused, not masked (O-17 section 7). |
+| `agent.busy` | `conflict` | no | The thread is already answering. |
+| `agent.rate_limited` | `throttled` | yes | More than 20 sends a minute to one thread. |
 | `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
 | `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
 | `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |

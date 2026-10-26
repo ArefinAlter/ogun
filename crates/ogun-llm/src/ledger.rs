@@ -25,13 +25,18 @@ pub const GENESIS_BLAKE3: &str = "0000000000000000000000000000000000000000000000
 /// What the daemon records for one model call: the operator's `usage` line plus where it ran.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UsageRecord {
-    /// The run.
-    pub run_id: RunId,
+    /// The run, for a model operator's call. An agent thread's call (O-17) has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<RunId>,
+    /// The agent thread (`thr_...`) that made the call, when it was not a run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
     /// The workflow, when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_id: Option<WorkflowId>,
-    /// The node instance that made the call.
-    pub node_instance: NodeInstanceId,
+    /// The node instance that made the call, for a model operator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node_instance: Option<NodeInstanceId>,
     /// The operator reference, `name@major`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub op: Option<String>,
@@ -221,6 +226,7 @@ pub struct Ledger {
     head_blake3: String,
     total: Summary,
     by_run: HashMap<RunId, Summary>,
+    by_thread: HashMap<String, Summary>,
     by_workflow: HashMap<WorkflowId, Summary>,
     by_day: BTreeMap<String, Summary>,
 }
@@ -273,6 +279,7 @@ impl Ledger {
             head_blake3: GENESIS_BLAKE3.to_owned(),
             total: Summary::default(),
             by_run: HashMap::new(),
+            by_thread: HashMap::new(),
             by_workflow: HashMap::new(),
             by_day: BTreeMap::new(),
         };
@@ -286,7 +293,15 @@ impl Ledger {
         self.head_seq = e.seq;
         self.head_blake3.clone_from(&e.blake3);
         self.total.add(&e.usage);
-        self.by_run.entry(e.usage.run_id).or_default().add(&e.usage);
+        if let Some(run) = e.usage.run_id {
+            self.by_run.entry(run).or_default().add(&e.usage);
+        }
+        if let Some(thread) = &e.usage.thread_id {
+            self.by_thread
+                .entry(thread.clone())
+                .or_default()
+                .add(&e.usage);
+        }
         if let Some(wf) = e.usage.workflow_id {
             self.by_workflow.entry(wf).or_default().add(&e.usage);
         }
@@ -360,6 +375,12 @@ impl Ledger {
         self.by_run.get(run).copied().unwrap_or_default()
     }
 
+    /// Spend of one agent thread.
+    #[must_use]
+    pub fn by_thread(&self, thread: &str) -> Summary {
+        self.by_thread.get(thread).copied().unwrap_or_default()
+    }
+
     /// Spend of one workflow, over all its runs.
     #[must_use]
     pub fn by_workflow(&self, wf: &WorkflowId) -> Summary {
@@ -383,7 +404,7 @@ impl Ledger {
         Ok(verify_path(&self.path)?
             .entries
             .into_iter()
-            .filter(|e| &e.usage.run_id == run)
+            .filter(|e| e.usage.run_id.as_ref() == Some(run))
             .collect())
     }
 }
@@ -395,9 +416,10 @@ mod tests {
 
     fn usage(run: RunId, ni: NodeInstanceId, cost: u64) -> UsageRecord {
         UsageRecord {
-            run_id: run,
+            run_id: Some(run),
+            thread_id: None,
             workflow_id: None,
-            node_instance: ni,
+            node_instance: Some(ni),
             op: Some("llm.extract@1".into()),
             provider: "anthropic-sonnet".into(),
             model: "claude-sonnet-5-5".into(),

@@ -467,15 +467,14 @@ async fn acquire_live() {
     let (ctx, mut rx, _c) = context(Arc::new(NoSecrets));
     let url = std::env::var("OGUN_LIVE_URL")
         .unwrap_or_else(|_| "https://www.rfc-editor.org/rfc/rfc9309.txt".into());
+    // `OGUN_LIVE_CONFIG` replaces the whole configuration (a workflow node's `config`).
+    let config = std::env::var("OGUN_LIVE_CONFIG")
+        .ok()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_else(|| json!({"sources": [{"url": url}]}));
     let out = reg
         .run(
-            invocation(
-                "acquire@1",
-                &dir.path().join("s"),
-                json!({"sources": [{"url": url}]}),
-                vec![],
-                None,
-            ),
+            invocation("acquire@1", &dir.path().join("s"), config, vec![], None),
             ctx,
         )
         .await;

@@ -145,6 +145,7 @@ async fn step(
                 route: None,
                 artifact_id: imported.artifact_id.clone(),
                 committed_at: now,
+                removed: false,
             };
             let commit = || -> Result<(), ogun_store::StoreError> {
                 let writes = [DocWrite::put(

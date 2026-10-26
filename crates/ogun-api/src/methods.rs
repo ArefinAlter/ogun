@@ -11,7 +11,9 @@ use std::collections::BTreeMap;
 
 use ogun_ir::Severity;
 use ogun_run::{Cause, NodeState, RunState};
-use ogun_types::{ApprovalId, CredentialId, EdgeId, NodeInstanceId, RunId, Timestamp, WorkflowId};
+use ogun_types::{
+    ApprovalId, CredentialId, EdgeId, NodeInstanceId, OgunError, RunId, Timestamp, WorkflowId,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -400,6 +402,10 @@ pub struct NodeView {
     /// Last cause.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_cause: Option<Cause>,
+    /// The error of the last failed attempt: a registered code and a message that names no secret, URL query or
+    /// configuration value (O-00 section 5). Present on `runs.get` for a failed or retrying instance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<OgunError>,
     /// Last change.
     pub updated_at: Timestamp,
 }

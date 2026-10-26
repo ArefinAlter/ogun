@@ -139,6 +139,46 @@ pub const METHODS: &[MethodPolicy] = &[
     row(name::EDGES_LIST, ALL, false),
     row(name::SYNC_OFFER, SERVICE_OR_BRIDGE, true),
     row(name::SYNC_CHUNK, SERVICE_OR_BRIDGE, true),
+    // Studio's own engine (O-16, O-17). Reads may be relayed by a bridge; changes are a person's.
+    row("agent.models", PEOPLE_AND_AGENTS, false),
+    row("agent.tools", PEOPLE_AND_AGENTS, false),
+    row("agent.settings.get", HUMAN, false),
+    row("agent.settings.put", HUMAN, true),
+    row("agent.threads.list", HUMAN, false),
+    row("agent.threads.get", HUMAN, false),
+    row("agent.threads.create", HUMAN, true),
+    row("agent.threads.rename", HUMAN, true),
+    row("agent.threads.delete", HUMAN, true),
+    row("agent.access.set", HUMAN, true),
+    row("agent.send", HUMAN, true),
+    row("agent.stop", HUMAN, true),
+    row("agent.act", HUMAN, true),
+    row("agent.preview", HUMAN, false),
+    row("connections.list", PEOPLE_AND_AGENTS, false),
+    row("connections.put", HUMAN, true),
+    row("connections.delete", HUMAN, true),
+    row("connections.test", HUMAN, true),
+    row("runtime.get", HUMAN_OR_BRIDGE, false),
+    row("runtime.set", HUMAN, true),
+    row("runtime.reset", HUMAN, true),
+    row("scheduler.set_enabled", HUMAN, true),
+    row("environments.list", HUMAN_OR_BRIDGE, false),
+    row("sandbox.status", ALL, false),
+    row("evidence.get", HUMAN_OR_BRIDGE, false),
+    row("evidence.set", HUMAN, true),
+    row("storage.info", HUMAN_OR_BRIDGE, false),
+    row("storage.rules", HUMAN_OR_BRIDGE, false),
+    row("storage.set_rules", HUMAN, true),
+    row("storage.set_retention", HUMAN, true),
+    row("storage.cleanup_plan", HUMAN_OR_BRIDGE, false),
+    row("storage.cleanup", HUMAN, true),
+    row("storage.clear_caches", HUMAN, true),
+    row("ladder.get", HUMAN_OR_BRIDGE, false),
+    row("ladder.put", HUMAN, true),
+    row("bench.list", HUMAN, false),
+    row("bench.status", HUMAN, false),
+    row("bench.run", HUMAN, true),
+    row("bench.cancel", HUMAN, true),
 ];
 
 /// The row for a method.
@@ -259,6 +299,41 @@ mod tests {
                     .iter()
                     .any(|a| a == name::SECRETS_PUT),
                 "{kind}"
+            );
+        }
+    }
+
+    #[test]
+    fn agents_reach_no_studio_method_that_changes_anything_or_presses_a_button() {
+        let allowed = methods_for(Agent, true);
+        for m in &allowed {
+            if m.starts_with("agent.")
+                || m.starts_with("connections.")
+                || m.starts_with("storage.")
+                || m.starts_with("ladder.")
+            {
+                assert!(
+                    matches!(
+                        m.as_str(),
+                        "agent.models" | "agent.tools" | "connections.list"
+                    ),
+                    "an agent client may call {m}"
+                );
+            }
+        }
+        for m in [
+            "agent.act",
+            "agent.send",
+            "agent.settings.put",
+            "agent.access.set",
+            "connections.put",
+            "connections.test",
+            "storage.cleanup",
+            "runtime.set",
+        ] {
+            assert!(
+                !allowed.iter().any(|a| a == m),
+                "an agent client may call {m}"
             );
         }
     }

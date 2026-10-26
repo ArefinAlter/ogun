@@ -240,9 +240,7 @@ fn ready(
         return Ok(());
     }
     let here = running.get(node.id.as_str()).copied().unwrap_or(0);
-    if here >= node.policy.concurrency
-        || lock(&d.running).len() >= d.config.max_parallel_attempts as usize
-    {
+    if here >= node.policy.concurrency || lock(&d.running).len() >= d.studio.runtime.concurrency() {
         return Ok(());
     }
     let (ni, budget) = if kind(d, node) == Some(OpKind::Model) {
@@ -711,7 +709,7 @@ fn fail(
     retryable: bool,
     now: Timestamp,
 ) -> Result<(), ogun_store::StoreError> {
-    tracing::info!(instance = %ni.id, code = %error.code, retryable, attempt = ni.attempt, "attempt failed");
+    tracing::info!(instance = %ni.id, code = %error.code, message = %error.message, retryable, attempt = ni.attempt, "attempt failed");
     let err = DocWrite::put(Collection::Errors, ni.id.to_string(), &error)?;
     if retryable && ni.attempt <= node.policy.retries {
         let due = now
@@ -800,6 +798,7 @@ fn commit(
             route,
             artifact_id: artifact.id.to_string(),
             committed_at: Timestamp::now(),
+            removed: false,
         });
     }
     Ok(records)

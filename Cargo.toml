@@ -5,6 +5,7 @@ members = [
     "crates/ogun-platform",
     "crates/ogun-keystore",
     "crates/ogun-sandbox",
+    "crates/ogun-connectors",
     "crates/ogun-ir",
     "crates/ogun-run",
     "crates/ogun-sched",
@@ -30,7 +31,7 @@ members = [
 exclude = ["apps/studio"]
 
 [workspace.package]
-version = "0.0.1-alpha"
+version = "0.0.1-beta"
 edition = "2024"
 rust-version = "1.90"
 license = "Apache-2.0"
@@ -52,24 +53,26 @@ print_stderr = "warn"
 
 [workspace.dependencies]
 # ---- this workspace ----
-ogun-types = { path = "crates/ogun-types", version = "0.0.1-alpha" }
-ogun-platform = { path = "crates/ogun-platform", version = "0.0.1-alpha" }
-ogun-keystore = { path = "crates/ogun-keystore", version = "0.0.1-alpha" }
-ogun-ir = { path = "crates/ogun-ir", version = "0.0.1-alpha" }
-ogun-run = { path = "crates/ogun-run", version = "0.0.1-alpha" }
-ogun-sched = { path = "crates/ogun-sched", version = "0.0.1-alpha" }
-ogun-store = { path = "crates/ogun-store", version = "0.0.1-alpha" }
-ogun-stream = { path = "crates/ogun-stream", version = "0.0.1-alpha" }
-ogun-edge = { path = "crates/ogun-edge", version = "0.0.1-alpha" }
-ogun-api = { path = "crates/ogun-api", version = "0.0.1-alpha" }
-ogun-ops = { path = "crates/ogun-ops", version = "0.0.1-alpha" }
-ogun-daemon = { path = "crates/ogun-daemon", version = "0.0.1-alpha" }
-ogun-llm = { path = "crates/ogun-llm", version = "0.0.1-alpha" }
-ogun-sync = { path = "crates/ogun-sync", version = "0.0.1-alpha" }
-ogun-lsp = { path = "crates/ogun-lsp", version = "0.0.1-alpha" }
-ogun-lineage = { path = "crates/ogun-lineage", version = "0.0.1-alpha" }
-ogun-bench = { path = "crates/ogun-bench", version = "0.0.1-alpha" }
-ogun-zeus-bridge = { path = "crates/ogun-zeus-bridge", version = "0.0.1-alpha" }
+ogun-types = { path = "crates/ogun-types", version = "0.0.1-beta" }
+ogun-platform = { path = "crates/ogun-platform", version = "0.0.1-beta" }
+ogun-keystore = { path = "crates/ogun-keystore", version = "0.0.1-beta" }
+ogun-connectors = { path = "crates/ogun-connectors", version = "0.0.1-beta" }
+ogun-sandbox = { path = "crates/ogun-sandbox", version = "0.0.1-beta" }
+ogun-ir = { path = "crates/ogun-ir", version = "0.0.1-beta" }
+ogun-run = { path = "crates/ogun-run", version = "0.0.1-beta" }
+ogun-sched = { path = "crates/ogun-sched", version = "0.0.1-beta" }
+ogun-store = { path = "crates/ogun-store", version = "0.0.1-beta" }
+ogun-stream = { path = "crates/ogun-stream", version = "0.0.1-beta" }
+ogun-edge = { path = "crates/ogun-edge", version = "0.0.1-beta" }
+ogun-api = { path = "crates/ogun-api", version = "0.0.1-beta" }
+ogun-ops = { path = "crates/ogun-ops", version = "0.0.1-beta" }
+ogun-daemon = { path = "crates/ogun-daemon", version = "0.0.1-beta" }
+ogun-llm = { path = "crates/ogun-llm", version = "0.0.1-beta" }
+ogun-sync = { path = "crates/ogun-sync", version = "0.0.1-beta" }
+ogun-lsp = { path = "crates/ogun-lsp", version = "0.0.1-beta" }
+ogun-lineage = { path = "crates/ogun-lineage", version = "0.0.1-beta" }
+ogun-bench = { path = "crates/ogun-bench", version = "0.0.1-beta" }
+ogun-zeus-bridge = { path = "crates/ogun-zeus-bridge", version = "0.0.1-beta" }
 
 # ---- zeus-core, as a sibling checkout (ADR 0002; never the zeus app repository) ----
 zeus-types = { path = "../zeus-core/crates/zeus-types", version = "0.1.0" }
@@ -112,7 +115,7 @@ crossterm = "0.29"
 clap = { version = "4.6", features = ["derive", "env", "wrap_help"] }
 # ---- model providers (ogun-llm; same version line and TLS stack as the zeus app) ----
 # `rustls` (the default provider) for the model and sync clients; ogun-server installs ring for its listener.
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "rustls-no-provider", "http2", "json", "system-proxy"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "rustls-no-provider", "http2", "json", "stream", "system-proxy"] }
 url = { version = "2.5", features = ["serde"] }
 # ---- ingest bridge and edge sync (O-10, O-11); versions as in the zeus app workspace where it pins them ----
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
@@ -149,6 +152,8 @@ bytes = "1.12"
 scraper = "0.27"
 jsonpath-rust = "1.0"
 regex = "1.13"
+# SQLite for the `export` operator and connection tests (bundled: no system library needed).
+rusqlite = { version = "0.41", features = ["bundled"] }
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 tar = "0.4"
 flate2 = "1.1"

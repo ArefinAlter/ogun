@@ -15,12 +15,14 @@ pub mod exec;
 pub mod handlers;
 pub mod lineage;
 mod llm_budget;
+pub mod redact;
 pub mod sched;
 pub mod secrets;
 pub mod server;
 pub mod session;
 pub mod state;
 pub mod streams;
+pub mod studio;
 pub mod sync;
 pub mod webauthn;
 

@@ -11,6 +11,7 @@
 //! | `partition` | Splits JSON Lines inputs by a field, by UTC day or month of a time field, or into chunks of N rows. |
 //! | `map` | Metadata through the closed template set: `set`, `rename`, `remove`, `filename`. |
 //! | `join_metadata` | Adds the metadata (or JSON Lines rows) of one input node to the matching artifacts of the others. |
+//! | `export` | Delivers inputs to a connection: a directory, an S3-compatible bucket or a SQLite table (O-16). Needs `policy.approval: always`. |
 //! | `parse` | JSON (optionally the part at a JSON Pointer), CSV or JSON Lines documents into JSON Lines rows. |
 //! | `window.rollup` | Integer statistics per group over sealed window batches (O-09 section 6.1). |
 //! | `crawl` | Bounded same-origin crawl through zeus-core HTTP, robots.txt honoured, no session material. |
