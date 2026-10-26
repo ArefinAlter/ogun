@@ -1,4 +1,6 @@
-// Copies the web build into the ogun-site repository, where Vercel serves it at /studio/:
+// Copies the web build into the ogun-site repository, where Vercel served it at /studio/. Since release 0.0.1a ogun-site
+// redirects /studio/ to the hosted hub instead and keeps no copy, so this script is only needed to publish a static
+// build somewhere else:
 //
 //   npm run build:site && node scripts/publish-site.mjs ../../../../ogun-site
 //

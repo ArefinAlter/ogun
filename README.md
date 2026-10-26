@@ -32,7 +32,7 @@ Lifecycle: **acquire → materialize → verify → transform → organize → e
 | `zeus-core` | Shared engine library: types, control, filesystem, verification, journal, session protocol, HTTP, engine, artifact store (`zeus-artifact`) |
 | `zeus` | Zeus consumer app (`zeusd`, CLI and TUI, MCP, native host) and the normative Zeus specs |
 | `zeus-extension` | Zeus MV3 browser extension |
-| `ogun-site`, `zeus-site` | The product websites |
+| [`ogun-site`](https://github.com/ArefinAlter/ogun-site), `zeus-site` | The product websites: [ogun-site.vercel.app](https://ogun-site.vercel.app) and [zeus-site-bay.vercel.app](https://zeus-site-bay.vercel.app) |
 
 ## Editors, agents and data platforms
 

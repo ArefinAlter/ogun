@@ -52,7 +52,7 @@ grouped sidebar, a breadcrumb bar and a Ctrl+K command palette; nothing is fetch
 ```sh
 npm run demo                 # http://localhost:5173 on the scripted bike-share scenario (web/src/demo)
 npm run build:demo           # the same as a static build in dist-demo/; `npm run preview:demo` serves it on :4174
-npm run build:site           # the build the ogun-site project serves at /studio/ (no browser storage, strict CSP)
+npm run build:site           # a static build with no browser storage and a strict CSP (ogun-site no longer serves it: /studio/ redirects to the hosted hub)
 npm run build:desktop-demo:app   # the Tauri shell on the scripted backend, copied to <repo>/dist/desktop/
 ```
 
