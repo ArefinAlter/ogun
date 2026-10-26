@@ -179,6 +179,7 @@ pub const METHODS: &[MethodPolicy] = &[
     row("bench.status", HUMAN, false),
     row("bench.run", HUMAN, true),
     row("bench.cancel", HUMAN, true),
+    row("bench.replay", HUMAN, false),
 ];
 
 /// The row for a method.

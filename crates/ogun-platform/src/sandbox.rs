@@ -88,6 +88,9 @@ const CONTAINER_INHERIT_ACE: u8 = 0x02;
 #[derive(Debug, Deserialize)]
 struct Plan {
     scratch: String,
+    /// More folders the program may write (a benchmark's logs next to its workspace).
+    #[serde(default)]
+    read_write: Vec<String>,
     #[serde(default)]
     read_only: Vec<String>,
     #[serde(default)]
@@ -591,6 +594,19 @@ fn run(plan: &Plan, program: &OsStr, args: &[OsString]) -> io::Result<u32> {
     {
         warn(Path::new(&plan.scratch), &e);
     }
+    for p in &plan.read_write {
+        let path = Path::new(p);
+        if !path.is_dir() {
+            continue;
+        }
+        grant(path, sid.ptr, FILE_MODIFY, true)?;
+        if let Some(parent) = path.parent()
+            && !readable_by_every_package(parent)
+            && let Err(e) = grant(parent, sid.ptr, FILE_GENERIC_READ, false)
+        {
+            warn(path, &e);
+        }
+    }
     for p in &plan.read_only {
         let path = Path::new(p);
         if !path.exists() || readable_by_every_package(path) {
@@ -823,6 +839,7 @@ pub fn self_test() -> io::Result<()> {
     let system = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
     let plan = Plan {
         scratch: dir.display().to_string(),
+        read_write: vec![],
         read_only: vec![],
         network: false,
         memory_bytes: Some(256 << 20),

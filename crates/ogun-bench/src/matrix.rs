@@ -101,7 +101,7 @@ pub struct RunRow {
     pub files_touched: u64,
     /// From the result cache.
     pub cached: bool,
-    /// `container`, `local_netns` or `unisolated_local`.
+    /// `container`, `local_netns`, `local_appcontainer` or `unisolated_local`.
     pub isolation: String,
     /// Harness error code, for outcome `error`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -791,8 +791,18 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
             seeds: vec![1],
             environment: EnvironmentSpec {
                 runtime: Runtime::Local,
-                agent_network: NetworkPolicy::Denied,
-                evaluator_network: NetworkPolicy::Denied,
+                // PowerShell does not start in the Windows sandbox the local runtime would otherwise use
+                // (the sample suite's own test covers that path); here it runs unconfined.
+                agent_network: if cfg!(windows) {
+                    NetworkPolicy::Allowed
+                } else {
+                    NetworkPolicy::Denied
+                },
+                evaluator_network: if cfg!(windows) {
+                    NetworkPolicy::Allowed
+                } else {
+                    NetworkPolicy::Denied
+                },
                 allow_unisolated_local: true,
                 ..EnvironmentSpec::default()
             },

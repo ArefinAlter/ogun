@@ -2714,6 +2714,7 @@ dependencies = [
  "base64 0.23.1",
  "blake3",
  "clap",
+ "directories",
  "futures",
  "ogun-api",
  "ogun-connectors",
