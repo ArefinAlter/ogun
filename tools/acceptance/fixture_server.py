@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 import urllib.parse
+from fixture_providers import other_chat
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HITS = {}
@@ -225,6 +226,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, "{}")
         if p == "/v1/chat/completions" and method == "POST":
             return self.chat()
+        if p == "/anthropic/v1/messages" and method == "POST":
+            return other_chat(self, "anthropic", CHAT_KEY, CHAT, LOCK)
+        if p.startswith("/google/models/") and ":streamGenerateContent" in p and method == "POST":
+            return other_chat(self, "google", CHAT_KEY, CHAT, LOCK)
+        if p == "/ollama/api/chat" and method == "POST":
+            return other_chat(self, "ollama", CHAT_KEY, CHAT, LOCK)
         if p == "/v1/models":
             return self.reply(200, json.dumps({"data": [{"id": "acceptance-model"}]}))
         return self.reply(404, "not found", "text/plain")

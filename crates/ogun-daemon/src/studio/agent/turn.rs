@@ -35,7 +35,7 @@ const MAX_TRANSCRIPT_BYTES: usize = 300_000;
 const MAX_RESULT_CHARS: usize = 12_000;
 
 const IR_EXAMPLE: &str =
-    include_str!("../../../../../examples/starter/weather-daily.workflow.json");
+    include_str!("../../../../../examples/starter/earthquakes-daily.workflow.json");
 
 fn mention_text(mentions: &[Mention]) -> ApiResult<String> {
     if mentions.len() > MAX_MENTIONS {

@@ -98,6 +98,30 @@ export async function run({ ev, root, cleanDir, launch, sleep, waitFor, http, wo
   ev.check('a message that contains a key is refused', secretMsg.err && /secret/i.test(JSON.stringify(secretMsg.err)), JSON.stringify(secretMsg).slice(0, 200))
   ev.check('and neither reached the provider', !JSON.stringify(await requests()).includes('sk-ant-api03'))
 
+  // The other providers' wire formats (Anthropic Messages, Gemini streamGenerateContent, Ollama /api/chat), each
+  // against a local server that speaks it and checks its own authentication header.
+  const price = { input_per_mtok_usd_micro: 1000000, output_per_mtok_usd_micro: 2000000, max_output_tokens: 512 }
+  const three = [
+    { name: 'claude', kind: 'anthropic', base_url: `${fx}/anthropic`, model: 'claude-acceptance', api_key_secret: 'acc_chat_key', ...price },
+    { name: 'gemini', kind: 'google', base_url: `${fx}/google`, model: 'gemini-acceptance', api_key_secret: 'acc_chat_key', ...price },
+    { name: 'local', kind: 'ollama', base_url: `${fx}/ollama`, model: 'ollama-acceptance', ...price },
+  ]
+  await E('ladder.put', {
+    providers: [{ name: 'mock', kind: 'openai_compatible', base_url: `${fx}/v1`, model: 'acceptance-model', api_key_secret: 'acc_chat_key', ...price }, ...three],
+    idempotency_key: key(),
+  })
+  await E('agent.settings.put', { patch: { consented_providers: ['mock', 'claude', 'gemini', 'local'] }, idempotency_key: key() })
+  for (const p of three) {
+    const t = await E('agent.threads.create', { access: 'read', model: p.name })
+    const th = await turn(t.thread_id ?? t.thread?.thread_id, 'Please list workflows')
+    const seen = (await requests()).filter((r) => r.provider === p.kind)
+    const names = th.items.map((i) => i.kind + (i.tool ? ':' + i.tool + ':' + i.state : ''))
+    ev.save(`thread-${p.kind}.json`, { items: names, requests: seen })
+    ev.check(`${p.kind}: the thread called workflows.list and answered from the result`, names.includes('tool:workflows.list:ok') && th.items.some((i) => i.kind === 'assistant' && /Here is what I found/.test(i.text)), names.join(' | '))
+    ev.check(`${p.kind}: its own authentication was accepted and no key was in any body`, seen.length >= 2 && seen.every((r) => r.authorized && !r.has_key_in_body) && seen[0].tools.includes('workflows__list'), `${seen.length} requests`)
+    ev.check(`${p.kind}: usage from the stream reached the thread`, th.input_tokens > 0 && th.output_tokens > 0, `${th.input_tokens} in, ${th.output_tokens} out`)
+  }
+
   // Caps and the offline switch.
   const nBefore = (await requests()).length
   await E('agent.settings.put', { patch: { spend_cap_usd: 0 }, idempotency_key: key() })

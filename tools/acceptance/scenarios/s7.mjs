@@ -21,7 +21,8 @@ function filesUnder(dir, out = []) {
 }
 
 export async function run({ port, ev, exe, root, cleanDir, App, ps, sleep, waitFor, http, workflow, key, here }) {
-  const bin = join(exe, '..')
+  // ogun-server is not part of the installed app: the hub stack uses the release build's binaries.
+  const bin = process.env.OGUN_HUB_BIN ?? join(exe, '..')
   const appRoot = root + '-s7'
   cleanDir(appRoot)
   const hub = await new Hub({ root: root + '-hub', bin }).start()

@@ -121,7 +121,9 @@ export async function run({ ev, root, cleanDir, ps, sleep, waitFor, children, ki
     const r2 = a2.find((a) => a.node === 'rollup')
     const t2 = r2 ? await text(r2.blake3) : ''
     ev.save('rollup-revision.jsonl', t2)
-    const s1b = t2.split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((r) => r.station_id === 'S1')
+    const rows2 = t2.split('\n').filter(Boolean).map((l) => JSON.parse(l))
+    const s1b = rows2.find((r) => r.group?.station_id === 'S1')
+    const s2b = rows2.find((r) => r.group?.station_id === 'S2')
     ev.check('the revision counts six records for S1 (five and the late one) and still five for S2: the duplicate was not counted', s1b?.records === 6 && s2b?.records === 5, `S1 ${s1b?.records}, S2 ${s2b?.records}`)
   }
 
