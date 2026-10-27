@@ -149,15 +149,6 @@ fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 /// Marker file: the person chose the saved hub over Studio's own engine.
 const ACTIVE_HUB: &str = "active-hub";
 
-/// The hub a build links to when the person has chosen nothing: `OGUN_STUDIO_DEFAULT_HUB_URL` and
-/// `OGUN_STUDIO_DEFAULT_HUB_TOKEN` at build time. The pre-alpha release sets them to the hosted hub and its public
-/// sample token (shared sample data, reset every night); other builds leave them unset.
-fn builtin_hub() -> Option<HubLink> {
-    let url = option_env!("OGUN_STUDIO_DEFAULT_HUB_URL")?;
-    let token = option_env!("OGUN_STUDIO_DEFAULT_HUB_TOKEN")?;
-    HubLink::new(url, Zeroizing::new(token.to_owned()), None).ok()
-}
-
 impl Studio {
     /// Initial state. Desktop: Studio's own engine, started by [`Studio::start_engine`], is the default
     /// environment; a hub the person saved and chose is the other. Mobile: the hub saved last time, if any.

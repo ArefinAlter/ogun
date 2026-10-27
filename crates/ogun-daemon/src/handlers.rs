@@ -683,8 +683,14 @@ fn select_partitions(
             if *force {
                 return Ok(keys);
             }
-            let done = d.store.done_partitions(hash).map_err(store_err)?;
-            Ok(ogun_sched::plan(&keys, &done).to_run)
+            // Partitions another run is working on right now are left to it: starting them again would run the
+            // same work twice (a backfill resumed after a restart, then started again by hand).
+            let (done, running, _) = partition_states(d, &wf.workflow, hash)?;
+            Ok(ogun_sched::plan(&keys, &done)
+                .to_run
+                .into_iter()
+                .filter(|k| !running.contains(k))
+                .collect())
         }
     }
 }
@@ -754,7 +760,7 @@ pub fn start_run(
     let partitions = select_partitions(d, &wf, &v.workflow_hash, &p.partitions)?;
     if partitions.is_empty() {
         return Err(ApiError::invalid_params(
-            "every partition in the range is up to date; pass force to re-run",
+            "every partition in the range is up to date or already being worked on; pass force to run it again",
         ));
     }
     let now = Timestamp::now();

@@ -135,23 +135,28 @@ export class App {
   }
 
   async stop(kill = false) {
+    if (!kill && this.proc?.pid) {
+      // The window's close button: the shell's own close command (the page draws the close button). With
+      // keep_in_tray off the app exits and stops its engine; a person would wait a moment, so does this.
+      try {
+        await this.page?.evaluate(() => {
+          void window.__TAURI_INTERNALS__.invoke('plugin:window|close', { label: 'main' })
+        })
+      } catch {
+        /* the window may already be going */
+      }
+    }
     try {
       await this.browser?.close()
     } catch {
       /* ignore */
     }
     if (this.proc?.pid) {
-      if (kill) killPid(this.proc.pid)
-      else {
-        // The window's close button path: ask the shell to exit and wait for the engine to go with it.
-        try {
-          await this.page?.evaluate(() => window.close())
-        } catch {
-          /* ignore */
-        }
-        await sleep(1500)
-        if (alive(this.proc.pid)) killPid(this.proc.pid)
+      if (!kill) {
+        const end = Date.now() + 25000
+        while (alive(this.proc.pid) && Date.now() < end) await sleep(500)
       }
+      if (alive(this.proc.pid)) killPid(this.proc.pid)
     }
   }
 

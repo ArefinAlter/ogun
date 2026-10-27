@@ -20,7 +20,7 @@ function dirBytes(dir) {
   return n
 }
 
-export async function run({ ev, exe, root, cleanDir, App, launch, sleep, waitFor, http, workflow, key, FIXTURE_PORT }) {
+export async function run({ port, ev, exe, root, cleanDir, App, launch, sleep, waitFor, http, workflow, key, FIXTURE_PORT }) {
   cleanDir(root)
   let { app } = await launch(root)
   const E = (m, p = {}) => app.engine(m, p)
@@ -41,7 +41,7 @@ export async function run({ ev, exe, root, cleanDir, App, launch, sleep, waitFor
   // 1. Change settings in each section.
   await E('runtime.set', { patch: { concurrency: 6, retries: 1, approval_expiry_hours: 24 }, idempotency_key: key() })
   await E('evidence.set', { patch: { format: 'html', include_lineage: false }, idempotency_key: key() })
-  await E('agent.settings.put', { patch: { instructions: 'Answer briefly and name the workflow you mean.', spend_cap_usd: 0.5, day_cap_usd: 2, retention_days: 14 }, idempotency_key: key() })
+  await E('agent.settings.put', { patch: { instructions: 'Answer briefly and name the workflow you mean.', spend_cap_usd: 0.5, day_cap_usd: 2, retention_days: 30 }, idempotency_key: key() })
   await E('storage.set_rules', { patch: { retention_days: 30, delete_failed_after_days: 7, delete_partials_after_days: 7, clear_caches_after_days: 3, keep_lineage_referenced: true }, idempotency_key: key() })
   await app.invoke('shell_prefs_set', { prefs: { keep_in_tray: true } })
   // Appearance and keybindings (kept by the window itself).
@@ -64,7 +64,7 @@ export async function run({ ev, exe, root, cleanDir, App, launch, sleep, waitFor
   // 2. Restart and read everything back.
   await app.stop()
   await sleep(2500)
-  app = new App({ root, exe })
+  app = new App({ root, exe, port })
   await app.start()
   await app.waitEngine()
   const E2 = (m, p = {}) => app.engine(m, p)
@@ -77,7 +77,7 @@ export async function run({ ev, exe, root, cleanDir, App, launch, sleep, waitFor
   const runtime = rt.settings ?? rt.defaults ?? rt
   ev.check('run defaults persisted', JSON.stringify(rt).includes('"concurrency":6') && JSON.stringify(rt).includes('"approval_expiry_hours":24'), JSON.stringify(runtime).slice(0, 160))
   ev.check('evidence settings persisted', evd.format === 'html' && evd.include_lineage === false, JSON.stringify(evd))
-  ev.check('agent settings persisted (caps and standing instructions)', ag.spend_cap_usd === 0.5 && ag.day_cap_usd === 2 && /Answer briefly/.test(ag.instructions) && ag.retention_days === 14, JSON.stringify(ag).slice(0, 200))
+  ev.check('agent settings persisted (caps and standing instructions)', ag.spend_cap_usd === 0.5 && ag.day_cap_usd === 2 && /Answer briefly/.test(ag.instructions) && ag.retention_days === 30, JSON.stringify(ag).slice(0, 200))
   ev.check('storage rules persisted', sr.retention_days === 30 && sr.delete_failed_after_days === 7 && sr.clear_caches_after_days === 3, JSON.stringify(sr).slice(0, 240))
   ev.check('shell preference persisted', sp.keep_in_tray === true)
   const prefsAfter = await app.page.evaluate(() => window.localStorage.getItem('ogun-studio:prefs:v1'))
@@ -94,6 +94,8 @@ export async function run({ ev, exe, root, cleanDir, App, launch, sleep, waitFor
         return orig(b)
       }
     })
+    await app.goto('#/overview')
+    await sleep(600)
     await app.goto(`#/runs/${runId}`)
     await sleep(1500)
     await app.page.getByRole('button', { name: 'Download evidence' }).click()
@@ -112,7 +114,7 @@ export async function run({ ev, exe, root, cleanDir, App, launch, sleep, waitFor
   // 4. Storage: a plan, then a cleanup that removes real files. Runs look 40 days old under the hook.
   await app.stop()
   await sleep(2500)
-  app = new App({ root, exe, env: { OGUN_STORAGE_CLOCK_OFFSET_DAYS: '40' } })
+  app = new App({ root, exe, port, env: { OGUN_STORAGE_CLOCK_OFFSET_DAYS: '40' } })
   await app.start()
   await app.waitEngine()
   const E3 = (m, p = {}) => app.engine(m, p)

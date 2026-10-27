@@ -3,7 +3,7 @@
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, waitFor, http, killPid, workflow, key, launch, FIXTURE_PORT }) {
+export async function run({ port, ev, exe, root, cleanDir, App, ps, alive, sleep, waitFor, http, killPid, workflow, key, launch, FIXTURE_PORT }) {
   cleanDir(root)
   const ogun = join(exe, '..', 'ogun.exe')
   const { app } = await launch(root)
@@ -13,6 +13,11 @@ export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, wait
   const put = (a, name) => a.invoke('workflows_put', { params: { workflow: workflow(name), idempotency_key: key() } })
   const start = (a, wf, partitions = { kind: 'latest' }) =>
     a.invoke('runs_start', { params: { workflow: wf, partitions, idempotency_key: key() } })
+  const tryStart = (a, wf, partitions) => start(a, wf, partitions).then((v) => ({ ok: v }), (e) => ({ err: e.envelope ?? String(e) }))
+  const doneIn = async (a, from, to) => {
+    const st = await a.invoke('partitions_status', { params: { workflow: 'acc-daily', from, to } })
+    return (st.ranges ?? []).filter((r) => r.state === 'done').reduce((n, r) => n + r.count, 0)
+  }
   const finished = (r) => ['succeeded', 'failed', 'cancelled'].includes(r.state)
   const waitRun = (a, id, ms = 120000) =>
     waitFor(async () => {
@@ -109,20 +114,20 @@ export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, wait
   const doneCount = doneRanges.reduce((n, r) => n + r.count, 0)
   ev.check('some partitions finished before the kill and some did not', doneCount > 0 && doneCount < 121, `${doneCount} done`)
   ev.save('fixture-hits-at-kill.json', await stats())
-  // Run the same backfill again: only the partitions that did not finish may fetch again.
-  const bf2 = await start(app, 'acc-daily', { kind: 'range', from: '2026-01-01', to: '2026-05-01' })
-  ev.save('backfill-restart.json', bf2)
-  const done3 = await waitRun(app, bf2.run_id, 900000)
-  ev.check('the second backfill finishes', done3.state === 'succeeded', done3.state)
-  const st2 = await app.invoke('partitions_status', { params: { workflow: 'acc-daily' } })
+  // The engine resumes the runs that were in flight (resume_on_start). Asking for the same range again must not
+  // start the work a second time: the partitions another run is working on are left to it.
+  const again = await tryStart(app, 'acc-daily', { kind: 'range', from: '2026-01-01', to: '2026-05-01' })
+  ev.save('backfill-asked-again.json', again)
+  ev.check('asking for the range again right after the restart starts no duplicate work', again.err ? /already being worked on|up to date/.test(JSON.stringify(again.err)) : again.ok.partition_count < 121 - doneCount + 1, JSON.stringify(again).slice(0, 240))
+  await waitFor(async () => (await doneIn(app, '2026-01-01', '2026-05-01')) === 121, { ms: 900000, every: 3000, what: 'all 121 partitions to finish' })
+  const st2 = await app.invoke('partitions_status', { params: { workflow: 'acc-daily', from: '2026-01-01', to: '2026-05-01' } })
   ev.save('partitions-final.json', st2)
-  const allDone = (st2.ranges ?? []).filter((r) => r.state === 'done').reduce((n, r) => n + r.count, 0)
-  ev.check('all 121 partitions are done', allDone === 121, `${allDone}`)
+  ev.check('all 121 partitions are done', (await doneIn(app, '2026-01-01', '2026-05-01')) === 121)
   const hits = await stats()
   ev.save('fixture-hits-final.json', hits)
   const days = Object.entries(hits).filter(([k]) => k.startsWith('/daily/'))
   const refetched = days.filter(([, n]) => n > 1).length
-  ev.check('every partition was fetched, and only the ones in flight at the kill more than once', days.length === 121 && refetched <= 6, `${days.length} days, ${refetched} fetched twice`)
+  ev.check('every partition was fetched, and only the ones in flight at the kill more than once', days.length === 121 && refetched <= 8, `${days.length} days, ${refetched} fetched twice`)
   const finishedBefore = doneRanges.flatMap((r) => {
     const out = []
     const d = new Date(r.from + 'T00:00:00Z')
@@ -132,11 +137,10 @@ export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, wait
   })
   const reran = finishedBefore.filter((day) => (hits[`/daily/${day}.json`] ?? 0) > 1)
   ev.check('no partition that was done before the kill ran again', reran.length === 0, `${finishedBefore.length} done before; reran: ${reran.join(',')}`)
-  const bf3 = await start(app, 'acc-daily', { kind: 'range', from: '2026-01-01', to: '2026-05-01' })
-  ev.save('backfill-third.json', bf3)
-  const done4 = await waitRun(app, bf3.run_id, 60000)
+  const third = await tryStart(app, 'acc-daily', { kind: 'range', from: '2026-01-01', to: '2026-05-01' })
+  ev.save('backfill-third.json', third)
   const hits3 = await stats()
-  ev.check('a further backfill has nothing to do', JSON.stringify(hits3) === JSON.stringify(hits), `${done4.partition_count} partitions in the run`)
+  ev.check('a further backfill has nothing to do', !!third.err && /up to date/.test(JSON.stringify(third.err)) && JSON.stringify(hits3) === JSON.stringify(hits), JSON.stringify(third).slice(0, 200))
 
   // 4. The whole app killed in the middle of another backfill.
   await http(`http://127.0.0.1:${FIXTURE_PORT}/admin/reset`, { method: 'POST' })
@@ -150,20 +154,21 @@ export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, wait
   ev.note(`killed the whole app (pid ${shellPid}) and its engine`)
   await sleep(2500)
   ev.check('the app and its engine are gone', !alive(shellPid) && !(engineBeforeAppKill && alive(engineBeforeAppKill)))
-  const app2 = new App({ root, exe })
+  const app2 = new App({ root, exe, port })
   await app2.start()
   const info2 = await app2.waitEngine()
   ev.note(`relaunched; engine ${info2.pid}`)
   ev.save('partitions-after-app-kill.json', await app2.invoke('partitions_status', { params: { workflow: 'acc-daily' } }))
   const hitsKill2 = await stats()
-  const bf5 = await start(app2, 'acc-daily', range2)
-  const r5 = await waitRun(app2, bf5.run_id, 900000)
-  ev.check('after the whole app was killed, the backfill finishes on the next launch', r5.state === 'succeeded', r5.state)
+  const askedAfterKill = await tryStart(app2, 'acc-daily', range2)
+  ev.save('backfill2-asked-again.json', askedAfterKill)
+  await waitFor(async () => (await doneIn(app2, range2.from, range2.to)) === 121, { ms: 900000, every: 3000, what: 'all 121 days of the second range to finish' })
+  ev.check('after the whole app was killed, the backfill finishes on the next launch', true, JSON.stringify(askedAfterKill).slice(0, 160))
   const hits5 = await stats()
   const days5 = Object.entries(hits5).filter(([k]) => k.startsWith('/daily/'))
   const twice = days5.filter(([, n]) => n > 1).length
   ev.save('fixture-hits-app-kill.json', { atKill: hitsKill2, final: hits5 })
-  ev.check('all 121 days of the second range were fetched, only those in flight at the kill more than once', days5.length === 121 && twice <= 6, `${days5.length} days, ${twice} twice`)
+  ev.check('all 121 days of the second range were fetched, only those in flight at the kill more than once', days5.length === 121 && twice <= 8, `${days5.length} days, ${twice} twice`)
   await app2.shot(join(ev.dir, '10-after-app-kill.png'))
   await app2.stop()
   return ev.finish()

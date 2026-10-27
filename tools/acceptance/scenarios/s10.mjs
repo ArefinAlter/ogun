@@ -5,7 +5,7 @@
 // nothing of the app's own stores.
 import { createServer } from 'node:net'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export async function run({ ev, exe, root, cleanDir, launch, sleep, waitFor, key }) {
@@ -53,6 +53,7 @@ export async function run({ ev, exe, root, cleanDir, launch, sleep, waitFor, key
     env: { ...process.env, PROBE_ADDR: `127.0.0.1:${l.address().port}` },
     encoding: 'utf8',
   })
+  await sleep(500)
   const answer = existsSync(join(ws, 'answer.txt')) ? readFileSync(join(ws, 'answer.txt'), 'utf8').trim() : ''
   ev.check('control: outside the sandbox the same script reaches the listener and answers "reachable"', c.status === 0 && answer === 'reachable' && hits >= 1, `answer ${answer}, hits ${hits}`)
   l.close()
@@ -71,7 +72,8 @@ export async function run({ ev, exe, root, cleanDir, launch, sleep, waitFor, key
   ev.check('its files are outside the engine state directory', existsSync(benchRoot) && !benchRoot.startsWith(join(root, 'home')), benchRoot)
   const refuse = spawnSync(bench, ['--state-dir', join(root, 'home', 'profiles', 'studio', 'bench'), 'sample-matrix', '--dir', join(root, 'x')], { env: { ...process.env, OGUN_HOME: join(root, 'home') }, encoding: 'utf8' })
   void refuse
-  const runWithin = spawnSync(bench, ['--state-dir', join(root, 'home', 'profiles', 'studio', 'inside'), 'run', '--matrix', join(benchRoot, 'runs', started.id, 'matrix.json'), '--out', join(root, 'x-out')], { env: { ...process.env, OGUN_HOME: join(root, 'home') }, encoding: 'utf8' })
+  const matrixPath = readdirSync(benchRoot).map((d) => join(benchRoot, d, 'runs', started.id, 'matrix.json')).find((p) => existsSync(p))
+  const runWithin = spawnSync(bench, ['--state-dir', join(root, 'home', 'profiles', 'studio', 'inside'), 'run', '--matrix', matrixPath, '--out', join(root, 'x-out')], { env: { ...process.env, OGUN_HOME: join(root, 'home') }, encoding: 'utf8' })
   ev.save('bench-inside-state-refused.txt', `exit ${runWithin.status}\n${runWithin.stderr.slice(0, 600)}`)
   ev.check('and a benchmark pointed at a state directory inside the engine state is refused', runWithin.status !== 0 && /overlap|isolat/i.test(runWithin.stderr), runWithin.stderr.slice(0, 200))
 

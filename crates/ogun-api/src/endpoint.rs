@@ -95,11 +95,15 @@ impl OgunPaths {
             Some(p) => format!("ogund-{p}.sock"),
             None => "ogund.sock".to_owned(),
         };
-        let identity = format!(
-            "{}|{}",
-            self.state_dir.display(),
-            self.profile.as_deref().unwrap_or("")
-        );
+        // The same folder is one daemon however a configuration spells it: on Windows `D:/ogun/home` and
+        // `d:\ogun\home` name one pipe.
+        let dir = self.state_dir.display().to_string();
+        let dir = if cfg!(windows) {
+            dir.replace('/', "\\").to_lowercase()
+        } else {
+            dir
+        };
+        let identity = format!("{dir}|{}", self.profile.as_deref().unwrap_or(""));
         let digest = blake3::hash(identity.as_bytes()).to_hex();
         if cfg!(windows) {
             return Endpoint::NamedPipe(format!(r"\\.\pipe\ogund-{}", &digest.as_str()[..16]));
@@ -174,6 +178,18 @@ impl OgunPaths {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn two_spellings_of_one_folder_share_a_pipe() {
+        let a = OgunPaths::rooted(Path::new(r"D:\ogun\home"), Some("p"));
+        let b = OgunPaths::rooted(Path::new("D:/ogun/home"), Some("p"));
+        let c = OgunPaths::rooted(Path::new(r"d:\OGUN\Home"), Some("p"));
+        assert_eq!(a.endpoint(), b.endpoint());
+        assert_eq!(a.endpoint(), c.endpoint());
+        let other = OgunPaths::rooted(Path::new(r"D:\ogun\other"), Some("p"));
+        assert_ne!(a.endpoint(), other.endpoint());
+    }
 
     #[test]
     fn rooted_paths_and_profiles_are_separate() {

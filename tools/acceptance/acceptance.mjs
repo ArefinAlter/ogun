@@ -26,6 +26,7 @@ const exe = opt('exe', 'D:\\verne-build\\ogun\\cargo-target\\debug\\ogun-studio.
 const root = opt('root', 'D:\\verne-build\\ogun\\acc\\run')
 const out = opt('out', 'D:\\verne-build\\ogun\\evidence')
 const FIXTURE_PORT = 38417
+const port = Number(opt('port', '9223'))
 
 mkdirSync(out, { recursive: true })
 
@@ -75,8 +76,9 @@ const ctx = {
   waitFor,
   workflow: (name) => JSON.parse(readFileSync(join(here, 'workflows', name), 'utf8')),
   key: () => 'acc-' + Math.random().toString(36).slice(2, 12),
+  port,
   async launch(dir = root) {
-    const app = new App({ root: dir, exe })
+    const app = new App({ root: dir, exe, port })
     await app.start()
     const info = await app.waitEngine()
     ev.note(`app pid ${app.pid}, engine ${JSON.stringify(info).slice(0, 200)}`)

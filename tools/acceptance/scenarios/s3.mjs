@@ -71,8 +71,9 @@ export async function run({ ev, root, cleanDir, ps, sleep, waitFor, children, ki
   // A partial last line is not read until it is complete.
   appendFileSync(file, '{"station_id":"S1","seq":9001,"ts_ms":' + (T0 + 5000))
   // An event far ahead moves the watermark past the three windows.
-  appendFileSync(file, '\n' + line('S1', T0 + 10 * 60000, 7, 5000))
-  ev.note('producer appended 30 records across 3 windows, a partial line and one far-ahead record')
+  // The watermark is the minimum over active keys of the newest event time minus max_delay: every key moves ahead.
+  appendFileSync(file, '\n' + line('S1', T0 + 10 * 60000, 7, 5000) + line('S2', T0 + 10 * 60000 + 500, 8, 5001))
+  ev.note('producer appended 30 records across 3 windows, a broken line and a far-ahead record per station')
   const sealed = await waitFor(async () => {
     const r = await runs('acc-stream')
     return r.length >= 3 ? r : null
@@ -94,8 +95,8 @@ export async function run({ ev, root, cleanDir, ps, sleep, waitFor, children, ki
   const rollupArt = arts.find((a) => a.node === 'rollup')
   const rollupText = rollupArt ? await text(rollupArt.blake3) : ''
   ev.save('rollup-first-window.jsonl', rollupText)
-  const s1 = rollupText.split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((r) => r.station_id === 'S1')
-  ev.check('the first window rolled up its five records for station S1 and no more', s1 && JSON.stringify(s1).includes('"count":5'), JSON.stringify(s1))
+  const s1 = rollupText.split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((r) => r.group?.station_id === 'S1')
+  ev.check('the first window rolled up its five records for station S1 and no more', s1 && s1.records === 5 && s1.fields.bikes.sum === 35, JSON.stringify(s1))
   const hitsAfter = (await app.invoke('partitions_status', { params: { workflow: 'acc-stream' } }))
   ev.save('stream-partitions.json', hitsAfter)
 
@@ -103,7 +104,7 @@ export async function run({ ev, root, cleanDir, ps, sleep, waitFor, children, ki
   const before = (await runs('acc-stream')).length
   appendFileSync(file, line('S1', T0 + 30000, 99))
   // A duplicate of a record already ingested (same station and seq) must not count twice.
-  appendFileSync(file, line('S2', T0 + 500, 10, 1))
+  appendFileSync(file, line('S2', T0 + 500, 10, 2))
   ev.note('producer appended one late record for the first window and one duplicate')
   const revised = await waitFor(async () => {
     const r = await runs('acc-stream')
@@ -121,7 +122,7 @@ export async function run({ ev, root, cleanDir, ps, sleep, waitFor, children, ki
     const t2 = r2 ? await text(r2.blake3) : ''
     ev.save('rollup-revision.jsonl', t2)
     const s1b = t2.split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((r) => r.station_id === 'S1')
-    ev.check('the revision counts six records for S1 (five and the late one), and the duplicate was not counted', s1b && JSON.stringify(s1b).includes('"count":6'), JSON.stringify(s1b))
+    ev.check('the revision counts six records for S1 (five and the late one) and still five for S2: the duplicate was not counted', s1b?.records === 6 && s2b?.records === 5, `S1 ${s1b?.records}, S2 ${s2b?.records}`)
   }
 
   // The ingest bridge dies; the app restarts it and the stream carries on without repeating records.
@@ -137,7 +138,7 @@ export async function run({ ev, root, cleanDir, ps, sleep, waitFor, children, ki
   const countBefore = (await runs('acc-stream')).length
   appendFileSync(file, line('S2', T0 + 2 * 60000 + 59000, 3))
   await sleep(15000)
-  appendFileSync(file, line('S1', T0 + 11 * 60000, 8))
+  appendFileSync(file, line('S1', T0 + 11 * 60000, 8) + line('S2', T0 + 11 * 60000 + 500, 9))
   const afterRestart = await waitFor(async () => {
     const r = await runs('acc-stream')
     return r.length > countBefore ? r : null

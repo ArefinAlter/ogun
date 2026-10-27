@@ -161,7 +161,22 @@ fn bench_exe() -> ApiResult<PathBuf> {
 /// The few variables the harness itself needs. The agents it runs get an even smaller set of their own.
 fn harness_env(cmd: &mut Command, home: &Path, root: &Path) {
     cmd.env_clear();
-    for k in ["SystemRoot", "windir", "PATH", "LANG", "TMPDIR"] {
+    // A few folders the Windows sandbox helper and the harness need to make scratch space and find the person's own
+    // profile; none of them holds a secret, and the agents the harness starts get none of these (their environment
+    // is built from an explicit list).
+    for k in [
+        "SystemRoot",
+        "windir",
+        "PATH",
+        "LANG",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "LOCALAPPDATA",
+        "APPDATA",
+        "USERPROFILE",
+        "ProgramData",
+    ] {
         if let Ok(v) = std::env::var(k) {
             cmd.env(k, v);
         }

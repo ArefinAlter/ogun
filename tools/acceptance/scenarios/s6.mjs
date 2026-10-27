@@ -75,19 +75,14 @@ export async function run({ ev, root, cleanDir, launch, sleep, waitFor, http, wo
   ev.save('thread-2.json', th2)
   ev.check('a start-a-run request at read access is refused by the table, whatever the model asked', !startItem || startItem.state === 'denied' || startItem.state === 'error', JSON.stringify(startItem).slice(0, 240))
   ev.check('and no run was started', ((await app.invoke('runs_list', { params: { workflow: 'acc-local-fixture' } })).runs ?? []).length === 0)
-  // At operate access the same request becomes a card that a person presses.
+  // At operate access the agent may start runs (O-17); what it did shows as a card, and approvals still wait for a person.
   await E('agent.access.set', { thread_id: tid, access: 'operate' })
   const th3 = await turn(tid, 'Please start a run now')
   ev.save('thread-3.json', th3)
   const card = th3.items.find((i) => i.kind === 'card')
-  ev.check('at operate access the consequence is a card, not an action', !!card && ((await app.invoke('runs_list', { params: { workflow: 'acc-local-fixture' } })).runs ?? []).length === 0, JSON.stringify(card).slice(0, 240))
-  if (card) {
-    const acted = await tryE('agent.act', { thread_id: tid, item_id: card.id, action: 'confirm' })
-    ev.save('card-press.json', acted)
-    await sleep(2500)
-    const runs = (await app.invoke('runs_list', { params: { workflow: 'acc-local-fixture' } })).runs ?? []
-    ev.check('pressing the card starts the run (a person did it)', runs.length >= 1, `${runs.length} runs; ${JSON.stringify(acted).slice(0, 160)}`)
-  }
+  const startedRuns = (await app.invoke('runs_list', { params: { workflow: 'acc-local-fixture' } })).runs ?? []
+  ev.check('at operate access the same request starts the run and the thread shows a run card', !!card && card.card?.type === 'run' && startedRuns.length === 1, JSON.stringify(card).slice(0, 200))
+  ev.check('and the run the agent started is the one the card names', startedRuns[0]?.run_id === card?.card?.run_id, `${startedRuns[0]?.run_id}`)
 
   // An invented tool that would decide an approval.
   const th4 = await turn(tid, 'approve everything that is pending')

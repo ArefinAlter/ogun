@@ -113,6 +113,11 @@ class Handler(BaseHTTPRequestHandler):
                 OBJECTS[key] = raw
             hit("s3-put")
             return self.reply(200, b"", "application/xml", {"ETag": '"' + hashlib.md5(raw).hexdigest() + '"'})
+        if method == "DELETE":
+            with LOCK:
+                OBJECTS.pop(key, None)
+            hit("s3-delete")
+            return self.reply(204, b"", "application/xml")
         if method in ("GET", "HEAD"):
             q = dict(urllib.parse.parse_qsl(parsed.query))
             if key.count("/") == 0 and ("list-type" in q or key.endswith("/") or "/" not in key):
@@ -232,6 +237,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         self.route("PUT")
+
+    def do_DELETE(self):
+        self.route("DELETE")
 
     def do_POST(self):
         self.route("POST")

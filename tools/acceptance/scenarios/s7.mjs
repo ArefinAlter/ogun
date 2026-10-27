@@ -20,7 +20,7 @@ function filesUnder(dir, out = []) {
   return out
 }
 
-export async function run({ ev, exe, root, cleanDir, App, ps, sleep, waitFor, http, workflow, key, here }) {
+export async function run({ port, ev, exe, root, cleanDir, App, ps, sleep, waitFor, http, workflow, key, here }) {
   const bin = join(exe, '..')
   const appRoot = root + '-s7'
   cleanDir(appRoot)
@@ -34,7 +34,7 @@ export async function run({ ev, exe, root, cleanDir, App, ps, sleep, waitFor, ht
   ev.check('the owner and a viewer enrolled through the hub invitations', true)
 
   const urlFile = join(appRoot, 'signin-url.txt')
-  const app = new App({ root: appRoot, exe, env: { OGUN_STUDIO_SIGNIN_URL_FILE: urlFile } })
+  const app = new App({ root: appRoot, exe, port, env: { OGUN_STUDIO_SIGNIN_URL_FILE: urlFile } })
   await app.start()
   await app.waitEngine()
 

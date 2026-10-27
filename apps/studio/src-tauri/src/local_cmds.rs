@@ -31,6 +31,7 @@ pub const ENGINE_METHODS: &[&str] = &[
     "agent.send",
     "agent.stop",
     "agent.act",
+    "agent.preview",
     "connections.list",
     "connections.put",
     "connections.delete",

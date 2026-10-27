@@ -4,7 +4,7 @@ import { readdirSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
-export async function run({ ev, exe, root, here, cleanDir, App, ps, alive, sleep, launch }) {
+export async function run({ port, ev, exe, root, here, cleanDir, App, ps, alive, sleep, launch }) {
   cleanDir(root)
   const { app, info } = await launch(root)
   ev.save('engine_info.json', info)
@@ -62,7 +62,7 @@ export async function run({ ev, exe, root, here, cleanDir, App, ps, alive, sleep
   await sleep(3000)
   ev.check('closing the app stops the engine', !alive(eng.pid), `engine pid ${eng.pid}`)
   ev.check('and the app itself', !alive(shellPid))
-  const app2 = new App({ root, exe })
+  const app2 = new App({ root, exe, port })
   await app2.start()
   const info2 = await app2.waitEngine()
   ev.check('a second launch starts a new engine', info2.pid !== info.pid)
