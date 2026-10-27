@@ -14,12 +14,13 @@ row says so.
   debugging port (Playwright over CDP) and calls the engine through the app's own commands (webview, shell, named pipe,
   `ogund`), the path the screens use. It takes screenshots of the real window.
 - **Real inputs.** A local fixture server (`fixture_server.py`, loopback, dual stack, `fixture.localtest.me`) stands in
-  for HTTP sources, an S3-compatible store that checks AWS Signature V4, and an OpenAI-compatible model endpoint. The public
-  GitHub REST API is used for real in scenario 2.
+  for HTTP sources, an S3-compatible store that checks AWS Signature V4, and model endpoints in four wire formats
+  (OpenAI-compatible, Anthropic Messages, Gemini, Ollama). The public GitHub REST API and the USGS earthquake catalogue are
+  used for real in scenario 2.
 - **Stand-ins, named.** The identity provider in scenario 7 is `idp_mock.py`, which behaves like Dex for a public client
   (authorization code with PKCE S256, loopback redirect, refresh-token rotation, ES256 ID tokens). It is not Dex. The hub is a
-  real `ogun-server` with a real `ogund`. The model provider in scenario 6 is a local server that speaks the OpenAI chat
-  completions wire format. No model API key exists on the build machine, so **no live provider was called**.
+  real `ogun-server` with a real `ogund`. The model providers in scenario 6 are local servers that speak each provider's wire format
+  as its public documentation describes it. No model API key exists on the build machine, so **no live provider was called**.
 - **One hook.** Scenario 9 makes runs look 40 days old with `OGUN_STORAGE_CLOCK_OFFSET_DAYS=40` so the retention rules have
   something to act on; the removal that follows is real (bytes leave the artifact store on disk).
 - **Machine.** Windows 11 Pro, 16 logical CPUs shared with other builds, so timings in the evidence are slow and not a
@@ -29,8 +30,14 @@ row says so.
 
 ### The ten scenarios
 
-Run against the **installed release build** (NSIS installer unpacked silently into a scratch folder; version 0.0.1-beta) on
-2026-10-27, one scenario after another. "Passed" means every check of the scenario passed; "with limits" says what the
+Run against the **installed release build** (the NSIS installer, run silently into a scratch folder; engine version
+`0.0.1-beta`) on 2026-10-27, one scenario after another. The run was made twice. A first pass used an earlier installer
+(built shortly before commit `957ec5a`; all ten scenarios passed). The pass reported here used the installer that is published, built
+from commit `28e214b`; the commits after it change documentation and release packaging text only. In the final pass the
+GitHub check of scenario 2 first failed with `http.status_403`: the public API allows 60 unauthenticated requests an hour
+per address and this address's allowance was used up (the address is shared with other work). The evidence of that attempt is kept
+(`docs/acceptance-0.0.1b/s2-first-attempt-http403.json` and `s2b-first-attempt-http403.json`), and scenarios 2 and 2b were run again once the limit had reset. The numbers in the table
+are from the final pass. "Passed" means every check of the scenario passed; "with limits" says what the
 checks stand in for. The files `docs/acceptance-0.0.1b/<scenario>.json` hold each scenario's checks as the run wrote them; four
 screenshots from the run are in `docs/images/acceptance-0.0.1b-*.png`.
 
@@ -47,9 +54,9 @@ screenshots from the run are in `docs/images/acceptance-0.0.1b-*.png`.
 | 9 | Settings, evidence bundle, storage rules and cleanup | Passed (16/16) | Runs were made to look 40 days old with `OGUN_STORAGE_CLOCK_OFFSET_DAYS=40`; the removal of bytes from the artifact store is real. Keybinding recording was not driven; the appearance setting and its persistence were. |
 | 10 | Benchmarks from the app | Passed (13/13) | The sample suite only: scripted agents, not models. A Docker runtime also answered on this machine but was not used. Harbor, Spider 2.0-DBT and ADE-bench adapters exist in the engine and are not offered in Studio. |
 
-Beyond the ten scenarios: the Linux AppImage was started headless (Xvfb) from a scratch home: the window opened, its own `ogund`
-and `ogun-ingest` started, a screenshot was taken, and the engine stopped when the app was closed. The `.deb` was inspected
-(`dpkg -I`, `dpkg -c`). No scenario was driven through the Linux build.
+Beyond the ten scenarios: the published Linux AppImage was started headless (Xvfb, Ubuntu 22.04 under WSL) from a scratch
+home: the window opened and a screenshot was taken, its own `ogund` and `ogun-ingest` started, and the engine stopped when
+the app was closed. The `.deb` was inspected (`dpkg -I`, `dpkg -c`). No scenario was driven through the Linux build.
 
 ### What the acceptance run found and fixed
 
@@ -114,6 +121,17 @@ Screenshots: 01-empty-workspace.png, 01b-after-sample-button.png, 02-after-sampl
 | all 121 days of the second range were fetched, only those in flight at the kill more than once | pass |
 
 Screenshots: 10-after-app-kill.png
+
+### s2b (second part of scenario 2): 6 of 6 checks passed
+
+| Check | Result |
+|---|---|
+| the GitHub releases workflow runs against the real API | pass |
+| the fetched document is GitHub JSON that names the v0.0.1a release | pass |
+| parse made one row per release | pass |
+| the earthquakes workflow runs three daily partitions against the real USGS API | pass |
+| three documents came back, and they are USGS GeoJSON | pass |
+| the three partitions are done | pass |
 
 ### s3: 14 of 14 checks passed
 
@@ -328,5 +346,4 @@ Screenshots: 09-appearance.png, 09-storage.png
 | and a benchmark pointed at a state directory inside the engine state is refused | pass |
 
 Screenshots: 10-benchmarks-after.png, 10-benchmarks-before.png
-
 

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "the GitHub releases workflow runs against the real API",
+    "ok": false,
+    "detail": "failed [{\"class\":\"permanent\",\"code\":\"op.fetch_refused\",\"details\":{\"zeus_class\":\"permanent\",\"zeus_code\":\"http.status_403\"},\"message\":\"download 1 (https://api.github.com/repos/ArefinAlter/ogun/releases?…): http.status_403 (permanent)\",\"retryable\":false}]"
+  },
+  {
+    "name": "the earthquakes workflow runs three daily partitions against the real USGS API",
+    "ok": true,
+    "detail": "succeeded []"
+  },
+  {
+    "name": "three documents came back, and they are USGS GeoJSON",
+    "ok": true,
+    "detail": "3 fetched"
+  },
+  {
+    "name": "the three partitions are done",
+    "ok": true,
+    "detail": "[{\"count\":3,\"from\":\"2026-01-01\",\"state\":\"done\",\"to\":\"2026-01-03\"}]"
+  }
+]

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const dir = process.argv[2] ?? 'D:\\verne-build\\ogun\\evidence'
-const order = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10']
+const order = ['s1', 's2', 's2b', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10']
 let out = ''
 for (const s of order) {
   const f = join(dir, s, 'results.json')

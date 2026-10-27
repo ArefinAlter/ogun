@@ -2,12 +2,12 @@
   {
     "name": "the app owns a running engine",
     "ok": true,
-    "detail": "{\"state\":\"running\",\"pid\":25652,\"version\":\"0.0.1-beta\",\"restarts\":0,\"log_path\":\"D:\\\\verne-build\\\\ogun\\\\acc\\\\f-s1\\\\home\\\\profiles\\\\studio\\\\logs\\\\ogund.log\",\"state_dir\":\"D:\\\\verne-build\\\\ogun\\\\acc\\\\f-s1\\\\home\\\\profiles\\\\studio\",\"log_tail\":[]}"
+    "detail": "{\"state\":\"running\",\"pid\":23680,\"version\":\"0.0.1-beta\",\"restarts\":0,\"log_path\":\"D:\\\\verne-build\\\\ogun\\\\acc\\\\f-s1\\\\home\\\\profiles\\\\studio\\\\logs\\\\ogund.log\",\"state_dir\":\"D:\\\\verne-build\\\\ogun\\\\acc\\\\f-s1\\\\home\\\\profiles\\\\studio\",\"log_tail\":[]}"
   },
   {
     "name": "exactly one ogund child of the app",
     "ok": true,
-    "detail": "[25652]"
+    "detail": "[23680]"
   },
   {
     "name": "the engine takes no secret on its command line",
@@ -62,7 +62,7 @@
   {
     "name": "closing the app stops the engine",
     "ok": true,
-    "detail": "engine pid 25652"
+    "detail": "engine pid 23680"
   },
   {
     "name": "and the app itself",

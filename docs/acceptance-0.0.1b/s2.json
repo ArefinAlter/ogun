@@ -47,12 +47,12 @@
   {
     "name": "the app restarted the engine by itself",
     "ok": true,
-    "detail": "40132 -> 42104, restarts 1"
+    "detail": "11748 -> 21560, restarts 1"
   },
   {
     "name": "some partitions finished before the kill and some did not",
     "ok": true,
-    "detail": "32 done"
+    "detail": "28 done"
   },
   {
     "name": "asking for the range again right after the restart starts no duplicate work",
@@ -72,7 +72,7 @@
   {
     "name": "no partition that was done before the kill ran again",
     "ok": true,
-    "detail": "32 done before; reran: "
+    "detail": "28 done before; reran: "
   },
   {
     "name": "a further backfill has nothing to do",

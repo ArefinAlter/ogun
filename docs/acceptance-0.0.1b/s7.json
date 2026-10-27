@@ -152,7 +152,7 @@
   {
     "name": "the hub logged a second native sign-in",
     "ok": true,
-    "detail": "7"
+    "detail": "4"
   },
   {
     "name": "with the refresh token revoked the call fails as unauthenticated",

@@ -62,7 +62,7 @@
   {
     "name": "another program on this account (the ogun CLI) cannot decide on the app engine: no credential",
     "ok": true,
-    "detail": "oap_01M5XTWXG04S4E7ME5ER251A4C  CodeChange  Pending\n  workflow      ridership-forecast\n  workflow hash f2b231376bd0bac32897a7cfb75033fa504e5f443928b3529fa8e4b8ddbc73ab\n  workflow      ridership-foreca"
+    "detail": "oap_01M5Y0SKRMTKVMGM5XCY3FSDNR  CodeChange  Pending\n  workflow      ridership-forecast\n  workflow hash f2b231376bd0bac32897a7cfb75033fa504e5f443928b3529fa8e4b8ddbc73ab\n  workflow      ridership-foreca"
   },
   {
     "name": "after all of that, only the two decided approvals changed",
@@ -72,6 +72,6 @@
   {
     "name": "the daemon log records the decisions with the channel and the human credential",
     "ok": true,
-    "detail": "\u001b[2m2026-10-27T04:47:11.034178Z\u001b[0m \u001b[32m INFO\u001b[0m \u001b[2mogun_daemon::approvals\u001b[0m\u001b[2m:\u001b[0m approval decided \u001b[3mapproval\u001b[0m\u001b[2m=\u001b[0moap_01M5XTWXGBD09JQN83QY82ZZ5A \u001b[3mstate\u001b[0m\u001b[2m=\u001b[0mDenied \u001b[3mchannel\u001b[0m\u001b[2m=\u001b[0mStudio | \u001b[2m2026-10-27T04:47:12.844481Z\u001b[0m \u001b[32m INFO\u001b[0m \u001b[2mogun_daemon::approv"
+    "detail": "\u001b[2m2026-10-27T06:30:14.116184Z\u001b[0m \u001b[32m INFO\u001b[0m \u001b[2mogun_daemon::approvals\u001b[0m\u001b[2m:\u001b[0m approval decided \u001b[3mapproval\u001b[0m\u001b[2m=\u001b[0moap_01M5Y0SKRW8TQ87YFQKE4GVGVW \u001b[3mstate\u001b[0m\u001b[2m=\u001b[0mDenied \u001b[3mchannel\u001b[0m\u001b[2m=\u001b[0mStudio | \u001b[2m2026-10-27T06:30:15.926354Z\u001b[0m \u001b[32m INFO\u001b[0m \u001b[2mogun_daemon::approv"
   }
 ]

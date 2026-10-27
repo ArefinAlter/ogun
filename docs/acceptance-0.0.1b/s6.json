@@ -57,7 +57,7 @@
   {
     "name": "a start-a-run request at read access is refused by the table, whatever the model asked",
     "ok": true,
-    "detail": "{\"at\":\"2026-10-27T05:13:09.067Z\",\"id\":\"itm_01M5XWDKPBKX1CDYPK3V73WFNS\",\"input\":{\"partitions\":{\"kind\":\"latest\"},\"workflow\":\"acc-local-fixture\"},\"kind\":\"tool\",\"ms\":0,\"state\":\"denied\",\"summary\":\"refused: it needs operate access and this thread"
+    "detail": "{\"at\":\"2026-10-27T06:31:00.000Z\",\"id\":\"itm_01M5Y0W550WX55HPRPSJV9CZFS\",\"input\":{\"partitions\":{\"kind\":\"latest\"},\"workflow\":\"acc-local-fixture\"},\"kind\":\"tool\",\"ms\":0,\"state\":\"denied\",\"summary\":\"refused: it needs operate access and this thread"
   },
   {
     "name": "and no run was started",
@@ -67,17 +67,17 @@
   {
     "name": "at operate access the same request starts the run and the thread shows a run card",
     "ok": true,
-    "detail": "{\"at\":\"2026-10-27T05:13:09.597Z\",\"card\":{\"run_id\":\"orun_01M5XWDM6TR3ATTTP4PJ3VG4Q0\",\"type\":\"run\",\"workflow\":\"acc-local-fixture\"},\"id\":\"itm_01M5XWDM6XY0QHW6Y237H81VQJ\",\"kind\":\"card\"}"
+    "detail": "{\"at\":\"2026-10-27T06:31:00.608Z\",\"card\":{\"run_id\":\"orun_01M5Y0W5QXP50GCJ2FW3BFM579\",\"type\":\"run\",\"workflow\":\"acc-local-fixture\"},\"id\":\"itm_01M5Y0W5R0PSW6YJZQ4G3KB2DS\",\"kind\":\"card\"}"
   },
   {
     "name": "and the run the agent started is the one the card names",
     "ok": true,
-    "detail": "orun_01M5XWDM6TR3ATTTP4PJ3VG4Q0"
+    "detail": "orun_01M5Y0W5QXP50GCJ2FW3BFM579"
   },
   {
     "name": "a model that invents approvals.decide gets a refusal: it is not a tool",
     "ok": true,
-    "detail": "{\"at\":\"2026-10-27T05:13:10.116Z\",\"id\":\"itm_01M5XWDMQ496056TGNZHXA1RA8\",\"input\":{\"approval_id\":\"oap_none\",\"decision\":\"approve\"},\"kind\":\"tool\",\"ms\":0,\"state\":\"denied\",\"summary\":\"refused: there is no such tool\",\"tool\":\"approvals.decide\"}"
+    "detail": "{\"at\":\"2026-10-27T06:31:01.135Z\",\"id\":\"itm_01M5Y0W68FA466QP0ZDYG6S7Y9\",\"input\":{\"approval_id\":\"oap_none\",\"decision\":\"approve\"},\"kind\":\"tool\",\"ms\":0,\"state\":\"denied\",\"summary\":\"refused: there is no such tool\",\"tool\":\"approvals.decide\"}"
   },
   {
     "name": "and no approval changed",

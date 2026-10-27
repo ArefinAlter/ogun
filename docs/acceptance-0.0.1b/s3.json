@@ -42,7 +42,7 @@
   {
     "name": "the first window rolled up its five records for station S1 and no more",
     "ok": true,
-    "detail": "{\"bucket_end_ms\":1793075040000,\"bucket_start_ms\":1793074980000,\"fields\":{\"bikes\":{\"count\":5,\"max\":9,\"min\":5,\"scale\":1,\"sum\":35},\"ts_ms\":{\"count\":5,\"max\":1793074984000,\"min\":1793074980000,\"scale\":1,\"sum\":8965374910000}},\"group\":{\"station_id\":\"S1\"},\"records\":5}"
+    "detail": "{\"bucket_end_ms\":1793080740000,\"bucket_start_ms\":1793080680000,\"fields\":{\"bikes\":{\"count\":5,\"max\":9,\"min\":5,\"scale\":1,\"sum\":35},\"ts_ms\":{\"count\":5,\"max\":1793080684000,\"min\":1793080680000,\"scale\":1,\"sum\":8965403410000}},\"group\":{\"station_id\":\"S1\"},\"records\":5}"
   },
   {
     "name": "a late record revised its window: a new run followed",
@@ -57,12 +57,12 @@
   {
     "name": "the ingest bridge is a child of the app",
     "ok": true,
-    "detail": "[27396]"
+    "detail": "[30072]"
   },
   {
     "name": "the app restarted the ingest bridge",
     "ok": true,
-    "detail": "27396 -> 36356"
+    "detail": "30072 -> 25172"
   },
   {
     "name": "records appended after the restart were ingested (a window ran again)",
