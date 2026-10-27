@@ -582,7 +582,7 @@ checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
  "num-traits",
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -687,9 +687,9 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "combine"
-version = "4.6.9"
+version = "4.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
+checksum = "cfc320937d09e6de266b31b9afb480f197d7a861be86be7cb2ea7e5d1bfffc5e"
 dependencies = [
  "bytes",
  "memchr",
@@ -1954,7 +1954,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -2129,9 +2129,9 @@ dependencies = [
  "jni-sys",
  "log",
  "simd_cesu8",
- "thiserror",
+ "thiserror 2.0.21",
  "walkdir",
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -2197,7 +2197,7 @@ dependencies = [
  "pest_derive",
  "regex",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -2630,7 +2630,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-api"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "directories",
@@ -2643,7 +2643,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "zeroize",
  "zeus-types",
@@ -2651,7 +2651,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-bench"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "blake3",
@@ -2663,7 +2663,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "toml",
  "tracing",
@@ -2675,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-cli"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2700,7 +2700,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-connectors"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2708,7 +2708,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-daemon"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2739,7 +2739,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2754,7 +2754,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-edge"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2763,12 +2763,12 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "ogun-ingest"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -2784,7 +2784,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-modbus",
  "tracing",
@@ -2795,20 +2795,20 @@ dependencies = [
 
 [[package]]
 name = "ogun-ir"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "jsonschema",
  "ogun-types",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-verify",
 ]
 
 [[package]]
 name = "ogun-keystore"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "argon2",
  "base64 0.23.1",
@@ -2818,7 +2818,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tracing",
  "windows-native-keyring-store",
  "zbus-secret-service-keyring-store",
@@ -2827,7 +2827,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-lineage"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "ogun-ir",
@@ -2837,7 +2837,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "ulid",
@@ -2848,7 +2848,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-llm"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2857,10 +2857,11 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "url",
+ "win32job",
  "zeroize",
  "zeus-types",
  "zeus-verify",
@@ -2868,20 +2869,20 @@ dependencies = [
 
 [[package]]
 name = "ogun-lsp"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "lsp-server",
  "lsp-types",
  "ogun-ir",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
 [[package]]
 name = "ogun-op-llm"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "ogun-llm",
@@ -2897,7 +2898,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-op-shims"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2906,7 +2907,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-ops"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "async-trait",
  "blake3",
@@ -2928,7 +2929,7 @@ dependencies = [
  "sha2 0.11.1",
  "tar",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "url",
@@ -2946,11 +2947,11 @@ dependencies = [
 
 [[package]]
 name = "ogun-platform"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "windows-sys 0.61.2",
@@ -2958,17 +2959,17 @@ dependencies = [
 
 [[package]]
 name = "ogun-run"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-types",
 ]
 
 [[package]]
 name = "ogun-sandbox"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "ogun-platform",
  "serde",
@@ -2978,18 +2979,18 @@ dependencies = [
 
 [[package]]
 name = "ogun-sched"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "ogun-ir",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-types",
 ]
 
 [[package]]
 name = "ogun-server"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -3016,7 +3017,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
  "tokio-util",
@@ -3032,7 +3033,7 @@ dependencies = [
 
 [[package]]
 name = "ogun-store"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "ogun-ir",
  "ogun-run",
@@ -3042,25 +3043,25 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-types",
 ]
 
 [[package]]
 name = "ogun-stream"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "ogun-sched",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-verify",
 ]
 
 [[package]]
 name = "ogun-sync"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -3076,7 +3077,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -3087,18 +3088,18 @@ dependencies = [
 
 [[package]]
 name = "ogun-types"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "ulid",
  "zeus-types",
 ]
 
 [[package]]
 name = "ogun-zeus-bridge"
-version = "0.0.1-beta"
+version = "0.0.1-beta.1"
 dependencies = [
  "blake3",
  "getrandom 0.3.4",
@@ -3108,7 +3109,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "zeroize",
@@ -3222,7 +3223,7 @@ dependencies = [
  "libc",
  "redox_syscall",
  "smallvec",
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -3543,7 +3544,7 @@ dependencies = [
  "rustc-hash",
  "rustls",
  "socket2",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "web-time",
@@ -3566,7 +3567,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror",
+ "thiserror 2.0.21",
  "tinyvec",
  "tracing",
  "web-time",
@@ -3688,7 +3689,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60dc65c0ff1a7ae1294b0c67b9f14baf70b644404010370171787bfac1038fc0"
 dependencies = [
  "libredox",
- "thiserror",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3858,7 +3859,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "353b74f9810d5b085b6c42c9d86a5f0fdb795553235cdd48753b32e3809d18a7"
 dependencies = [
- "thiserror",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3875,7 +3876,7 @@ dependencies = [
  "rustls-native-certs",
  "rustls-pemfile",
  "rustls-webpki 0.102.8",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
  "tokio-stream",
@@ -4700,11 +4701,31 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
+dependencies = [
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
 version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 2.0.21",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -4815,7 +4836,7 @@ dependencies = [
  "futures-util",
  "log",
  "smallvec",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-util",
 ]
@@ -4882,9 +4903,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.25.17+spec-1.1.0"
+version = "0.25.15+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3641d5bbb5349a79e1020a242d251efbc546ad8048d133958323ce9c40a9c9c"
+checksum = "1340ea94a5856333492c9064b02c778b191dd2c853778d9609debdcdfea3a614"
 dependencies = [
  "indexmap",
  "toml_datetime",
@@ -5023,7 +5044,7 @@ dependencies = [
  "percent-encoding",
  "scopeguard",
  "urlencoding",
- "windows",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -5339,11 +5360,21 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.11"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e49d0e65abc00c142e8f9428da991da9f1a250c39be97459901eb12b9b49f62a"
+checksum = "b96554aa2acc8ccdb7e1c9a58a7a68dd5d13bccc69cd124cb09406db612a1c9b"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "win32job"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c6a6724ccfbf34154a8691bd868b0fcd2be2ca3f7b47b32614654f1a01b191c"
+dependencies = [
+ "thiserror 1.0.69",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -5379,14 +5410,36 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
+version = "0.61.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9babd3a767a4c1aef6900409f85f5d53ce2544ccdfaa86dad48c91782c6d6893"
+dependencies = [
+ "windows-collections 0.2.0",
+ "windows-core 0.61.2",
+ "windows-future 0.2.1",
+ "windows-link 0.1.3",
+ "windows-numerics 0.2.0",
+]
+
+[[package]]
+name = "windows"
 version = "0.62.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "527fadee13e0c05939a6a05d5bd6eec6cd2e3dbd648b9f8e447c6518133d8580"
 dependencies = [
- "windows-collections",
- "windows-core",
- "windows-future",
- "windows-numerics",
+ "windows-collections 0.3.2",
+ "windows-core 0.62.2",
+ "windows-future 0.3.2",
+ "windows-numerics 0.3.1",
+]
+
+[[package]]
+name = "windows-collections"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3beeceb5e5cfd9eb1d76b381630e82c4241ccd0d27f1a39ed41b2760b255c5e8"
+dependencies = [
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -5395,7 +5448,20 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b2d95af1a8a14a3c7367e1ed4fc9c20e0a26e79551b1454d72583c97cc6610"
 dependencies = [
- "windows-core",
+ "windows-core 0.62.2",
+]
+
+[[package]]
+name = "windows-core"
+version = "0.61.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0fdd3ddb90610c7638aa2b3a3ab2904fb9e5cdbecc643ddb3647212781c4ae3"
+dependencies = [
+ "windows-implement",
+ "windows-interface",
+ "windows-link 0.1.3",
+ "windows-result 0.3.4",
+ "windows-strings 0.4.2",
 ]
 
 [[package]]
@@ -5406,9 +5472,20 @@ checksum = "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb"
 dependencies = [
  "windows-implement",
  "windows-interface",
- "windows-link",
- "windows-result",
- "windows-strings",
+ "windows-link 0.2.1",
+ "windows-result 0.4.1",
+ "windows-strings 0.5.1",
+]
+
+[[package]]
+name = "windows-future"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc6a41e98427b19fe4b73c550f060b59fa592d7d686537eebf9385621bfbad8e"
+dependencies = [
+ "windows-core 0.61.2",
+ "windows-link 0.1.3",
+ "windows-threading 0.1.0",
 ]
 
 [[package]]
@@ -5417,9 +5494,9 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d6f90251fe18a279739e78025bd6ddc52a7e22f921070ccdc67dde84c605cb"
 dependencies = [
- "windows-core",
- "windows-link",
- "windows-threading",
+ "windows-core 0.62.2",
+ "windows-link 0.2.1",
+ "windows-threading 0.2.1",
 ]
 
 [[package]]
@@ -5446,6 +5523,12 @@ dependencies = [
 
 [[package]]
 name = "windows-link"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e6ad25900d524eaabdbbb96d20b4311e1e7ae1699af4fb28c17ae66c80d798a"
+
+[[package]]
+name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
@@ -5465,12 +5548,22 @@ dependencies = [
 
 [[package]]
 name = "windows-numerics"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
+dependencies = [
+ "windows-core 0.61.2",
+ "windows-link 0.1.3",
+]
+
+[[package]]
+name = "windows-numerics"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e2e40844ac143cdb44aead537bbf727de9b044e107a0f1220392177d15b0f26"
 dependencies = [
- "windows-core",
- "windows-link",
+ "windows-core 0.62.2",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -5479,9 +5572,18 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02752bf7fbdcce7f2a27a742f798510f3e5ad88dbe84871e5168e2120c3d5720"
 dependencies = [
- "windows-link",
- "windows-result",
- "windows-strings",
+ "windows-link 0.2.1",
+ "windows-result 0.4.1",
+ "windows-strings 0.5.1",
+]
+
+[[package]]
+name = "windows-result"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56f42bd332cc6c8eac5af113fc0c1fd6a8fd2aa08a0119358686e5160d0586c6"
+dependencies = [
+ "windows-link 0.1.3",
 ]
 
 [[package]]
@@ -5490,7 +5592,16 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5"
 dependencies = [
- "windows-link",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56e6c93f3a0c3b36176cb1327a4958a0353d5d166c2a35cb268ace15e91d3b57"
+dependencies = [
+ "windows-link 0.1.3",
 ]
 
 [[package]]
@@ -5499,7 +5610,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091"
 dependencies = [
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -5517,7 +5628,7 @@ version = "0.61.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -5538,11 +5649,20 @@ dependencies = [
 
 [[package]]
 name = "windows-threading"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b66463ad2e0ea3bbf808b7f1d371311c80e115c0b71d60efc142cafbcfb057a6"
+dependencies = [
+ "windows-link 0.1.3",
+]
+
+[[package]]
+name = "windows-threading"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
 dependencies = [
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -5734,9 +5854,9 @@ dependencies = [
 
 [[package]]
 name = "zbus_names"
-version = "4.3.5"
+version = "4.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "812a12be4ead7a59e18ea8f047d08add0066b73bc62fc1467066a2472ae088dd"
+checksum = "d8bf88b4a3ff53e883001e0e0115b297a9d53c31b9c1edd2bfdd853e3428624e"
 dependencies = [
  "serde",
  "winnow",
@@ -5853,7 +5973,7 @@ dependencies = [
  "redb",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-control",
  "zeus-fs",
  "zeus-types",
@@ -5866,7 +5986,7 @@ version = "0.1.0"
 dependencies = [
  "rand 0.10.3",
  "serde",
- "thiserror",
+ "thiserror 2.0.21",
  "zeus-types",
 ]
 
@@ -5881,7 +6001,7 @@ dependencies = [
  "http",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5902,7 +6022,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tracing",
  "trash",
  "unicode-normalization",
@@ -5923,7 +6043,7 @@ dependencies = [
  "percent-encoding",
  "reqwest",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5941,7 +6061,7 @@ dependencies = [
  "redb",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tracing",
  "zeus-control",
  "zeus-fs",
@@ -5958,7 +6078,7 @@ dependencies = [
  "futures",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "url",
@@ -5974,7 +6094,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
  "time",
  "ulid",
  "url",
@@ -5992,7 +6112,7 @@ dependencies = [
  "serde_json",
  "serde_json_canonicalizer",
  "sha2 0.11.1",
- "thiserror",
+ "thiserror 2.0.21",
  "tracing",
  "zeus-types",
 ]
@@ -6027,9 +6147,9 @@ checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[package]]
 name = "zvariant"
-version = "5.15.1"
+version = "5.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80bf6d6cd6a4b601acb64cfb8284cdc643fcfa75ef26ae3c46ec8aa4e8a1fbb7"
+checksum = "c1d34c27cc6cdd1f458427519dd6b8612f7b7e3f7b9a0b2355d041dda9869147"
 dependencies = [
  "endi",
  "enumflags2",
@@ -6042,9 +6162,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant_derive"
-version = "5.15.1"
+version = "5.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef2672456ba1cb54b5eaec136e63135b3c7495fb938e53b28a62e633496d486d"
+checksum = "864155e69b4352db0c7f374917bf45d1e0c8d17659c8b3dbf9795f3673f8c497"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
