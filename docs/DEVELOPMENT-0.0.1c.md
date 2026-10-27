@@ -1,6 +1,6 @@
 # 0.0.1c development increment
 
-27 October 2026. Internal version `0.0.1-beta.1`. The published Latest installers remain 0.0.1b until a separate packaging and platform-acceptance run.
+27 October 2026. Internal version `0.0.1-beta.1`. Full-release packaging and acceptance are recorded in [ACCEPTANCE-0.0.1c.md](ACCEPTANCE-0.0.1c.md).
 
 ## Existing agent subscriptions
 
