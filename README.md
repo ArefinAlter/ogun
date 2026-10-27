@@ -2,12 +2,12 @@
 
 Ogun is a local-first developer platform for data mining, data engineering and agent benchmarking, built on the Zeus download engine (`zeus-core`). It is for AI, LLM and data engineers who need to turn messy web and filesystem sources into verified, reproducible datasets on a schedule, and to let agents plan and operate that work.
 
-> **Status: pre-alpha.** Ogun Studio on Windows owns its engine (0.0.1b). `ogund` runs workflows end to end: durable runs and partitions, backfills that survive `kill -9`, schedules, streams as windowed partitions, approvals, artifacts and lineage, with `ogun-server` for a team hub (see [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for what runs and the known gaps). The specs O-00 to O-17 are drafts or proposals (`docs/spec/`).
+> **Status: pre-alpha.** Ogun Studio on Windows owns its engine (0.0.1c). `ogund` runs workflows end to end: durable runs and partitions, backfills that survive `kill -9`, schedules, streams as windowed partitions, approvals, artifacts and lineage, with `ogun-server` for a team hub (see [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for what runs and the known gaps). The specs O-00 to O-17 are drafts or proposals (`docs/spec/`).
 
 ## Try the pre-alpha
 
-- **Download:** [release v0.0.1b](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1b). **Ogun Studio is a standalone desktop app**: one installer, its own engine (`ogund`, started and stopped by the app on a private pipe), no daemon to start, no account and no network needed. Windows x64 (installer, portable zip) and Linux x64 (AppImage, .deb), plus the `ogun`, `ogund` and `ogun-server` binaries as archives. Unsigned. What was checked on Windows, how, and what is only partly verified: [`docs/ACCEPTANCE-0.0.1b.md`](docs/ACCEPTANCE-0.0.1b.md).
-- **Hosted:** `https://ogun.103.191.50.32.sslip.io`, Ogun Studio-web on the real daemon with sample data; the sign-in page shows a shared sample account, and everything is reset every night. It still runs the 0.0.1a backend: desktop sign-in to it (browser sign-in from Studio desktop) works only after the owner applies [`deploy/pre-alpha/native-signin`](deploy/pre-alpha/native-signin/README.md). How the hosted hub is built: [`deploy/pre-alpha`](deploy/pre-alpha/README.md).
+- **Download:** [release v0.0.1c](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1c). **Ogun Studio is a standalone desktop app**: one installer, its own engine (`ogund`, started and stopped by the app on a private pipe), no daemon to start, no account and no network needed. Windows x64 (installer, portable zip) and Linux x64 (AppImage, .deb), plus the `ogun`, `ogund` and `ogun-server` binaries as archives. Unsigned. What was checked on Windows, how, and what is only partly verified: [`docs/ACCEPTANCE-0.0.1c.md`](docs/ACCEPTANCE-0.0.1c.md).
+- **Hosted:** `https://ogun.103.191.50.32.sslip.io`, Ogun Studio-web on the real daemon with sample data; the sign-in page shows a shared sample account, and everything is reset every night. It runs the updated backend: desktop sign-in to it (browser sign-in from Studio desktop) works only after the owner applies [`deploy/pre-alpha/native-signin`](deploy/pre-alpha/native-signin/README.md). How the hosted hub is built: [`deploy/pre-alpha`](deploy/pre-alpha/README.md).
 - **Windows sandbox:** code operators run in an AppContainer with no network and no access to your files beyond their inputs; the limits are stated in [`docs/windows-sandbox.md`](docs/windows-sandbox.md).
 
 ## Ogun and Zeus
@@ -68,3 +68,5 @@ Rust 1.90 or newer.
 ## Licence
 
 Apache-2.0, like Zeus (Zeus ADR 0006). Ogun is a product of Verne Ltd. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+
+0.0.1c: Studio and built-in workflow model steps can use installed subscription CLIs. Compiled built-in model operators preserve model/network grants, budgets, artifact containment and usage accounting; installed replacements and mixed API/subscription ladders retain their sandbox. A real Claude workflow produced the expected artifact and reported usage. See [installed agent connections](docs/INSTALLED-AGENTS.md) and [acceptance](docs/ACCEPTANCE-0.0.1c.md).

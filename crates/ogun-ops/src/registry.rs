@@ -251,6 +251,25 @@ async fn run_inner(reg: &Registry, inv: &Invocation, ctx: &Context) -> OpResult<
             if manifest.manifest.kind == crate::manifest::ManifestKind::Model {
                 prepare_model(&reg.env, &mut config, &mut secrets, ctx)?;
             }
+            // Only the compiled implementation and an exclusively local-agent ladder may access
+            // host subscription sessions. Installed/replaced manifests retain their OS sandbox.
+            if manifest.source == ManifestSource::Builtin && native_subscription_ladder(&config) {
+                if !reg.env.network_access {
+                    return Err(OpError::new(
+                        "op.network_denied",
+                        "This environment denies model network access.",
+                    ));
+                }
+                return Ok(runner::run_native(runner::ChildRun {
+                    env: &reg.env,
+                    manifest: &manifest,
+                    inv,
+                    config: &config,
+                    secrets: &secrets,
+                    ctx,
+                })
+                .await);
+            }
             Ok(runner::run(runner::ChildRun {
                 env: &reg.env,
                 manifest: &manifest,
@@ -262,6 +281,26 @@ async fn run_inner(reg: &Registry, inv: &Invocation, ctx: &Context) -> OpResult<
             .await)
         }
     }
+}
+
+fn native_subscription_ladder(config: &Value) -> bool {
+    let Some(providers) = config
+        .pointer("/ladder/providers")
+        .and_then(Value::as_array)
+    else {
+        return false;
+    };
+    let enabled: Vec<_> = providers
+        .iter()
+        .filter(|p| p.get("enabled").and_then(Value::as_bool).unwrap_or(true))
+        .collect();
+    !enabled.is_empty()
+        && enabled.iter().all(|p| {
+            p.get("base_url")
+                .and_then(Value::as_str)
+                .and_then(ogun_llm::local_agent::agent_for_url)
+                .is_some()
+        })
 }
 
 /// O-03 section 8.2 items 1 to 4.
@@ -513,5 +552,27 @@ async fn run_core(
             ))
         }
         Err(CoreFail::Cancelled) => Ok(Outcome::Cancelled),
+    }
+}
+
+#[cfg(test)]
+mod native_ladder_tests {
+    use super::*;
+    #[test]
+    fn host_model_path_requires_an_exclusively_local_enabled_ladder() {
+        let local = serde_json::json!({"base_url":"https://claude.local-agent.invalid/v1"});
+        let api = serde_json::json!({"base_url":"https://api.openai.com/v1"});
+        assert!(native_subscription_ladder(
+            &serde_json::json!({"ladder":{"providers":[local]}})
+        ));
+        assert!(!native_subscription_ladder(
+            &serde_json::json!({"ladder":{"providers":[local,api]}})
+        ));
+        assert!(!native_subscription_ladder(
+            &serde_json::json!({"ladder":{"providers":[]}})
+        ));
+        assert!(!native_subscription_ladder(
+            &serde_json::json!({"ladder":{"providers":[{"base_url":"https://claude.local-agent.invalid.attacker/v1"}]}})
+        ));
     }
 }

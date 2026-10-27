@@ -10,17 +10,11 @@
 
 #![forbid(unsafe_code)]
 
-mod common;
-mod ops;
-mod protocol;
-mod sanitize;
-
 use std::process::ExitCode;
 
 use ogun_llm::LlmError;
 
-use crate::ops::Op;
-use crate::protocol::Emitter;
+use ogun_op_llm::Emitter;
 
 fn main() -> ExitCode {
     let filter = tracing_subscriber::EnvFilter::try_from_env("OGUN_OP_LOG")
@@ -35,7 +29,7 @@ fn main() -> ExitCode {
         .enable_all()
         .build()
         .map_err(|_| LlmError::Internal("cannot start the async runtime".into()))
-        .and_then(|rt| rt.block_on(run()));
+        .and_then(|rt| rt.block_on(ogun_op_llm::run_stdio()));
     match outcome {
         Ok(()) => {
             out.result();
@@ -47,26 +41,4 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-async fn run() -> Result<(), LlmError> {
-    let arg = std::env::args().nth(1);
-    let start = protocol::read_start()?;
-    let name = arg.or_else(|| start.op.clone()).ok_or_else(|| {
-        LlmError::Input("name the operator on the command line or in the start line".into())
-    })?;
-    let op = Op::parse(&name)?;
-    let scratch =
-        std::env::current_dir().map_err(|e| common::io("cannot read the working directory", &e))?;
-    tracing::debug!(
-        op = op.name(),
-        node_instance = start.node_instance.as_deref().unwrap_or("-"),
-        inputs = start.inputs.len(),
-        "starting"
-    );
-    if start.checkpoint.is_some() {
-        // Model operators v0 write no checkpoints; a restarted attempt starts over.
-        tracing::info!("ignoring a checkpoint; this operator restarts from the beginning");
-    }
-    ops::run(op, start, scratch).await
 }
