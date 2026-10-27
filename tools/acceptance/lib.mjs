@@ -8,7 +8,7 @@
 import { createRequire } from 'node:module'
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, existsSync, rmSync, readFileSync, appendFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const require = createRequire(process.env.OGUN_PLAYWRIGHT_FROM ?? 'B:/dynodoc/frontend/researcher/package.json')
 const { chromium } = require('@playwright/test')
@@ -104,6 +104,7 @@ export class App {
       WEBVIEW2_USER_DATA_FOLDER: join(r, 'webview'),
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${this.port}`,
       OGUN_BENCH_STATE_DIR: join(r, 'bench'),
+      ...(existsSync(join(dirname(this.exe), 'samples')) ? { OGUN_STUDIO_SAMPLES: join(dirname(this.exe), 'samples') } : {}),
       ...this.extraEnv,
     })
     return env

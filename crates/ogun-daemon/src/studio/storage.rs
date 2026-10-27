@@ -137,8 +137,17 @@ struct Held {
     instance: String,
 }
 
+/// Days added to every run's age. Zero in any normal run; `OGUN_STORAGE_CLOCK_OFFSET_DAYS` exists so an acceptance
+/// run can make data look old without waiting (the removal it then causes is real). Capped at ten years.
+fn age_offset_ms() -> i64 {
+    std::env::var("OGUN_STORAGE_CLOCK_OFFSET_DAYS")
+        .ok()
+        .and_then(|v| v.trim().parse::<i64>().ok())
+        .map_or(0, |days| days.clamp(0, 3650) * DAY_MS)
+}
+
 fn survey(d: &Daemon) -> ApiResult<Vec<Held>> {
-    let now = Timestamp::now().unix_millis();
+    let now = Timestamp::now().unix_millis() + age_offset_ms();
     let mut runs: Vec<RunRecord> = Vec::new();
     let mut before = None;
     loop {

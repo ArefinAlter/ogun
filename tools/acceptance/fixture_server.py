@@ -9,7 +9,7 @@ on Windows):
   /releases.json              a releases-like JSON array
   /daily/<YYYY-MM-DD>.json    one small JSON document per day, after a short delay; every hit is counted
   /stats                      hits per path, as JSON (the proof of what ran again after a kill)
-  /s3/<bucket>/<key>          an S3-compatible store (path style) that verifies AWS Signature V4 for one key pair
+  /<bucket>/<key>             an S3-compatible store (path style, bucket `acc`) that verifies AWS Signature V4
   /s3-admin/objects           what the S3 store holds
   /v1/chat/completions        an OpenAI-compatible streaming endpoint that speaks the real wire format, with tool
                               calls, and records what it was sent (never the key itself)
@@ -32,7 +32,7 @@ OBJECTS = {}
 CHAT = []
 LOCK = threading.Lock()
 S3_ACCESS_KEY = "ACCEPTANCEKEYID"
-S3_SECRET_KEY = "acceptance-secret-access-key-0123456789"
+S3_SECRET_KEY = "acceptance-secret-ZEUS-CANARY-s3-0123456789"
 CHAT_KEY = "acceptance-chat-key-ZEUS-CANARY-7f3a"
 DELAY_MS = 250
 
@@ -105,7 +105,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, "<Error><Code>SignatureDoesNotMatch</Code></Error>", "application/xml")
         if payload_hash not in ("UNSIGNED-PAYLOAD",) and not payload_hash.startswith("STREAMING") and hashlib.sha256(raw).hexdigest() != payload_hash:
             return self.reply(400, "<Error><Code>XAmzContentSHA256Mismatch</Code></Error>", "application/xml")
-        key = parsed.path[len("/s3/"):]
+        key = parsed.path.lstrip("/")
+        if key.startswith("s3/"):
+            key = key[3:]
         if method == "PUT":
             with LOCK:
                 OBJECTS[key] = raw
@@ -128,6 +130,14 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- chat
     def chat(self):
+        def tool_call(name, args, pin, pout):
+            return [
+                {"choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}}]},
+                {"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "id": "call_1", "type": "function", "function": {"name": name, "arguments": ""}}]}}]},
+                {"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "function": {"arguments": args}}]}}]},
+                {"choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": pin, "completion_tokens": pout, "total_tokens": pin + pout}},
+            ]
+
         raw = self.body()
         body = json.loads(raw or b"{}")
         authorized = self.headers.get("Authorization", "") == f"Bearer {CHAT_KEY}"
@@ -154,10 +164,13 @@ class Handler(BaseHTTPRequestHandler):
                 chunks.append({"choices": [{"index": 0, "delta": {"content": text[i:i + 24]}}]})
             chunks.append({"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 120, "completion_tokens": 30, "total_tokens": 150}})
         elif "list workflows" in user_text.lower() and "workflows__list" in tool_names:
-            chunks.append({"choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}}]})
-            chunks.append({"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "id": "call_1", "type": "function", "function": {"name": "workflows__list", "arguments": ""}}]}}]})
-            chunks.append({"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "function": {"arguments": "{}"}}]}}]})
-            chunks.append({"choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 90, "completion_tokens": 12, "total_tokens": 102}})
+            chunks += tool_call("workflows__list", "{}", 90, 12)
+        elif "start a run" in user_text.lower():
+            # The model asks for a tool even if the thread's access level will not allow it.
+            chunks += tool_call("runs__start", json.dumps({"workflow": "acc-local-fixture", "partitions": {"kind": "latest"}}), 100, 20)
+        elif "approve everything" in user_text.lower():
+            # A tool that is not in the closed table: whatever a model invents, nothing decides an approval.
+            chunks += tool_call("approvals__decide", json.dumps({"approval_id": "oap_none", "decision": "approve"}), 80, 14)
         else:
             text = "I can list your workflows, show runs and propose a run for you to press."
             chunks.append({"choices": [{"index": 0, "delta": {"role": "assistant", "content": text}}]})
@@ -168,7 +181,7 @@ class Handler(BaseHTTPRequestHandler):
     def route(self, method):
         parsed = urllib.parse.urlparse(self.path)
         p = parsed.path
-        if p.startswith("/s3/"):
+        if p == "/acc" or p.startswith("/acc/") or p.startswith("/s3/"):
             return self.s3(method, parsed)
         if p == "/robots.txt":
             return self.reply(404, "no robots", "text/plain")

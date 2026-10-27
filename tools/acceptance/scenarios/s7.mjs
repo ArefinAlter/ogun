@@ -111,7 +111,8 @@ export async function run({ ev, exe, root, cleanDir, App, ps, sleep, waitFor, ht
   ev.check('an owner started a run on the hub from Studio and it succeeded', run.state === 'succeeded', run.state)
 
   // Approvals on the hub: seed one, then try to decide it every way a client could.
-  const code = hub.run('ogun.exe', ['--profile', 'server', 'put', join(here, '..', '..', 'examples', 'bikeshare', 'rebalance-plan.workflow.json')])
+  const repo = join(here, '..', '..')
+  const code = hub.run('ogun.exe', ['--profile', 'server', 'put', join(repo, 'examples', 'bikeshare', 'rebalance-plan.workflow.json')], undefined, repo)
   ev.save('hub-put-code-workflow.txt', (code.stdout + code.stderr).slice(0, 600))
   const approvals = await app.invoke('approvals_list', { params: { state: 'pending' } })
   const pending = approvals.approvals ?? []

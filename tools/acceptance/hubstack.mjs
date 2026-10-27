@@ -82,8 +82,8 @@ export class Hub {
     return { ...process.env, OGUN_HOME: this.home, OGUN_LOG: 'info', ...extra }
   }
 
-  run(exe, args, input) {
-    return spawnSync(join(this.bin, exe), args, { env: this.env(), input, encoding: 'utf8', timeout: 60000 })
+  run(exe, args, input, cwd) {
+    return spawnSync(join(this.bin, exe), args, { env: this.env(), input, encoding: 'utf8', timeout: 60000, ...(cwd ? { cwd } : {}) })
   }
 
   spawnBg(exe, args, logName) {

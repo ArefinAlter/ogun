@@ -1,8 +1,10 @@
 // Scenario 1: launch with no command line, the app owns its engine, an empty workspace, the bundled sample imported
 // with real hashes, a clean shutdown and a second launch that finds the data again.
+import { readdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
-export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, launch }) {
+export async function run({ ev, exe, root, here, cleanDir, App, ps, alive, sleep, launch }) {
   cleanDir(root)
   const { app, info } = await launch(root)
   ev.save('engine_info.json', info)
@@ -24,10 +26,29 @@ export async function run({ ev, exe, root, cleanDir, App, ps, alive, sleep, laun
   const samples = await app.invoke('samples_list')
   ev.save('samples.json', samples)
   ev.check('the bundled samples are offered', samples.length >= 2, samples.map((s) => s.id).join(','))
+  // The first-run screen offers the bundled projects as buttons: press one the way a person does.
+  await app.goto('#/')
+  await sleep(1200)
+  const choice = app.page.locator('button.choice', { hasText: /bike/i }).first()
+  let viaUi = false
+  try {
+    await choice.click({ timeout: 8000 })
+    await sleep(2500)
+    viaUi = true
+  } catch (e) {
+    ev.note('the sample button was not found (' + e + '); importing by command instead')
+  }
+  await app.shot(join(ev.dir, '01b-after-sample-button.png'))
+  ev.check('the sample project is imported from the first-run screen', viaUi && ((await app.invoke('workflows_list')).workflows ?? []).length >= 4, `via UI: ${viaUi}`)
   const imported = await app.invoke('sample_import', { id: 'bikeshare' })
   ev.save('sample_import.json', imported)
   const hashes = imported.workflows.map((w) => w.workflow_hash)
-  ev.check('the sample import stores workflows with BLAKE3 workflow hashes', imported.workflows.length >= 4 && hashes.every((h) => /^[0-9a-f]{64}$/.test(h)), `${imported.workflows.length} workflows`)
+  ev.check('the sample import reports workflows with BLAKE3 workflow hashes', imported.workflows.length >= 4 && hashes.every((h) => /^[0-9a-f]{64}$/.test(h)), `${imported.workflows.length} workflows`)
+  const sampleDir = join(here, '..', '..', 'examples', 'bikeshare')
+  const files = readdirSync(sampleDir).filter((f) => f.endsWith('.workflow.json'))
+  const fileHashes = files.map((f) => spawnSync(join(exe, '..', 'ogun.exe'), ['hash', join(sampleDir, f)], { encoding: 'utf8' }).stdout.trim().split(/\s+/).pop())
+  ev.save('workflow-file-hashes.json', Object.fromEntries(files.map((f, i) => [f, fileHashes[i]])))
+  ev.check('each hash the engine stored equals the hash `ogun hash` computes from the file (JCS plus BLAKE3)', fileHashes.length === imported.workflows.length && fileHashes.every((h) => hashes.includes(h)), `${files.length} files, ${imported.workflows.length} stored`)
   const again = await app.invoke('sample_import', { id: 'bikeshare' })
   ev.check('importing again creates nothing new', again.workflows.every((w) => w.created === false), JSON.stringify(again.workflows.map((w) => w.created)))
   const listed = await app.invoke('workflows_list')
