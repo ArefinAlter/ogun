@@ -31,6 +31,10 @@ pub mod ladder;
 pub mod provider;
 
 pub use budget::{CallBudget, check_budget, cost_usd_micro, worst_case_usd_micro};
+#[cfg(feature = "http")]
+#[path = "../../../shared/local_agent.rs"]
+pub mod local_agent;
+
 pub use config::{Capability, LadderConfig, ProviderConfig, ProviderKind};
 pub use error::LlmError;
 pub use ledger::{Ledger, LedgerEntry, Summary, UsageRecord};

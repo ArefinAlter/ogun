@@ -671,8 +671,55 @@ pub async fn stream_chat(
     cancel: &mut watch::Receiver<bool>,
     on_text: &mut (dyn FnMut(&str) + Send),
 ) -> Result<Completion, ProviderError> {
-    let http = client(cfg)?;
     let url = endpoint(cfg)?;
+    if ogun_llm::local_agent::agent_for_url(&url).is_some() {
+        let body = openai_body(cfg, input, false);
+        let v = tokio::select! {
+            v = ogun_llm::local_agent::complete(&url, &body, Duration::from_millis(cfg.timeout_ms)) => v.map_err(|e| ProviderError::Rejected(e.to_string()))?,
+            _ = wait_cancel(cancel) => return Err(ProviderError::Cancelled),
+        };
+        let message = &v["choices"][0]["message"];
+        let text = message["content"].as_str().unwrap_or("").to_owned();
+        if text.len() > MAX_TEXT {
+            return Err(ProviderError::Rejected(
+                "the installed agent answer exceeded the text limit".into(),
+            ));
+        }
+        let calls = message["tool_calls"]
+            .as_array()
+            .map(|calls| {
+                calls
+                    .iter()
+                    .filter_map(|c| {
+                        Some(ToolCall {
+                            id: c["id"].as_str()?.into(),
+                            name: from_wire(c["function"]["name"].as_str()?),
+                            args: serde_json::from_str(c["function"]["arguments"].as_str()?)
+                                .ok()?,
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        on_text(&text);
+        return Ok(Completion {
+            input_tokens: v["usage"]["prompt_tokens"]
+                .as_u64()
+                .unwrap_or_else(|| estimate(msgs_bytes(input))),
+            output_tokens: v["usage"]["completion_tokens"]
+                .as_u64()
+                .unwrap_or_else(|| estimate(text.len())),
+            reported: v["usage"].is_object(),
+            finish: if calls.is_empty() {
+                Finish::Stop
+            } else {
+                Finish::ToolUse
+            },
+            text,
+            calls,
+        });
+    }
+    let http = client(cfg)?;
     let headers = auth_headers(cfg, key)?;
     let mut with_usage = true;
     let mut attempt = 0;

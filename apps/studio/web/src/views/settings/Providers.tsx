@@ -22,7 +22,7 @@ function fromPreset(p: ProviderPreset, taken: Set<string>): LadderProvider {
     kind: p.kind,
     enabled: false,
     base_url: p.base_url,
-    model: '',
+    model: p.id.endsWith('-subscription') ? 'default' : '',
     ...(p.secret ? { api_key_secret: p.secret } : {}),
     input_per_mtok_usd_micro: 0,
     output_per_mtok_usd_micro: 0,
@@ -42,7 +42,7 @@ function providerHostOf(url: string): string {
 }
 
 function priceUnset(p: LadderProvider): boolean {
-  return p.enabled && p.kind !== 'ollama' && !isLoopbackUrl(p.base_url) && p.input_per_mtok_usd_micro === 0 && p.output_per_mtok_usd_micro === 0
+  return p.enabled && !p.base_url?.includes('.local-agent.invalid/') && p.kind !== 'ollama' && !isLoopbackUrl(p.base_url) && p.input_per_mtok_usd_micro === 0 && p.output_per_mtok_usd_micro === 0
 }
 
 function isLoopbackUrl(u: string): boolean {
@@ -282,8 +282,8 @@ export function ProvidersSettings() {
                         </select>
                       </label>
                       <label class="field wide">
-                        Base URL
-                        <input class="mono" value={cur.base_url} onInput={(e) => edit(sel, { base_url: (e.target as HTMLInputElement).value })} />
+                        {cur.base_url.includes('.local-agent.invalid/') ? 'Account connection' : 'Base URL'}
+                        <input class="mono" readOnly={cur.base_url.includes('.local-agent.invalid/')} value={cur.base_url.includes('.local-agent.invalid/') ? 'Uses your installed agent sign-in' : cur.base_url} onInput={(e) => edit(sel, { base_url: (e.target as HTMLInputElement).value })} />
                       </label>
                       <label class="field wide">
                         Model
@@ -330,14 +330,14 @@ export function ProvidersSettings() {
                         </label>
                       ) : null}
                     </div>
-                    {own ? (
+                    {own && !cur.base_url.includes('.local-agent.invalid/') ? (
                       <KeyEntry required={NEEDS_KEY[cur.kind]} stored={!!cur.api_key_secret && have.has(cur.api_key_secret)} onSave={saveKey} onRemove={removeKey} />
                     ) : null}
                     {own && backend.agent && as ? (
                       <div class="stack-tight">
                         <label class="check wide">
                           <input type="checkbox" checked={consented.includes(cur.name)} onChange={(e) => toggleConsent(cur.name, (e.target as HTMLInputElement).checked)} />
-                          Allow the agent to send prompts to <span class="mono">{providerHostOf(cur.base_url)}</span>
+                          Allow the agent to send prompts to <span class="mono">{cur.base_url.includes('.local-agent.invalid/') ? cur.name : providerHostOf(cur.base_url)}</span>
                         </label>
                         <div class="muted small-text">Nothing is sent to this provider until this is ticked. Workflows with llm operators are separate: they use this ladder only when run defaults allow model access, and need their own egress approval.</div>
                       </div>
@@ -381,9 +381,9 @@ export function ProvidersSettings() {
                       <button type="button" class="preset" onClick={() => add(fromPreset(p, taken))}>
                         <span class="preset-name">{p.name}</span>
                         <span class="preset-meta">
-                          <span class="mono">{providerHost(p)}</span>
+                          <span class="mono">{p.id.endsWith('-subscription') ? 'Uses your installed agent' : providerHost(p)}</span>
                           {p.regions.includes('cn') ? <Chip>China</Chip> : null}
-                          {p.secret === null ? <Chip tone="ok">local</Chip> : null}
+                          {p.id.endsWith('-subscription') ? <Chip>subscription</Chip> : p.secret === null ? <Chip tone="ok">local</Chip> : null}
                         </span>
                       </button>
                     ))}

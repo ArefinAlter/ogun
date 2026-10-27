@@ -13,7 +13,7 @@ publish.workspace = true
 # Configuration, pricing, budgets, prompts, schemas and the ledger only. The daemon needs no more.
 default = []
 # The HTTPS provider clients and the ladder runner (used by the `ogun-op-llm` child operator).
-http = ["dep:reqwest", "dep:tokio"]
+http = ["dep:reqwest", "dep:tokio", "dep:win32job"]
 
 [dependencies]
 ogun-types.workspace = true
@@ -29,6 +29,9 @@ jsonschema.workspace = true
 url.workspace = true
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+win32job = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

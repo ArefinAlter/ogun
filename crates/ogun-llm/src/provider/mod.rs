@@ -234,6 +234,20 @@ impl Provider {
         limit: usize,
     ) -> Result<Value, LlmError> {
         let url = format!("{}{path}", self.base);
+        if crate::local_agent::agent_for_url(&url).is_some() {
+            if path != "/chat/completions" {
+                return Err(LlmError::NotConfigured(
+                    "Installed agents provide chat, not embeddings".into(),
+                ));
+            }
+            return crate::local_agent::complete(
+                &url,
+                body,
+                Duration::from_millis(self.cfg.timeout_ms),
+            )
+            .await
+            .map_err(|e| LlmError::NotConfigured(e.to_string()));
+        }
         let mut headers = HeaderMap::new();
         if let Some(key) = &self.key {
             let (name, value) = match auth {
