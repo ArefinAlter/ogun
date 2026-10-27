@@ -13,7 +13,7 @@ publish.workspace = true
 # Configuration, pricing, budgets, prompts, schemas and the ledger only. The daemon needs no more.
 default = []
 # The HTTPS provider clients and the ladder runner (used by the `ogun-op-llm` child operator).
-http = ["dep:reqwest", "dep:tokio", "dep:win32job"]
+http = ["dep:reqwest", "dep:tokio", "dep:win32job", "dep:rustix"]
 
 [dependencies]
 ogun-types.workspace = true
@@ -39,3 +39,6 @@ tokio.workspace = true
 
 [lints]
 workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", features = ["process"], optional = true }

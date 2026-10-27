@@ -2854,6 +2854,7 @@ dependencies = [
  "jsonschema",
  "ogun-types",
  "reqwest",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",
