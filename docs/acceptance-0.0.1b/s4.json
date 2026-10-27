@@ -1,0 +1,77 @@
+[
+  {
+    "name": "importing the bikeshare project leaves approvals waiting for a person",
+    "ok": true,
+    "detail": "5 pending"
+  },
+  {
+    "name": "the daemon computed the facts (code hash, workflow hash, what it may do)",
+    "ok": true,
+    "detail": "3 facts"
+  },
+  {
+    "name": "the screen shows the facts above the decision buttons",
+    "ok": true,
+    "detail": "facts at 30, buttons at 535"
+  },
+  {
+    "name": "the confirm button is disabled while it arms",
+    "ok": true,
+    "detail": "disabled=true"
+  },
+  {
+    "name": "and enabled after the arming delay",
+    "ok": true,
+    "detail": "disabled=false"
+  },
+  {
+    "name": "review returns the daemon facts and an arming delay",
+    "ok": true,
+    "detail": "arm 1500 ms"
+  },
+  {
+    "name": "a confirmation before the button armed is refused",
+    "ok": true,
+    "detail": "{\"class\":\"invalid_request\",\"code\":\"api.invalid_params\",\"message\":\"the decision was confirmed before the button armed; review the approval again\",\"retryable\":false}"
+  },
+  {
+    "name": "and that confirmation is spent: it cannot be tried again",
+    "ok": true,
+    "detail": "{\"class\":\"invalid_request\",\"code\":\"api.invalid_params\",\"message\":\"no such decision under review; review the approval again\",\"retryable\":false}"
+  },
+  {
+    "name": "a deny is recorded with the Studio channel",
+    "ok": true,
+    "detail": "denied via studio by studio (studio)"
+  },
+  {
+    "name": "an approve after the delay is recorded with the Studio channel and the hash it was shown",
+    "ok": true,
+    "detail": "approved via studio by studio (studio)"
+  },
+  {
+    "name": "a decided approval cannot be decided again",
+    "ok": true,
+    "detail": "{\"class\":\"conflict\",\"code\":\"approval.already_decided\",\"message\":\"this approval is no longer pending\",\"retryable\":false}"
+  },
+  {
+    "name": "the webview cannot send approvals.decide itself: it is not in the shell relay list",
+    "ok": true,
+    "detail": "{\"class\":\"unsupported\",\"code\":\"api.method_not_found\",\"message\":\"not a method Studio relays to the engine\",\"retryable\":false}"
+  },
+  {
+    "name": "another program on this account (the ogun CLI) cannot decide on the app engine: no credential",
+    "ok": true,
+    "detail": "oap_01M5Y0SKRMTKVMGM5XCY3FSDNR  CodeChange  Pending\n  workflow      ridership-forecast\n  workflow hash f2b231376bd0bac32897a7cfb75033fa504e5f443928b3529fa8e4b8ddbc73ab\n  workflow      ridership-foreca"
+  },
+  {
+    "name": "after all of that, only the two decided approvals changed",
+    "ok": true,
+    "detail": "3 pending"
+  },
+  {
+    "name": "the daemon log records the decisions with the channel and the human credential",
+    "ok": true,
+    "detail": "\u001b[2m2026-10-27T06:30:14.116184Z\u001b[0m \u001b[32m INFO\u001b[0m \u001b[2mogun_daemon::approvals\u001b[0m\u001b[2m:\u001b[0m approval decided \u001b[3mapproval\u001b[0m\u001b[2m=\u001b[0moap_01M5Y0SKRW8TQ87YFQKE4GVGVW \u001b[3mstate\u001b[0m\u001b[2m=\u001b[0mDenied \u001b[3mchannel\u001b[0m\u001b[2m=\u001b[0mStudio | \u001b[2m2026-10-27T06:30:15.926354Z\u001b[0m \u001b[32m INFO\u001b[0m \u001b[2mogun_daemon::approv"
+  }
+]

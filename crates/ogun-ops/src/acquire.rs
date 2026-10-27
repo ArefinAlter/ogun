@@ -219,6 +219,10 @@ fn engine_error(env: &ErrorEnvelope, what: &str) -> OpError {
         C::TransientNetwork | C::Throttled | C::Timeout | C::Unavailable | C::UrlExpired => {
             "op.fetch_failed"
         }
+        // The transport sometimes reports a protocol violation for one response of a public API that the very next
+        // request gets right (seen against api.github.com on Windows). A GET is safe to repeat, so the node's
+        // retry policy gets to try again instead of the node failing for good.
+        _ if env.code.as_str() == zeus_types::codes::HTTP_PROTOCOL_ERROR => "op.fetch_failed",
         C::Integrity => "op.integrity",
         C::Disk => "op.io",
         C::PolicyDenied if env.code.as_str() == zeus_types::codes::WORKFLOW_BUDGET_EXHAUSTED => {

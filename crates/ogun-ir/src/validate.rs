@@ -389,6 +389,23 @@ impl Validator<'_> {
                 }
                 _ => {}
             }
+            if op.name == "export" {
+                match node.config.get("connection") {
+                    Some(serde_json::Value::String(s)) if !s.is_empty() => {}
+                    _ => self.err(
+                        "ir.export_needs_connection",
+                        format!("{path}/config/connection"),
+                        "export names the connection to deliver to: {\"connection\": \"<name>\"}.",
+                    ),
+                }
+                if p.approval != ApprovalPolicy::Always {
+                    self.err(
+                        "ir.export_needs_approval",
+                        format!("{path}/policy/approval"),
+                        "export sends data outside the engine and needs approval: always, so a person decides each delivery.",
+                    );
+                }
+            }
             if op.name == "shell" && p.approval != ApprovalPolicy::Always {
                 self.err(
                     "ir.shell_needs_approval",

@@ -1,0 +1,13 @@
+{
+  "id": "bikeshare",
+  "name": "Bike-share network",
+  "description": "Six workflows on a bike-share network: stations over MQTT, a monthly backfill since 2019, a daily rebalance plan (and a version that needs your approval), a district report and a weekly forecast. The data they name is invented; they validate, store and show the shape of a real project.",
+  "workflows": [
+    "trips-backfill.workflow.json",
+    "dock-telemetry.workflow.json",
+    "rebalance-plan.workflow.json",
+    "ridership-forecast.workflow.json",
+    "district-report.workflow.json",
+    "rebalance-plan.v2.workflow.json"
+  ]
+}

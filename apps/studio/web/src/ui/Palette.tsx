@@ -58,7 +58,7 @@ export function Palette({ backend, mode, onClose, go }: { backend: Backend; mode
     }
     if (backend.agent) out.push({ group: 'Agent', name: 'New thread', meta: 'Give the agent a task', icon: 'compose', run: open(href('agent')) })
     for (const t of (backend.agent ? threads : undefined) ?? []) out.push({ group: 'Agent threads', name: t.title, meta: t.state === 'idle' ? '' : t.state, icon: 'chat', run: open(href('agent', t.thread_id)) })
-    for (const n of NAV.filter((x) => x.id !== 'gateway' && (x.id !== 'agent' || backend.agent))) out.push({ group: 'Pages', name: n.label, icon: n.icon, run: open(href(...(n.to ?? (n.id ? [n.id] : [])))) })
+    for (const n of NAV.filter((x) => x.id !== 'gateway' && (x.id !== 'agent' || backend.agent) && (x.id !== 'benchmarks' || backend.bench))) out.push({ group: 'Pages', name: n.label, icon: n.icon, run: open(href(...(n.to ?? (n.id ? [n.id] : [])))) })
     out.push({ group: 'Pages', name: 'About Ogun Studio', icon: 'info', run: open(href('about')) })
     for (const s of SETTINGS_SECTIONS) out.push({ group: 'Settings', name: s.label, meta: s.hint, icon: s.icon, run: open(href('settings', s.id)) })
     out.push({ group: 'Appearance', name: 'Change theme', icon: 'palette', run: () => (setView('themes'), setQ('')) })

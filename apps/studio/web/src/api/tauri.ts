@@ -4,14 +4,23 @@
 import type { SvcTransport } from './svc'
 import { invoke } from '@tauri-apps/api/core'
 
-import type { Backend, EventSubscription, PreparedDecision, ShellInfo } from './backend'
+import { idempotencyKey } from '../lib/format'
+import type { Backend, EngineApi, EventSubscription, HubsApi, PreparedDecision, ShellInfo } from './backend'
 import { asOgunError } from './backend'
+import { toDaemonCall } from './localMap'
 import type {
   ApprovalState,
   ApprovalView,
   Decision,
+  EngineInfo,
+  EngineReport,
   EventsSinceResult,
+  HubEnvironment,
   OgunError,
+  SampleImportResult,
+  SampleInfo,
+  SandboxStatus,
+  ShellPrefs,
 } from './types'
 
 interface RustInfo {
@@ -20,6 +29,10 @@ interface RustInfo {
   mobile: boolean
   link: 'none' | 'local' | 'hub'
   hub_url?: string
+  hub_user?: string
+  hub_role?: string
+  hub_workspace?: string
+  hub_approver?: boolean
   profile?: string
   connected: boolean
   error?: OgunError
@@ -28,6 +41,7 @@ interface RustInfo {
   can_decide: boolean
   can_read_settings: boolean
   gateway: boolean
+  engine?: EngineInfo
 }
 
 interface RustPrepared {
@@ -54,6 +68,9 @@ function mapInfo(i: RustInfo): ShellInfo {
     mobile: i.mobile,
     link: i.link,
     ...(i.hub_url ? { hubUrl: i.hub_url } : {}),
+    ...(i.hub_user ? { hubUser: i.hub_user } : {}),
+    ...(i.hub_role ? { hubRole: i.hub_role } : {}),
+    ...(i.hub_workspace ? { hubWorkspace: i.hub_workspace } : {}),
     ...(i.profile ? { profile: i.profile } : {}),
     connected: i.connected,
     ...(i.error ? { error: i.error } : {}),
@@ -61,6 +78,7 @@ function mapInfo(i: RustInfo): ShellInfo {
     decideChannel: i.link === 'local' && i.can_decide && !i.mobile ? 'studio' : null,
     canReadSettings: i.can_read_settings,
     gateway: i.gateway,
+    ...(i.engine ? { engine: i.engine } : {}),
   }
 }
 
@@ -172,6 +190,43 @@ export function tauriBackend(): Backend {
     credentialsList: () => call('credentials_list'),
     secretsList: () => call('secrets_list'),
     llmLadder: () => call('llm_ladder'),
+  }
+}
+
+/** The service transport of the engine Studio runs for itself: the service's names, translated to the daemon's
+ *  (`localMap.ts`) and relayed by the shell's `engine_call`, which only forwards a closed list of methods. */
+export function localSvcTransport(): SvcTransport {
+  return {
+    call: (method, params = {}) => {
+      const c = toDaemonCall(method, params, idempotencyKey)
+      return call('engine_call', { method: c.method, params: c.params })
+    },
+  }
+}
+
+/** Studio's own engine, the shell's preferences, the bundled samples and secret entry. */
+export function localEngineApi(): EngineApi {
+  return {
+    report: () => call<EngineReport>('engine_info'),
+    restart: () => call<void>('engine_restart'),
+    prefs: () => call<ShellPrefs>('shell_prefs_get'),
+    setPrefs: (prefs) => call<ShellPrefs>('shell_prefs_set', { prefs }),
+    samples: () => call<SampleInfo[]>('samples_list'),
+    importSample: (id) => call<SampleImportResult>('sample_import', { id }),
+    putSecret: (name, value) => call<void>('secret_put', { name, value }),
+    deleteSecret: (name) => call<void>('secret_delete', { name }),
+    sandboxStatus: () => call<SandboxStatus>('engine_call', { method: 'sandbox.status', params: {} }),
+  }
+}
+
+/** Hubs reached with a browser sign-in. The commands arrive with the shell's auth layer; until then each call
+ *  fails with the shell's own error, which the Environments page shows. */
+export function localHubsApi(): HubsApi {
+  return {
+    list: () => call<HubEnvironment[]>('hub_environments'),
+    signIn: (url, ca_pem) => call<HubEnvironment | null>('hub_signin_start', { url, ca_pem }),
+    signOut: (id) => call<void>('hub_signout', { id }),
+    use: async (id) => mapInfo(await call<RustInfo>('hub_use', { id })),
   }
 }
 

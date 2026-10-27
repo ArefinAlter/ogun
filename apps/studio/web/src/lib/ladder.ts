@@ -120,6 +120,12 @@ export function readLadder(ladder: unknown): LadderProvider[] | null {
   return out
 }
 
+/** A stable secret name for a ladder entry: `<entry>_api_key`, cut to the secret-name rules. */
+export function suggestSecretName(entry: string): string {
+  const base = entry.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^[._-]+/, '').slice(0, 110) || 'provider'
+  return `${base}_api_key`
+}
+
 export function usd(micro: number): string {
   return (micro / 1_000_000).toFixed(micro % 10_000 === 0 ? 2 : 4)
 }

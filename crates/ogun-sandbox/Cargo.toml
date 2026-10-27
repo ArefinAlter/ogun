@@ -1,0 +1,27 @@
+[package]
+name = "ogun-sandbox"
+description = "ogun-sandbox: starts one operator process inside the Windows sandbox (AppContainer, job object, explicit handle list). The daemon runs operators through it on Windows, as it runs them through bubblewrap on Linux."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "ogun-sandbox"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+ogun-platform.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

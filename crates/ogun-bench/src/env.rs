@@ -18,7 +18,8 @@
 //! dropped, `no-new-privileges`, a process limit, optional CPU and memory limits, and either no network or an
 //! internal network without egress. Commands run with `exec`. The local runtime runs commands as child processes
 //! with a cleared environment in the workspace; it denies the network with a user and network namespace
-//! (`unshare -r -n`) and refuses to run when it cannot, unless a person set `allow_unisolated_local`.
+//! (`unshare -r -n`) on Linux, or an AppContainer with no network capability (`ogun-sandbox`, beside this program)
+//! on Windows, and refuses to run when it can do neither, unless a person set `allow_unisolated_local`.
 
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
@@ -165,7 +166,8 @@ pub struct EnvRecord {
     pub workspace: PathBuf,
     /// Host logs directory.
     pub logs: PathBuf,
-    /// Local runtime: wrap commands in `unshare -r -n`.
+    /// Local runtime: wrap commands in `unshare -r -n` (Linux) or the Windows sandbox helper, which also confines
+    /// writes to the workspace and the logs.
     #[serde(default)]
     pub local_netns: bool,
 }
@@ -251,7 +253,7 @@ pub struct Environment {
     pub workdir: String,
     /// BLAKE3 over the environment description (O-06 section 4.3).
     pub digest: String,
-    /// `container`, `local_netns` or `unisolated_local`.
+    /// `container`, `local_netns`, `local_appcontainer` or `unisolated_local`.
     pub isolation: &'static str,
     container: Option<String>,
     network: Option<String>,
@@ -483,6 +485,145 @@ async fn netns_available() -> bool {
     )
 }
 
+/// The Windows sandbox helper installed beside this program (or beside `target/<profile>/deps` in tests).
+fn sandbox_helper() -> Option<PathBuf> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let mut dirs = vec![dir.to_path_buf()];
+    if dir.ends_with("deps")
+        && let Some(up) = dir.parent()
+    {
+        dirs.push(up.to_path_buf());
+    }
+    dirs.into_iter()
+        .map(|d| d.join("ogun-sandbox.exe"))
+        .find(|p| p.is_file())
+}
+
+/// Whether the Windows sandbox helper is here and starts a confined program.
+async fn appcontainer_available() -> bool {
+    let Some(helper) = sandbox_helper() else {
+        return false;
+    };
+    matches!(
+        run_cli(&helper.display().to_string(), &["--self-test"], 60_000).await,
+        Ok((true, _))
+    )
+}
+
+/// How the local runtime would deny the network here: `local_netns` (Linux), `local_appcontainer` (Windows), or
+/// `None` when it cannot (a container runtime is then the only isolated choice).
+pub async fn local_isolation() -> Option<&'static str> {
+    if netns_available().await {
+        Some("local_netns")
+    } else if appcontainer_available().await {
+        Some("local_appcontainer")
+    } else {
+        None
+    }
+}
+
+/// Whether a container runtime's CLI answers (`docker version`, `podman version`).
+pub async fn runtime_available(runtime: Runtime) -> bool {
+    match runtime.cli() {
+        Some(cli) => matches!(run_cli(cli, &["version"], 15_000).await, Ok((true, _))),
+        None => true,
+    }
+}
+
+/// A program name with no folder is looked up in `PATH`; the sandbox helper needs a path.
+fn resolve_program(name: &str) -> PathBuf {
+    let p = Path::new(name);
+    if p.components().count() > 1 {
+        return p.to_path_buf();
+    }
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    for dir in std::env::split_paths(&path) {
+        for ext in ["exe", "com"] {
+            let c = dir.join(format!("{name}.{ext}"));
+            if c.is_file() {
+                return c;
+            }
+        }
+        let c = dir.join(name);
+        if c.is_file() {
+            return c;
+        }
+    }
+    p.to_path_buf()
+}
+
+/// The Windows sandbox command for one local run: the workspace is the scratch folder, the logs are writable,
+/// the benchmark and tests folders read-only, and there is no network. The plan file (paths and limits, never a
+/// secret) sits in the environment's own folder and is deleted by the helper once read.
+fn windows_sandboxed(
+    record: &EnvRecord,
+    first: &str,
+    rest: &[String],
+    vars: &[(String, String)],
+) -> BenchResult<Command> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let helper = sandbox_helper().ok_or_else(|| {
+        BenchError::IsolationUnavailable(
+            "the Windows sandbox helper (ogun-sandbox) is missing".into(),
+        )
+    })?;
+    let abs = |p: &Path| std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf());
+    let workspace = abs(&record.workspace);
+    let logs = abs(&record.logs);
+    let env_dir = workspace
+        .parent()
+        .ok_or_else(|| BenchError::Spec("the workspace has no parent".into()))?
+        .to_path_buf();
+    let plans = env_dir.join(".plans");
+    std::fs::create_dir_all(&plans).map_err(BenchError::io("create the plan directory"))?;
+    let plan = plans.join(format!(
+        "{}-{}.json",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let read_only: Vec<String> = ["benchmark", "tests"]
+        .iter()
+        .map(|d| env_dir.join(d))
+        .filter(|p| p.is_dir())
+        .map(|p| p.display().to_string())
+        .collect();
+    // A sandboxed program sees the system folders only: not the person's own `PATH`.
+    let system = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    let vars: Vec<(String, String)> = vars
+        .iter()
+        .map(|(k, v)| {
+            if k.eq_ignore_ascii_case("PATH") {
+                (k.clone(), format!(r"{system}\System32;{system}"))
+            } else {
+                (k.clone(), v.clone())
+            }
+        })
+        .collect();
+    let doc = serde_json::json!({
+        "scratch": workspace.display().to_string(),
+        "read_write": [logs.display().to_string()],
+        "read_only": read_only,
+        "network": false,
+        "memory_bytes": 2u64 << 30,
+        "cpu_ms": serde_json::Value::Null,
+        "env": vars,
+        "cache_dir": env_dir.parent().and_then(Path::parent).map(|p| p.join("runtime").display().to_string()),
+    });
+    std::fs::write(&plan, doc.to_string()).map_err(BenchError::io("write the sandbox plan"))?;
+    let mut cmd = Command::new(helper);
+    cmd.arg(&plan)
+        .arg("--")
+        .arg(abs(&resolve_program(first)))
+        .args(rest);
+    cmd.current_dir(&workspace);
+    Ok(cmd)
+}
+
 fn local_env(record: &EnvRecord, opts: &ExecOptions) -> Vec<(String, String)> {
     let tmp = record.logs.join("tmp").display().to_string();
     let mut vars = vec![
@@ -550,6 +691,27 @@ pub async fn exec_in(
             Ok(out)
         }
         _ => {
+            std::fs::create_dir_all(record.logs.join("tmp"))
+                .map_err(BenchError::io("create the temporary directory"))?;
+            let vars = local_env(record, opts);
+            if record.local_netns && cfg!(windows) {
+                // The helper takes its environment from the plan; the child of this process gets none of ours.
+                if !opts.pass_env.is_empty() {
+                    // The plan file would carry the credential's value to disk.
+                    return Err(BenchError::IsolationUnavailable(
+                        "model credentials cannot be passed into the Windows local sandbox; use a host-placed agent or a container runtime"
+                            .into(),
+                    ));
+                }
+                let mut cmd = windows_sandboxed(record, first, rest, &vars)?;
+                cmd.env_clear();
+                for k in ["SystemRoot", "windir"] {
+                    if let Ok(v) = std::env::var(k) {
+                        cmd.env(k, v);
+                    }
+                }
+                return run_command(cmd, opts.timeout_ms).await;
+            }
             let mut cmd = if record.local_netns {
                 let mut c = Command::new("unshare");
                 c.arg("-r").arg("-n").arg(first).args(rest);
@@ -559,11 +721,7 @@ pub async fn exec_in(
                 c.args(rest);
                 c
             };
-            std::fs::create_dir_all(record.logs.join("tmp"))
-                .map_err(BenchError::io("create the temporary directory"))?;
-            cmd.env_clear()
-                .envs(local_env(record, opts))
-                .current_dir(&record.workspace);
+            cmd.env_clear().envs(vars).current_dir(&record.workspace);
             run_command(cmd, opts.timeout_ms).await
         }
     }
@@ -663,16 +821,16 @@ impl Environment {
                 let need_netns = spec.agent_network == NetworkPolicy::Denied
                     || spec.evaluator_network == NetworkPolicy::Denied;
                 if need_netns {
-                    if netns_available().await {
+                    if let Some(kind) = local_isolation().await {
                         me.local_netns = spec.agent_network == NetworkPolicy::Denied;
-                        me.isolation = "local_netns";
+                        me.isolation = kind;
                     } else if spec.allow_unisolated_local {
                         tracing::warn!(env = %me.id, "local environment without a network namespace");
                         me.isolation = "unisolated_local";
                     } else {
                         return Err(BenchError::IsolationUnavailable(
-                            "the local runtime cannot deny the network here (no unprivileged network namespace); \
-                             use a container runtime or set allow_unisolated_local"
+                            "the local runtime cannot deny the network here (no unprivileged network namespace and no \
+                             Windows sandbox helper); use a container runtime or set allow_unisolated_local"
                                 .into(),
                         ));
                     }
@@ -1016,7 +1174,7 @@ impl Environment {
     /// [`BenchError::Environment`].
     pub async fn open_evaluator_network(&mut self) -> BenchResult<()> {
         if self.spec.runtime == Runtime::Local {
-            self.local_netns = self.isolation == "local_netns"
+            self.local_netns = matches!(self.isolation, "local_netns" | "local_appcontainer")
                 && self.spec.evaluator_network == NetworkPolicy::Denied;
             return Ok(());
         }

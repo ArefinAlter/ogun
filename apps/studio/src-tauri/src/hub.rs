@@ -13,9 +13,9 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use ogun_api::methods::{
-    ApprovalRef, EventsSinceParams, GetArtifactParams, GetWorkflowParams, LineageParams,
-    ListApprovalsParams, ListArtifactsParams, ListRunsParams, PartitionStatusParams,
-    PlanBackfillParams, RunRef, StreamRef, WorkflowDocument, name,
+    ApprovalRef, CancelRunParams, EventsSinceParams, GetArtifactParams, GetWorkflowParams,
+    LineageParams, ListApprovalsParams, ListArtifactsParams, ListRunsParams, PartitionStatusParams,
+    PlanBackfillParams, RunRef, StartRunParams, StreamRef, WorkflowDocument, name,
 };
 use ogun_types::OgunError;
 use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderValue};
@@ -34,8 +34,10 @@ pub const MAX_INLINE_BYTES: u64 = 1024 * 1024;
 /// A connection to a hub.
 pub struct HubLink {
     base: Url,
-    token: Zeroizing<String>,
+    token: std::sync::Arc<std::sync::Mutex<Zeroizing<String>>>,
     http: reqwest::Client,
+    /// A person's browser sign-in (`ogs1_` session): refreshed once when the hub answers 401.
+    native: Option<Arc<crate::hubs::NativeSession>>,
 }
 
 impl std::fmt::Debug for HubLink {
@@ -94,6 +96,32 @@ pub fn parse_hub_url(text: &str) -> StudioResult<Url> {
         url.set_path(&path);
     }
     Ok(url)
+}
+
+/// The HTTP client for a hub or an identity provider: rustls with the Mozilla roots, or exactly the CA a person
+/// pins; no redirects; no credentials in the user agent.
+///
+/// # Errors
+///
+/// `api.invalid_params` for a pinned CA that is not PEM.
+pub fn http_client(ca_pem: Option<&str>, https_only: bool) -> StudioResult<reqwest::Client> {
+    http_client_headers(ca_pem, https_only, reqwest::header::HeaderMap::new())
+}
+
+fn http_client_headers(
+    ca_pem: Option<&str>,
+    https_only: bool,
+    headers: reqwest::header::HeaderMap,
+) -> StudioResult<reqwest::Client> {
+    reqwest::Client::builder()
+        .tls_backend_preconfigured(tls_config(ca_pem)?)
+        .https_only(https_only)
+        .connect_timeout(Duration::from_secs(10))
+        .redirect(reqwest::redirect::Policy::none())
+        .user_agent(concat!("ogun-studio/", env!("CARGO_PKG_VERSION")))
+        .default_headers(headers)
+        .build()
+        .map_err(|e| transport(&e))
 }
 
 fn tls_config(ca_pem: Option<&str>) -> StudioResult<rustls::ClientConfig> {
@@ -226,15 +254,47 @@ impl HubLink {
                 "the API token must be 16 to 512 printable ASCII characters",
             ));
         }
-        let http = reqwest::Client::builder()
-            .tls_backend_preconfigured(tls_config(ca_pem)?)
-            .https_only(base.scheme() == "https")
-            .connect_timeout(Duration::from_secs(10))
-            .redirect(reqwest::redirect::Policy::none())
-            .user_agent(concat!("ogun-studio/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .map_err(|e| transport(&e))?;
-        Ok(Self { base, token, http })
+        let http = http_client(ca_pem, base.scheme() == "https")?;
+        Ok(Self {
+            base,
+            token: std::sync::Arc::new(std::sync::Mutex::new(token)),
+            http,
+            native: None,
+        })
+    }
+
+    /// A link that acts as a person signed in with the browser (`ogs1_` session), addressing `workspace`.
+    ///
+    /// # Errors
+    ///
+    /// `api.invalid_params` when the workspace id is not a header value or the CA is not PEM.
+    pub fn native(
+        session: Arc<crate::hubs::NativeSession>,
+        workspace: Option<&str>,
+        ca_pem: Option<&str>,
+    ) -> StudioResult<Self> {
+        let mut headers = reqwest::header::HeaderMap::new();
+        if let Some(w) = workspace.filter(|w| !w.is_empty()) {
+            headers.insert(
+                "x-ogun-workspace",
+                HeaderValue::from_str(w)
+                    .map_err(|_| StudioError::invalid("the workspace id is not valid"))?,
+            );
+        }
+        let base = session.base();
+        let http = http_client_headers(ca_pem, base.scheme() == "https", headers)?;
+        Ok(Self {
+            base,
+            token: session.cell(),
+            http,
+            native: Some(session),
+        })
+    }
+
+    /// Whether this link is a person's session (not an API token).
+    #[must_use]
+    pub fn is_person(&self) -> bool {
+        self.native.is_some()
     }
 
     /// The hub URL as shown to people: scheme, host, port and path only.
@@ -259,7 +319,12 @@ impl HubLink {
     }
 
     fn auth(&self) -> StudioResult<HeaderValue> {
-        let mut v = HeaderValue::from_str(&format!("Bearer {}", self.token.as_str()))
+        let token = self
+            .token
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let mut v = HeaderValue::from_str(&format!("Bearer {}", token.as_str()))
             .map_err(|_| StudioError::invalid("the API token is not a valid header value"))?;
         v.set_sensitive(true);
         Ok(v)
@@ -360,6 +425,19 @@ impl HubLink {
     ///
     /// `api.permission_denied` for anything that is not a read; the hub's envelope otherwise.
     pub async fn call(&self, method: &str, params: Value) -> StudioResult<Value> {
+        match self.call_once(method, params.clone()).await {
+            // A browser sign-in's session ends on the hub's own timeouts: sign in again silently, once.
+            Err(e) if e.code() == "api.unauthenticated" && self.native.is_some() => {
+                if let Some(n) = &self.native {
+                    n.refresh().await?;
+                }
+                self.call_once(method, params).await
+            }
+            r => r,
+        }
+    }
+
+    async fn call_once(&self, method: &str, params: Value) -> StudioResult<Value> {
         match method {
             name::DAEMON_STATUS => self.get(&["status"], &[]).await,
             name::WORKFLOWS_LIST => self.get(&["workflows"], &[]).await,
@@ -460,6 +538,23 @@ impl HubLink {
                 self.get(&["streams", &p.workflow, &p.node], &[]).await
             }
             name::EDGES_LIST => self.get(&["edges"], &[]).await,
+            // A person's session may start and cancel runs where the hub's role allows it (the hub decides).
+            name::RUNS_START if self.native.is_some() => {
+                let p: StartRunParams = typed(params)?;
+                self.post(
+                    &["workflows", &p.workflow.clone(), "runs"],
+                    &serde_json::to_value(&p).map_err(|e| StudioError::invalid(e.to_string()))?,
+                )
+                .await
+            }
+            name::RUNS_CANCEL if self.native.is_some() => {
+                let p: CancelRunParams = typed(params)?;
+                self.post(
+                    &["runs", &p.run_id.to_string(), "cancel"],
+                    &json!({ "idempotency_key": p.idempotency_key }),
+                )
+                .await
+            }
             _ => Err(StudioError::denied(
                 "a hub link is read-only in Studio; use the desktop or Studio-web for this",
             )),

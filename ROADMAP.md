@@ -51,7 +51,7 @@ Exit: O-00 to O-03 accepted, with JSON Schemas and examples that a validator che
   - Next: the core operators behind `ogun-ops`, and the O1 exit test.
 - Core operators: `acquire`, `archive.extract`, `hash`, `dedupe`, `manifest`, `file.copy`, `file.move`. One external adapter: DuckDB.
   - Done (`ogun-ops`, `ogun-op-shims`): the operator registry; every core operator of O-03 section 7 (with `acquire` on the zeus-core engine and a no-session provider, and a robots-aware same-origin `crawl`); the `jsonl-stdio/0` runner with manifests, `config_schema` checks, secrets on stdin only and redacted stderr; the bubblewrap and `sandbox-exec` sandboxes; shims for DuckDB, SQL, dbt, shell, Poppler, Tesseract, PaddleOCR, ffmpeg, pandoc, yt-dlp, rclone, git and Hugging Face. The Smart Air Python operators run unchanged.
-  - Next: wiring into `ogund`; a loopback test hook for `acquire` and `crawl`; Windows sandboxing.
+  - Next: a loopback test hook for `acquire` and `crawl`. Done in 0.0.1b: the Windows AppContainer sandbox (`ogun-platform`, `ogun-sandbox`).
 - CLI: `ogun plan`, `ogun run`, `ogun status`, `ogun backfill`. A small MCP tool set.
 - Exit: a NOAA-style backfill (partitioned acquisition over a date range) survives a `kill -9` of `ogund` mid-run and resumes only the incomplete partitions. **Met on 2026-10-23** for a 121-partition backfill of core operators (`crates/ogun-daemon/tests/exit.rs`); the same run with `acquire` over a real source is the next check.
 
@@ -80,6 +80,19 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
   9. The iOS companion. Code in `apps/studio` (read-only hub link); not yet built with Xcode.
 - The O1 exit test gains a stream twin: kill `ogund` during a window, restart, and the re-seal gives the same digest with no lost or duplicated record. **Met on 2026-10-23** (`crates/ogun-daemon/tests/exit.rs`).
 
+## Release 0.0.1b: standalone Studio (2026-10-27)
+
+Studio desktop owns its engine: the app starts a bundled `ogund` on a private pipe, restarts it, stops it, and works with no
+account and no network. Run end to end on Windows 11 against the installed app and recorded in
+[`docs/ACCEPTANCE-0.0.1b.md`](docs/ACCEPTANCE-0.0.1b.md) (ten scenarios, with limits stated).
+
+- Done: the Windows AppContainer sandbox and `parse@1`/`export@1`; connections (folder, SQLite, S3-compatible); agent threads
+  with your own provider key (O-17); a benchmark sample suite from the app (O-06); sign-in to a hub with the browser (PKCE,
+  `POST /auth/native`); an installer, a portable zip, an AppImage and a `.deb`.
+- Next, in order: apply the native sign-in upgrade to the hosted pre-alpha hub (`deploy/pre-alpha/native-signin`, needs its
+  owner); a live call to each model provider with a real key; macOS (a signed build and a sandbox); signing the Windows
+  binaries; Android and iOS builds; real brokers, devices and cloud services for the stream and export operators.
+
 ## Phase O2: data and model operators
 
 - Python, SQL and dbt adapters with sandbox profiles; code-operator approvals on Ogun's trust surfaces (O-07).
@@ -97,7 +110,7 @@ New requirements: continuous sensor and telemetry streams, edge devices, every d
 ## Phase O4: Studio and A2A
 
 - Ogun Studio (Tauri): Runs, Workflows, Artifacts, Sources, Datasets, Agents, Schedules, Benchmarks, Connections; the approval inbox; lineage and trajectory timelines.
-  - Started 2026-10-23 in `apps/studio`: overview, workflows (normal form, diagnostics, DAG, versions, import), runs with live node states, partitions and backfill plans, the approval inbox (Studio evidence on the desktop, passkeys on Studio-web), artifacts with previews and lineage, streams, edges and settings. Waits for `ogund` and `ogun-server` for end-to-end runs.
+  - 0.0.1b: Studio desktop runs against its own bundled engine (see the release section above). Started 2026-10-23 in `apps/studio`: overview, workflows (normal form, diagnostics, DAG, versions, import), runs with live node states, partitions and backfill plans, the approval inbox (Studio evidence on the desktop, passkeys on Studio-web), artifacts with previews and lineage, streams, edges and settings. Waits for `ogund` and `ogun-server` for end-to-end runs.
 - Ogun's A2A agent card and bridge endpoint, off by default.
 
 ## Not planned

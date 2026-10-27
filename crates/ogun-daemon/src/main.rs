@@ -21,6 +21,10 @@ struct Args {
     /// Print the endpoint and state directory, then exit.
     #[arg(long)]
     print_paths: bool,
+    /// Run for a supervising app (Ogun Studio): read its per-launch `studio` credential from the first line
+    /// of stdin (never from disk), print one JSON line on stdout when listening, and stop when stdin closes.
+    #[arg(long)]
+    supervised: bool,
 }
 
 #[tokio::main]
@@ -46,9 +50,48 @@ async fn main() -> anyhow::Result<()> {
         }
         return Ok(());
     }
-    let running = ogun_daemon::start(paths)
+    let options = if args.supervised {
+        ogun_daemon::StartOptions {
+            transient_credential: Some(read_supervisor_credential().await?),
+            prefer_os_secrets: true,
+            secrets_passphrase: std::env::var("OGUN_SECRETS_PASSPHRASE")
+                .ok()
+                .filter(|p| !p.is_empty())
+                .map(zeroize::Zeroizing::new),
+        }
+    } else {
+        ogun_daemon::StartOptions::default()
+    };
+    let endpoint = paths.endpoint().to_string();
+    let running = ogun_daemon::start_with(paths, options)
         .await
         .context("ogund could not start")?;
+    if args.supervised {
+        // The one machine-readable line: the supervisor waits for it.
+        #[allow(clippy::print_stdout)]
+        {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "event": "ready",
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "endpoint": endpoint,
+                    "pid": std::process::id(),
+                })
+            );
+        }
+        let daemon = running.daemon.clone();
+        // The supervisor holds the write end of our stdin. When it closes (the app quit or was killed), stop
+        // cleanly so in-flight attempts checkpoint and nothing runs unattended without a way to talk to it.
+        tokio::spawn(async move {
+            use tokio::io::AsyncReadExt as _;
+            let mut stdin = tokio::io::stdin();
+            let mut sink = [0u8; 256];
+            while matches!(stdin.read(&mut sink).await, Ok(n) if n > 0) {}
+            tracing::info!("the supervisor closed stdin; stopping");
+            daemon.shutdown.send_replace(true);
+        });
+    }
     tokio::select! {
         () = running.wait() => {}
         r = tokio::signal::ctrl_c() => { r.context("signal handler")?; }
@@ -56,7 +99,26 @@ async fn main() -> anyhow::Result<()> {
     }
     tracing::info!("ogund stopping");
     running.stop().await;
+    if args.supervised {
+        // A blocking read of stdin may still be pending; do not wait for it.
+        std::process::exit(0);
+    }
     Ok(())
+}
+
+/// Reads the supervisor's `studio` credential: one line, `<id> human studio <token>` (the token-file format).
+async fn read_supervisor_credential() -> anyhow::Result<ogun_api::Credential> {
+    use tokio::io::AsyncBufReadExt as _;
+    let mut line = zeroize::Zeroizing::new(String::new());
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
+    tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        reader.read_line(&mut line),
+    )
+    .await
+    .context("the supervisor sent no credential within 20 seconds")?
+    .context("cannot read the supervisor's credential from stdin")?;
+    ogun_api::Credential::from_file_text(&line).context("the supervisor's credential is malformed")
 }
 
 /// Resolves on SIGTERM (systemd, `docker stop`, Kubernetes); never on platforms without it.

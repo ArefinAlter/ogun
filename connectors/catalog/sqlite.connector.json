@@ -1,0 +1,39 @@
+{
+  "connector_version": 0,
+  "id": "sqlite",
+  "name": "SQLite",
+  "vendor": "SQLite Consortium",
+  "category": "database",
+  "regions": [
+    "global",
+    "cn"
+  ],
+  "summary": "Insert the rows of JSON Lines results into a table of a SQLite database file on this computer.",
+  "docs_url": "https://www.sqlite.org/docs.html",
+  "maturity": "built",
+  "directions": [
+    "sink"
+  ],
+  "protocol": "file",
+  "auth": [],
+  "settings": [
+    {
+      "name": "path",
+      "label": "Database file",
+      "type": "string",
+      "required": true,
+      "help": "The file is created if it does not exist. Its folder must exist."
+    }
+  ],
+  "egress": {
+    "domains": [],
+    "ports": [],
+    "note": "Writes to a file on this machine and reaches nothing outside it."
+  },
+  "operators": [],
+  "implementation": {
+    "path": "crates/ogun-ops/src/export/sqlite_sink.rs",
+    "evidence": "unit tests and a run through the Windows app on 2026-10-26 (docs/ACCEPTANCE-0.0.1b.md)"
+  },
+  "notes": "Needs a connection of this connector and `policy.approval: always` on the export node (ADR 0016). SQLite is compiled into Ogun; no driver or server is needed."
+}

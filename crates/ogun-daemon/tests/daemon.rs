@@ -304,3 +304,69 @@ async fn an_enrolled_edge_syncs_a_sealed_window_to_the_hub() {
     assert!(edges.edges[0].last_sync_at.is_some());
     running.stop().await;
 }
+
+/// The peer check on every platform: the daemon learns which executable is on the other end of the connection,
+/// and only a pinned Studio binary reaches the Studio-callable methods and `studio` approval evidence.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn studio_is_recognised_by_its_executable() {
+    let dir = tempfile::tempdir().unwrap();
+    let me = std::env::current_exe().unwrap();
+    let paths = OgunPaths::rooted(dir.path(), None);
+    std::fs::create_dir_all(&paths.state_dir).unwrap();
+    let ids = IdGenerator::new();
+    let (mut creds, _) = ogun_daemon::creds::Credentials::load_or_init(&paths, &ids).unwrap();
+    creds
+        .add(&paths, &ids, "studio", ClientKind::Human)
+        .unwrap();
+    creds.add(&paths, &ids, "agent", ClientKind::Agent).unwrap();
+    drop(creds);
+
+    // Not pinned: a human credential alone is not a trust surface.
+    let running = ogun_daemon::start(paths.clone()).await.unwrap();
+    let mut c = Client::connect(&paths, "studio", info()).await.unwrap();
+    assert_eq!(c.surface(), ogun_api::policy::Surface::None);
+    assert!(!c.interactive());
+    let refused = c
+        .call_value(name::SECRETS_PUT, json!({"name": "k", "value": "v"}))
+        .await
+        .unwrap_err();
+    assert_eq!(refused.code(), "api.permission_denied");
+    drop(c);
+    running.stop().await;
+
+    // Pinned as Studio: the peer's executable is read from the operating system, not from the client.
+    std::fs::write(
+        paths.config_file(),
+        serde_json::to_vec(&json!({ "trusted_studio_binaries": [me.display().to_string()] }))
+            .unwrap(),
+    )
+    .unwrap();
+    let running = ogun_daemon::start(paths.clone()).await.unwrap();
+    let mut c = Client::connect(&paths, "studio", info()).await.unwrap();
+    assert_eq!(c.surface(), ogun_api::policy::Surface::Studio);
+    assert!(c.interactive());
+    assert!(c.methods().iter().any(|m| m == name::SECRETS_PUT));
+    assert!(!c.methods().iter().any(|m| m == name::CREDENTIALS_ADD));
+    let ok = c
+        .call_value(name::SECRETS_PUT, json!({"name": "k", "value": "v"}))
+        .await
+        .unwrap();
+    assert_eq!(ok, json!({}));
+    let names = c.call_value(name::SECRETS_LIST, json!({})).await.unwrap();
+    assert_eq!(names, json!({"names": ["k"]}));
+    // Trust changes stay on a terminal.
+    let denied = c
+        .call_value(name::CREDENTIALS_ADD, json!({"name": "x", "kind": "agent"}))
+        .await
+        .unwrap_err();
+    assert_eq!(denied.code(), "api.permission_denied");
+    // An agent connecting from the same pinned executable is still an agent.
+    let mut agent = Client::connect(&paths, "agent", info()).await.unwrap();
+    assert_eq!(agent.surface(), ogun_api::policy::Surface::None);
+    let denied = agent
+        .call_value(name::SECRETS_PUT, json!({"name": "k2", "value": "v"}))
+        .await
+        .unwrap_err();
+    assert_eq!(denied.code(), "api.permission_denied");
+    running.stop().await;
+}

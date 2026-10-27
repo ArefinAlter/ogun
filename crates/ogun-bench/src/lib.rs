@@ -27,6 +27,7 @@ pub mod cache;
 pub mod env;
 pub mod evaluator;
 pub mod matrix;
+pub mod sample;
 pub mod task;
 pub mod workspace;
 
@@ -36,6 +37,24 @@ pub use env::{CacheMode, Environment, EnvironmentSpec, NetworkPolicy, Runtime};
 pub use evaluator::{EvalResult, EvaluatorSpec, ResultSource};
 pub use matrix::{MatrixResults, MatrixSpec, run_matrix};
 pub use task::Task;
+
+/// The default benchmark state directory: `OGUN_BENCH_STATE_DIR`, else a folder beside (never inside) Ogun's own
+/// state: `%LOCALAPPDATA%\OgunBench` on Windows, `~/Library/Application Support/OgunBench` on macOS and
+/// `$XDG_STATE_HOME/ogun-bench` elsewhere.
+#[must_use]
+pub fn default_state_dir() -> Option<std::path::PathBuf> {
+    if let Some(p) = std::env::var_os("OGUN_BENCH_STATE_DIR").filter(|v| !v.is_empty()) {
+        return Some(std::path::PathBuf::from(p));
+    }
+    let base = directories::BaseDirs::new()?;
+    Some(if cfg!(windows) || cfg!(target_os = "macos") {
+        base.data_local_dir().join("OgunBench")
+    } else {
+        base.state_dir()
+            .unwrap_or_else(|| base.data_local_dir())
+            .join("ogun-bench")
+    })
+}
 
 /// Benchmark failures. Messages never contain secret values or model credentials.
 #[derive(Debug, thiserror::Error)]

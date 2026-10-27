@@ -5,12 +5,17 @@ import type {
   AgentAccess,
   AgentAction,
   AgentModel,
+  AgentPreview,
   AgentSettings,
   AgentThread,
   AgentThreadSummary,
   AgentToolInfo,
   ApprovalView,
   ArchiveItem,
+  BenchList,
+  BenchReplay,
+  BenchRuntimeId,
+  BenchStatus,
   CleanupPlan,
   ConnectionInput,
   ConnectionTestResult,
@@ -18,11 +23,14 @@ import type {
   CredentialView,
   Decision,
   EdgeView,
+  EngineInfo,
+  EngineReport,
   EnvironmentsResult,
   EvidenceSettings,
   EventView,
   GetArtifactResult,
   GetWorkflowResult,
+  HubEnvironment,
   LadderProvider,
   LadderResult,
   LineageResult,
@@ -38,6 +46,10 @@ import type {
   PlanBackfillResult,
   PutWorkflowResult,
   RunView,
+  SampleImportResult,
+  SandboxStatus,
+  SampleInfo,
+  ShellPrefs,
   RuntimeSettings,
   RuntimeSettingsView,
   ScheduleView,
@@ -62,6 +74,10 @@ export interface ShellInfo {
   /** `local` (ogund on this machine), `hub` (a server, read-only), `server` (Studio-web) or `none`. */
   link: 'local' | 'hub' | 'server' | 'none'
   hubUrl?: string
+  /** A hub reached with a browser sign-in: who the hub says you are, your role and the workspace Studio addresses. */
+  hubUser?: string
+  hubRole?: string
+  hubWorkspace?: string
   profile?: string
   connected: boolean
   error?: OgunError
@@ -72,10 +88,14 @@ export interface ShellInfo {
   gateway: boolean
   /** The daemon runs agent threads (O-17). */
   agent?: boolean
+  /** The engine runs benchmarks (`bench.*`, O-06): the desktop's own engine only. */
+  bench?: boolean
   workspaceId?: string
   workspaces?: { workspace_id: string; name: string; role: string; approver: boolean }[]
   /** Studio-web: the signed-in user. */
   user?: { id: string; name: string; roles: string[]; approver: boolean }
+  /** Desktop: the engine Studio runs for itself (ADR 0015). Absent in a browser and on phones. */
+  engine?: EngineInfo
 }
 
 /** A decision under review: the facts as the daemon reported them just now, and a single confirmation. */
@@ -135,6 +155,46 @@ export interface AgentApi {
   setAccess(threadId: string, access: AgentAccess): Promise<void>
   rename(threadId: string, title: string): Promise<void>
   remove(threadId: string): Promise<void>
+  /** What the next request would carry, redacted, before anything is sent. Absent where the daemon cannot say. */
+  preview?(threadId: string | null, text: string): Promise<AgentPreview>
+}
+
+/** Studio's own engine and the shell around it (desktop only; ADR 0015). */
+export interface EngineApi {
+  report(): Promise<EngineReport>
+  restart(): Promise<void>
+  prefs(): Promise<ShellPrefs>
+  setPrefs(prefs: ShellPrefs): Promise<ShellPrefs>
+  /** The sample projects bundled with Studio. */
+  samples(): Promise<SampleInfo[]>
+  importSample(id: string): Promise<SampleImportResult>
+  /** Stores a secret a person typed. The value goes to the engine's secret store once and is not kept here. */
+  putSecret(name: string, value: string): Promise<void>
+  deleteSecret(name: string): Promise<void>
+  /** What the engine can isolate when it runs a code operator. */
+  sandboxStatus(): Promise<SandboxStatus>
+}
+
+/** Benchmarks (O-06, ADR 0005) on the engine Studio runs for itself. The harness denies the network to every run. */
+export interface BenchApi {
+  /** The runtimes this computer can use, the suites, and the runs so far (newest first). */
+  list(): Promise<BenchList>
+  /** Starts the sample suite on a runtime that can deny the network; refused where none can. Returns at once. */
+  run(params: { runtime: BenchRuntimeId; seeds: number[]; suite?: string }, idempotencyKey?: string): Promise<{ id: string }>
+  status(id: string): Promise<BenchStatus>
+  cancel(id: string, idempotencyKey?: string): Promise<{ cancelled: boolean; state?: string }>
+  /** Checks one trajectory's hash chain again and returns its first events. */
+  replay(id: string, agentRun: string): Promise<BenchReplay>
+}
+
+/** Hubs this Studio is signed in to or has a token for, besides its own engine (desktop only). */
+export interface HubsApi {
+  list(): Promise<HubEnvironment[]>
+  /** Opens the system browser for the hub's sign-in (authorization code with PKCE) and waits for the answer. */
+  signIn(url: string, caPem: string | null): Promise<HubEnvironment | null>
+  signOut(id: string): Promise<void>
+  /** Makes this hub the environment Studio shows. */
+  use(id: string): Promise<ShellInfo>
 }
 
 export interface Backend {
@@ -143,6 +203,12 @@ export interface Backend {
   readonly demo?: DemoControls
   /** Present when the daemon offers agent threads (O-17). Only the scripted demo does today. */
   readonly agent?: AgentApi
+  /** Present on the desktop: Studio's own engine, its preferences, the bundled samples and the secret entry. */
+  readonly engine?: EngineApi
+  /** Present on the desktop: hubs signed in to with a browser, or reached with a token. */
+  readonly hubs?: HubsApi
+  /** Present when the desktop's own engine offers benchmarks. Not on a hub, in a browser or on the scripted backend. */
+  bench?: BenchApi
   /** Present when the daemon manages data connections (the demo does; the O-15 daemon does not yet). */
   readonly connections?: ConnectionsApi
   /** Trigger schedules of every stored workflow, with pause and resume where the daemon allows it. */

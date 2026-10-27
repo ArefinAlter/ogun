@@ -1,0 +1,97 @@
+[
+  {
+    "name": "no connection exists at first",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the secret list holds names only",
+    "ok": true,
+    "detail": "{\"names\":[\"acc_s3_key\",\"acc_s3_secret\",\"acc_s3_wrong\"]}"
+  },
+  {
+    "name": "a secret pasted into a setting is refused",
+    "ok": true,
+    "detail": "{\"class\":\"invalid_request\",\"code\":\"api.invalid_params\",\"message\":\"connection: the setting path looks like a secret; store secrets by name (they go in the credential store, not in a connection)\",\"retry"
+  },
+  {
+    "name": "four connections are stored and show secret names only",
+    "ok": true,
+    "detail": "4"
+  },
+  {
+    "name": "Test of the folder connection passes (it wrote and removed a probe file)",
+    "ok": true,
+    "detail": "{\"checks\":[{\"detail\":\"every required setting has a value\",\"name\":\"settings\",\"ok\":true},{\"detail\":\"every required secret is stored (values are not read back)\",\"name\":\"secrets\",\"ok\":true},{\"detail\":\"this connector reaches nothing outside this computer\",\"name\":\"hosts\",\"ok\":true},{\"detail\":\"the director"
+  },
+  {
+    "name": "Test of the SQLite connection passes (it opened the file and wrote a scratch table)",
+    "ok": true,
+    "detail": "{\"checks\":[{\"detail\":\"every required setting has a value\",\"name\":\"settings\",\"ok\":true},{\"detail\":\"every required secret is stored (values are not read back)\",\"name\":\"secrets\",\"ok\":true},{\"detail\":\"this connector reaches nothing outside this computer\",\"name\":\"hosts\",\"ok\":true},{\"detail\":\"SQLite 3.54."
+  },
+  {
+    "name": "Test of the bucket connection passes against the signature-checking server",
+    "ok": true,
+    "detail": "{\"checks\":[{\"detail\":\"every required setting has a value\",\"name\":\"settings\",\"ok\":true},{\"detail\":\"every required secret is stored (values are not read back)\",\"name\":\"secrets\",\"ok\":true},{\"detail\":\"it contacts 127.0.0.1\",\"name\":\"hosts\",\"ok\":true},{\"detail\":\"127.0.0.1:38417 bucket acc, region us-east-"
+  },
+  {
+    "name": "Test with a wrong secret fails, and says so without the secret",
+    "ok": true,
+    "detail": "{\"checks\":[{\"detail\":\"every required setting has a value\",\"name\":\"settings\",\"ok\":true},{\"detail\":\"every required secret is stored (values are not read back)\",\"name\":\"secrets\",\"ok\":true},{\"detail\":\"it contacts 127.0.0.1\",\"name\":\"hosts\",\"ok\":true},{\"detail\":\"127.0.0.1:38417 bucket acc, region us-east-"
+  },
+  {
+    "name": "the server saw the wrong signature (the test really sent a request)",
+    "ok": true,
+    "detail": "1 bad signatures"
+  },
+  {
+    "name": "the settings page lists the connections by name",
+    "ok": true,
+    "detail": "Connections Named, configured uses of a connector: plain settings, and the names of the secrets that hold the rest. New connection Name Connector State Last t"
+  },
+  {
+    "name": "three deliveries wait for a person, each with its own approval",
+    "ok": true,
+    "detail": "to_bucket,to_db,to_files"
+  },
+  {
+    "name": "the approval facts name the connection and where it delivers, not a secret",
+    "ok": true,
+    "detail": "[{\"label\":\"node\",\"value\":\"to_bucket (export@1)\"},{\"label\":\"partition\",\"value\":\"(none)\"},{\"label\":\"reason\",\"value\":\"the node's policy asks for approval before every run\"}]"
+  },
+  {
+    "name": "after the approvals the run succeeded",
+    "ok": true,
+    "detail": "[\"fetch:succeeded\",\"rows:succeeded\",\"to_files:succeeded\",\"to_db:succeeded\",\"to_bucket:succeeded\"]"
+  },
+  {
+    "name": "the folder received the rows as a file",
+    "ok": true,
+    "detail": "D:\\verne-build\\ogun\\acc\\f-s8\\exports\\releases\\releases.json"
+  },
+  {
+    "name": "the SQLite table holds the 10 rows",
+    "ok": true,
+    "detail": "10"
+  },
+  {
+    "name": "the bucket received an object, and no further signature failed",
+    "ok": true,
+    "detail": "{\"acc/releases/releases.json\":1218}"
+  },
+  {
+    "name": "no file in the engine data (store, events, lineage, artifacts, logs, receipts) holds a secret value",
+    "ok": true,
+    "detail": "19 files scanned; "
+  },
+  {
+    "name": "and neither do the run events",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "or the lineage",
+    "ok": true,
+    "detail": ""
+  }
+]

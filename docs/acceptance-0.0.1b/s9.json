@@ -1,0 +1,82 @@
+[
+  {
+    "name": "two runs succeeded and one failed on purpose",
+    "ok": true,
+    "detail": "succeeded,succeeded / failed"
+  },
+  {
+    "name": "the appearance setting changes the window",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "run defaults persisted",
+    "ok": true,
+    "detail": "{\"enforced\":[\"concurrency\",\"approval_expiry_hours\",\"model_access\",\"auto_pause_after_failures\"],\"overridden\":[],\"scope_workflow\":null,\"values\":{\"approval_expiry_"
+  },
+  {
+    "name": "evidence settings persisted",
+    "ok": true,
+    "detail": "{\"enabled\":true,\"format\":\"html\",\"include_lineage\":false,\"include_previews\":false}"
+  },
+  {
+    "name": "agent settings persisted (caps and standing instructions)",
+    "ok": true,
+    "detail": "{\"consented_providers\":[],\"day_cap_usd\":2,\"default_access\":\"read\",\"default_model\":\"\",\"instructions\":\"Answer briefly and name the workflow you mean.\",\"offline\":false,\"retention_days\":30,\"spend_cap_usd\""
+  },
+  {
+    "name": "storage rules persisted",
+    "ok": true,
+    "detail": "{\"clear_caches_after_days\":3,\"delete_cancelled_after_days\":0,\"delete_failed_after_days\":7,\"delete_logs_after_days\":0,\"delete_partials_after_days\":7,\"keep_lineage_referenced\":true,\"limit_gib\":0,\"retention_days\":30,\"store_location\":\"D:\\\\verne"
+  },
+  {
+    "name": "shell preference persisted",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the appearance setting persisted in the window",
+    "ok": true,
+    "detail": "{\"appearance\":\"dark\",\"theme\":\"ogun\",\"contrast\":100,\"density\":\"comfortable\",\"contentWidth\":\"comfortable\",\"statusColors\":\"standard\",\"reduceMotion\":false,\"startPag"
+  },
+  {
+    "name": "with format html the saved evidence is a self-contained page naming the run and its workflow hash",
+    "ok": true,
+    "detail": "3205 bytes"
+  },
+  {
+    "name": "and with lineage off it points to the JSON form instead of embedding events",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "with format json it holds the run, the artifacts with digests and the lineage, and a document hash",
+    "ok": true,
+    "detail": "evidence_version,generated_at,generator,run,workflow,artifacts,notice,lineage,document_sha256"
+  },
+  {
+    "name": "the plan counts what each rule would remove and keeps the newest output of every partition",
+    "ok": true,
+    "detail": "{\"artifacts\":9,\"bytes\":0,\"caches_bytes\":0,\"lines\":[{\"artifacts\":9,\"bytes\":0,\"rule\":\"Finished runs older than 30 days\"}],\"logs\":0}"
+  },
+  {
+    "name": "without the keep rule the plan is larger and lists real artifacts",
+    "ok": true,
+    "detail": "9 -> 18 artifacts"
+  },
+  {
+    "name": "the cleanup removed the artifact bytes from disk",
+    "ok": true,
+    "detail": "223069 -> 217364 bytes under the artifact store"
+  },
+  {
+    "name": "and the removed artifacts no longer list",
+    "ok": true,
+    "detail": "0 artifacts listed for the old run"
+  },
+  {
+    "name": "the runs themselves stay (history is not deleted)",
+    "ok": true,
+    "detail": ""
+  }
+]

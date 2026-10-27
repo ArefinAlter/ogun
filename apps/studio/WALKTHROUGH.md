@@ -1,12 +1,12 @@
 # Ogun Studio: the walkthrough
 
-Ogun Studio runs in three ways. The pre-alpha release (0.0.1a) uses the first two by default; the third is the offline
-showcase this walkthrough was first written for.
+Ogun Studio runs in three ways. Since release 0.0.1b the **desktop app is standalone** (the first row below); the hosted
+hub is the second, and the third is the offline showcase this walkthrough was first written for.
 
 | Where | What answers | How to start |
 |---|---|---|
-| **Hosted hub** | The real `ogund` and `ogun-server` on sample data, plus the pre-alpha service for the screens `ogund` does not implement yet ([`deploy/pre-alpha`](../../deploy/pre-alpha/README.md)) | Open `https://ogun.103.191.50.32.sslip.io` and sign in with the sample account shown on the sign-in page. One shared workspace, reset every night at 03:00 UTC. |
-| **Desktop release** | The same hosted hub by default, over a public read-only token; or your own `ogund` | Install `ogun-studio-0.0.1a-windows-x64-setup.exe` or the Linux AppImage/.deb from the [release](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1a). Settings, Environments, "Use ogund on this machine" switches to the local daemon (start it with `ogund` from the same release). |
+| **Desktop app (0.0.1b)** | Its own `ogund`, bundled and supervised by the app, on a private pipe with a per-launch secret. Local is the default environment; no account, no network, no daemon to start. A hub is optional (Settings, Environments, "Sign in with your browser") | Install `ogun-studio-0.0.1b-windows-x64-setup.exe` (or unzip the portable build), or the Linux AppImage/.deb, from the [release](https://github.com/ArefinAlter/ogun/releases/tag/v0.0.1b). Open it and choose a sample project. |
+| **Hosted hub** | The real `ogund` and `ogun-server` on sample data, plus the pre-alpha service for the screens `ogund` does not implement yet ([`deploy/pre-alpha`](../../deploy/pre-alpha/README.md)). It still runs 0.0.1a | Open `https://ogun.103.191.50.32.sslip.io` and sign in with the sample account shown on the sign-in page. One shared workspace, reset every night at 03:00 UTC. The desktop app signs in to it only after the upgrade in `deploy/pre-alpha/native-signin` is applied. |
 | **Offline build** | A script inside the page (`web/src/demo`), no daemon | `npm run demo` in `apps/studio/web`, or the desktop build `npm run build:desktop-demo:app`. |
 
 ## What is real and what is prepared
@@ -40,6 +40,41 @@ The runtime itself is proven on Linux (`docs/IMPLEMENTATION_STATUS.md`): the O1 
 121-partition backfill and resumes only the unfinished partitions, and the stream twin re-seals a window with no lost
 or duplicated record. In the offline build two scenario controls, in the command palette (Ctrl+K, type "scenario"),
 replay exactly those two claims.
+
+## On the standalone desktop app (fifteen minutes, 0.0.1b)
+
+Everything below runs on your computer against the app's own engine. The checks behind each step are in
+[`docs/ACCEPTANCE-0.0.1b.md`](../../docs/ACCEPTANCE-0.0.1b.md).
+
+1. **First start.** The app opens on Local with a short waiting page while its engine starts, then offers two sample
+   projects. Import the starter: the workflows arrive with their real hashes (`earthquakes-daily` reads the public USGS
+   catalogue; `github-releases` reads this repository's releases). Nothing leaves the machine until you run one.
+2. **Run it.** Overview, a workflow, Run. Core operators (`acquire`, `parse`, `filter`, `partition`, `hash`,
+   `manifest`) run on the real input; the run page shows nodes, artifacts and their lineage.
+3. **Backfill and kill it.** Partitions, a range (121 days is the acceptance size), Backfill. End `ogund` from Task
+   Manager, or end the whole app: start it again and the engine resumes the unfinished partitions and only those. Ask for
+   the range again and no duplicate work starts.
+4. **Schedules and streams.** Settings, Schedules: a cron fires while the app is open (the app is not a service; it does
+   not run while closed). Streams: a file-tail source sealing one-minute windows once every key has advanced.
+5. **Approvals.** A workflow with code or an export waits for you: facts first, the code digest, an arming delay, your
+   decision bound to the request hash. The engine only accepts it from the pinned `ogun-studio.exe` at the other end of
+   the pipe; the `ogun` CLI and an agent are refused.
+6. **Code operators.** After you approve the exact hash, Python (the 3.13 that ships in the installer) runs in the
+   Windows AppContainer: no network, no files beyond its inputs and scratch. Settings, Security says what it does and does
+   not isolate (`docs/windows-sandbox.md`).
+7. **The agent.** Settings, Providers: pick a provider (OpenAI-compatible, Anthropic, Gemini or Ollama), type your key
+   (masked, sent once, kept in the credential store) and consent. "What will be sent" shows the next request. At Read
+   only the agent lists and explains; at Operate it starts a run you asked for. Nothing in a conversation decides an
+   approval. No live provider was called in the acceptance run; the four wire formats were run against local servers.
+8. **Exporters and connections.** Connections: a folder, a SQLite file or an S3-compatible bucket, with secrets by name.
+   Test shows what was checked; each delivery is an approval.
+9. **Settings, evidence, storage.** The evidence bundle lists what it holds; storage rules show what a cleanup would
+   remove before it removes it.
+10. **Benchmarks.** Benchmarks runs the sample suite (scripted agents, network denied, hash-chained trajectories) and
+    lets you replay a trial. It checks the harness, not a model.
+11. **Sign in to a hub (optional).** Environments, Add hub, Sign in with your browser: authorization code with PKCE and a
+    loopback redirect, tokens in the credential store. The hosted pre-alpha hub accepts this only after its owner applies
+    `deploy/pre-alpha/native-signin`; it was verified against a local hub with an identity-provider stand-in.
 
 ## On the hosted hub (ten minutes)
 
@@ -99,7 +134,7 @@ The scenario looks best after it has run for a minute or two.
    providers as presets, validated by the O-03 rules), Evidence (what a downloaded evidence bundle holds), Schedules (a
    cron is read back in words and checked against `ogun next`), Workflow sources, Storage (a cleanup shows what it
    would remove before it removes it), Environments and Security (fixed rules are shown, not hidden). Then Connectors:
-   99 systems (BigQuery, Snowflake, Airflow, Datadog, S3, Alibaba OSS, DingTalk ...). Open one: auth method, hosts that
+   101 systems (BigQuery, Snowflake, Airflow, Datadog, S3, Alibaba OSS, DingTalk ...). Open one: auth method, hosts that
    would need an egress approval, the operators it would add. Add a connection: settings and the *name* of a secret,
    never a value. "Test" checks settings, the secret's presence and the host list, and says "not attempted" for the part
    that would leave the machine. In the connection editor "Check again" re-reads the secret names; here it also marks the
@@ -110,8 +145,9 @@ The scenario looks best after it has run for a minute or two.
 
 ## What the connector catalogue does and does not claim
 
-Of 99 connectors, 29 are `built`: the orchestrator packages, the edge ingest sources, the editor and agent surfaces, and
-the 15 `ogun-export` sinks, written from public documentation and checked against local fakes. The other 70 are
+Of 101 connectors, 31 are `built`: the orchestrator packages, the edge ingest sources, the editor and agent surfaces, the
+15 `ogun-export` sinks, and the local files and SQLite connections, written from public documentation and checked against
+local fakes. The other 70 are
 `contract`: a manifest of what Ogun would connect to, with no operator behind it. None is `verified` against the real
 service. Say this before anyone asks. Vendor domains, ports and regions are claims to check (O-16 section 9).
 
@@ -119,16 +155,16 @@ service. Say this before anyone asks. Vendor domains, ports and regions are clai
 
 `deploy/demo-hub` is the loopback-only variant of the hosted hub (no public address, one static user, reached by an SSH
 tunnel); `deploy/pre-alpha` replaced it on the shared host. Both run the real `ogund` and `ogun-server`, neither has an
-operator sandbox.
+operator sandbox. The hosted hub still runs 0.0.1a.
 
 ## If asked for proof on the command line
 
 The CLI builds on Windows (`cargo build -p ogun-cli`, binary at `target\debug\ogun.exe`) and validates the sample
 workflows: `ogun validate examples/bikeshare/rebalance-plan.workflow.json`, `ogun diff` of v1 against v2 (the new version
 needs an approval because `estimate`'s code changed), `ogun partitions` on the trips backfill (93 months), `ogun next`,
-and the validator refusing a password typed into a workflow (`ir.secret_inline`). The daemon also builds on Windows,
-but Windows has no operator sandbox and no peer inspection yet, so terminal approvals are refused there; the live
-daemon story is a Linux (or WSL) story for now.
+and the validator refusing a password typed into a workflow (`ir.secret_inline`). The daemon also runs on Windows
+since 0.0.1b: operators run in an AppContainer, and the desktop app decides approvals through the pinned `ogun-studio.exe`
+pipe peer; terminal (tty) approvals with the CLI are still a Linux story.
 
 ## Known seams in the offline build
 
@@ -141,3 +177,29 @@ daemon story is a Linux (or WSL) story for now.
   Appearance and keybindings persist on the desktop app and the local build, and in memory on the hosted copy.
 - The agent answers six kinds of request (status, backfill, a failure, a draft, stations at risk, connectors) plus
   approvals and "explain a workflow". Anything else gets the list of what it can do.
+
+## The desktop app's own engine (0.0.1b)
+
+The Tauri desktop build is no longer a window onto a daemon you start by hand. It ships `ogund` beside itself, starts
+it with its own profile and a per-launch credential, and shows the real data. The frontend sees it as follows
+(`web/src/api/tauri.ts`, `localMap.ts`, `views/Engine.tsx`, `views/Welcome.tsx`):
+
+- **Engine state.** `studio_info` carries `engine` (`starting`, `running`, `restarting`, `failed`, `stopped`,
+  `external`). While it is not running the page is replaced by a waiting page (not a page of errors); a failure shows
+  the cause, the end of the log and a Restart button. When the engine becomes ready the whole page remounts so every
+  view loads again.
+- **Everything beyond the closed typed commands** (agent threads, connections, run defaults, the provider ladder,
+  sources, storage, archive, environments) goes through one relay, `engine_call`, with the daemon's own method
+  names. `localMap.ts` is the only place the hosted service's names are translated, and `tests/localmap.test.mjs`
+  pins it.
+- **First run.** A workspace with no workflow offers the bundled sample projects (`samples_list`, `sample_import`).
+- **Keys.** A provider key or a connection secret is typed into a masked field and sent once with `secret_put`. The
+  value is cleared from the page at once, is never in storage or a URL, and is never shown again. The agent stays
+  closed until a provider has a model, a stored key and the person's consent, offline is off and both caps are above
+  zero (`lib/agentGate.ts`, tested), and "What will be sent" shows the next request before anything leaves.
+- **Hubs.** `hubs.json` in the app's data folder lists the environments; a hub signs you in with the browser (`hub_signin_start`),
+  the shell exchanges the ID token for an `ogs1_` session at the hub's `POST /auth/native`, keeps the tokens in the
+  credential store and refreshes them on a 401. Studio never decides a hub approval; that stays with the hub's own
+  trust surface.
+- **Still scripted.** Only the scripted build (`npm run demo`) and the hosted pre-alpha hub answer from prepared
+  sessions; the desktop app does not.

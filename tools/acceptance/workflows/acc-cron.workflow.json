@@ -1,0 +1,22 @@
+{
+  "ir_version": 0,
+  "workflow": "acc-cron",
+  "version": 1,
+  "description": "Acceptance: the local fixture document fetched and parsed every minute by the scheduler.",
+  "triggers": [{ "kind": "cron", "cron": "* * * * *" }],
+  "budgets": { "bytes": 52428800, "wall_ms": 300000 },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["fixture.localtest.me"],
+        "sources": [{ "url": "http://fixture.localtest.me:38417/releases.json", "filename": "releases.json" }]
+      },
+      "policy": { "retries": 1 }
+    },
+    { "id": "rows", "op": "parse@1", "inputs": ["fetch.artifacts"], "config": {} },
+    { "id": "hash", "op": "hash@1", "inputs": ["rows.artifacts"] },
+    { "id": "manifest", "op": "manifest@1", "inputs": ["hash.artifacts"] }
+  ]
+}

@@ -569,6 +569,7 @@ fn seal_window(
         route: None,
         artifact_id: artifact.id.to_string(),
         committed_at: now,
+        removed: false,
     };
     d.store
         .transition(source.id, Cause::InputsAvailable, Actor::Runtime, now, None)
@@ -625,6 +626,7 @@ mod tests {
             name: "test".into(),
             peer: Default::default(),
             interactive: false,
+            surface: Default::default(),
         };
         crate::handlers::dispatch(
             &d,

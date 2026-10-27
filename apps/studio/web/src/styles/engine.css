@@ -1,0 +1,148 @@
+/* The engine Studio runs for itself (ADR 0015): the waiting page, the failure page, the first-run panel and the
+   small things the desktop adds to Settings. */
+
+.conn.warn .dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 25%, transparent);
+}
+
+.engine-screen {
+  max-width: 720px;
+  margin: 10vh auto 32px;
+  padding: 0 24px;
+}
+.engine-screen .hero {
+  margin-bottom: 20px;
+}
+.engine-dots {
+  display: inline-flex;
+  gap: 6px;
+  margin-top: 18px;
+}
+.engine-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  opacity: 0.35;
+  animation: engine-pulse 1.2s ease-in-out infinite;
+}
+.engine-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.engine-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes engine-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .engine-dots span {
+    opacity: 0.6;
+  }
+}
+.engine-log {
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* First run. */
+.welcome {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 20px 22px;
+  margin: 0 0 20px;
+}
+.welcome h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+.welcome p {
+  margin: 0 0 12px;
+}
+.welcome .choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.welcome .choice {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.welcome .choice:hover:not(:disabled) {
+  background: var(--accent);
+}
+.welcome .choice:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.welcome .choice .name {
+  font-weight: 600;
+}
+.welcome .choice .meta {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.imported {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.imported li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+/* Settings: keys and consent on the Providers page. */
+.keyrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.keyrow input[type='password'] {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.preview-block {
+  margin: 0 0 10px;
+}
+.preview-block .role {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.preview-block pre {
+  margin: 2px 0 0;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.agent-gate {
+  margin: 0 24px 8px;
+}

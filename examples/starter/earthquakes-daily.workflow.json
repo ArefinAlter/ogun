@@ -1,0 +1,63 @@
+{
+  "ir_version": 0,
+  "workflow": "earthquakes-daily",
+  "version": 1,
+  "description": "One day of earthquakes (magnitude 2.5 and up) per partition from the USGS Earthquake Catalog (a public API, no key; its robots.txt allows this), parsed into rows, hashed and listed in a manifest. Run it for a day, or backfill a range; a stop in the middle resumes only the days that did not finish. Needs the internet; no model access.",
+  "partitions": {
+    "kind": "time",
+    "granularity": "day",
+    "start": "2026-01-01"
+  },
+  "budgets": {
+    "bytes": 104857600,
+    "wall_ms": 3600000
+  },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": [
+          "earthquake.usgs.gov"
+        ],
+        "sources": [
+          {
+            "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime={partition}T00:00:00&endtime={partition}T23:59:59&minmagnitude=2.5&orderby=time-asc",
+            "filename": "quakes-{partition}.json"
+          }
+        ],
+        "fetch": {
+          "min_interval_ms": 250
+        }
+      },
+      "policy": {
+        "retries": 3,
+        "concurrency": 2
+      }
+    },
+    {
+      "id": "rows",
+      "op": "parse@1",
+      "inputs": [
+        "fetch.artifacts"
+      ],
+      "config": {
+        "pointer": "/features"
+      }
+    },
+    {
+      "id": "hash",
+      "op": "hash@1",
+      "inputs": [
+        "rows.artifacts"
+      ]
+    },
+    {
+      "id": "manifest",
+      "op": "manifest@1",
+      "inputs": [
+        "hash.artifacts"
+      ]
+    }
+  ]
+}

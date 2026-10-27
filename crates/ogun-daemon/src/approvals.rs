@@ -106,7 +106,7 @@ pub fn new_approval(d: &Daemon, req: Request) -> ApiResult<(ApprovalDoc, DocWrit
         request_hash: String::new(),
         requested_by: req.requested_by,
         created_at: now,
-        expires_at: now.saturating_add_ms(d.config.approval_ttl_ms),
+        expires_at: now.saturating_add_ms(d.studio.runtime.approval_ttl_ms()),
         decided_at: None,
         decided_via: None,
         decided_by: None,

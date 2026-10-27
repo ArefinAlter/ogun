@@ -83,6 +83,13 @@ pub const CODES: &[CodeInfo] = &[
     code("credential.not_found", ErrorClass::NotFound, false),
     code("credential.name_taken", ErrorClass::Conflict, false),
     code("secret.not_found", ErrorClass::NotFound, false),
+    // Studio's engine: connections and the agent (O-16, O-17).
+    code("connection.not_found", ErrorClass::NotFound, false),
+    code("agent.thread_not_found", ErrorClass::NotFound, false),
+    code("agent.not_available", ErrorClass::Unavailable, false),
+    code("agent.secret_refused", ErrorClass::InvalidRequest, false),
+    code("agent.busy", ErrorClass::Conflict, false),
+    code("agent.rate_limited", ErrorClass::Throttled, true),
     code("edge.not_enrolled", ErrorClass::PolicyDenied, false),
     code("sync.bad_signature", ErrorClass::PolicyDenied, false),
     code("sync.digest_mismatch", ErrorClass::Conflict, false),
@@ -236,7 +243,9 @@ mod tests {
                     "lineage",
                     "bench",
                     "zeus",
-                    "server"
+                    "server",
+                    "connection",
+                    "agent"
                 ]
                 .contains(&ns),
                 "{}",

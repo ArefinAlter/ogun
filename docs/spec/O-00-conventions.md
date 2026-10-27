@@ -41,6 +41,10 @@ Ogun identifiers are prefixed ULIDs with exactly the syntax of Zeus 00 section 5
 | `usr_` | Server user | yes | A user of a self-hosted Ogun server (O-13). |
 | `wsp_` | Server workspace | yes | A workspace on a self-hosted Ogun server (O-13). |
 | `tok_` | API token | yes | An Ogun server API token; always acts as an agent, never as a person (O-13). |
+| `cnx_` | Connection | yes | A named, configured use of a connector: plain settings and the names of secrets (O-16 section 5). |
+| `thr_` | Agent thread | yes | A conversation between a person and Studio's agent (O-17 section 2). Minted by `ogund`; never leaves the engine that holds it. |
+| `itm_` | Thread item | yes | One message, tool call, card or notice of a thread (O-17 section 2). |
+| `bmr_` | Benchmark matrix run | yes | Studio's run of `ogun-bench` over a matrix (O-06 section 14); one `agr_` per row inside it. |
 
 Artifacts use `art_` from the `zeus-artifact` store (Zeus 13): Ogun runs its own store instance through that crate, and the id is local to the store, while the BLAKE3 digest is the identity across stores.
 
@@ -110,6 +114,12 @@ Errors use the Zeus 00 section 9.1 envelope unchanged (`code`, `class`, `message
 | `credential.not_found` | `not_found` | no | No such local credential. |
 | `credential.name_taken` | `conflict` | no | A live credential already has that name. |
 | `secret.not_found` | `not_found` | no | A `secret_ref` names no stored secret. |
+| `connection.not_found` | `not_found` | no | No connection by that name (O-16). |
+| `agent.thread_not_found` | `not_found` | no | No such agent thread (O-17). |
+| `agent.not_available` | `unavailable` | no | The thread cannot call a model: offline, no consent for the provider, no key, a spend cap of zero or reached (O-17 section 7). |
+| `agent.secret_refused` | `invalid_request` | no | A message or instruction looks like a secret; it is refused, not masked (O-17 section 7). |
+| `agent.busy` | `conflict` | no | The thread is already answering. |
+| `agent.rate_limited` | `throttled` | yes | More than 20 sends a minute to one thread. |
 | `edge.not_enrolled` | `policy_denied` | no | Sync from an edge the hub has not enrolled. |
 | `sync.bad_signature` | `policy_denied` | no | A sync message's Ed25519 signature does not verify. |
 | `sync.digest_mismatch` | `conflict` | no | Received bytes do not hash to the offered digest. |

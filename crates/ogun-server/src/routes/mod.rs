@@ -126,6 +126,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/providers", get(auth::providers))
         .route("/login", get(auth::login))
         .route("/callback", get(auth::callback))
+        .route("/native", post(auth::native))
         .route("/logout", post(auth::logout));
     let mut app = Router::new()
         .nest("/api/v1", api)

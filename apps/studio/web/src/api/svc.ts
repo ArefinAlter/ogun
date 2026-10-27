@@ -9,7 +9,7 @@
 
 import type { AgentApi, Backend, EventSubscription } from './backend'
 import { asOgunError } from './backend'
-import type { AgentThread, AgentThreadSummary, LadderResult } from './types'
+import type { AgentPreview, AgentThread, AgentThreadSummary, LadderResult } from './types'
 
 export interface SvcTransport {
   call<T>(method: string, params?: Record<string, unknown>): Promise<T>
@@ -80,7 +80,9 @@ function poll<T extends { rev: number }>(t: SvcTransport, method: string, params
         if (closed) return
         since = v.rev
         onValue(v)
-      } catch {
+      } catch (e) {
+        // A daemon that has no such method will not grow one while this page is open: stop asking.
+        if (asOgunError(e).code === 'api.method_not_found') return
         failures++
         await new Promise((r) => setTimeout(r, Math.min(15_000, 1000 * failures)))
       }
@@ -94,8 +96,9 @@ function poll<T extends { rev: number }>(t: SvcTransport, method: string, params
   }
 }
 
-function agentApi(t: SvcTransport): AgentApi {
+function agentApi(t: SvcTransport, preview: boolean): AgentApi {
   return {
+    ...(preview ? { preview: (threadId: string | null, text: string) => t.call<AgentPreview>('agent.preview', { ...(threadId ? { thread_id: threadId } : {}), text }) } : {}),
     models: () => t.call('agent.models'),
     tools: () => t.call('agent.tools'),
     settings: () => t.call('agent.settings'),
@@ -112,10 +115,11 @@ function agentApi(t: SvcTransport): AgentApi {
   }
 }
 
-/** The `Backend` members the service provides. The product server's members are never replaced. */
-export function svcParts(t: SvcTransport): Pick<Backend, 'agent' | 'connections' | 'runtime' | 'environments' | 'setLadder' | 'sources' | 'evidence' | 'storage' | 'archive' | 'secretsList' | 'llmLadder'> {
+/** The `Backend` members the service provides. The product server's members are never replaced. `preview`: the
+ *  daemon can describe the next model request (`agent.preview`), which only the desktop's own engine does. */
+export function svcParts(t: SvcTransport, opts: { preview?: boolean } = {}): Pick<Backend, 'agent' | 'connections' | 'runtime' | 'environments' | 'setLadder' | 'sources' | 'evidence' | 'storage' | 'archive' | 'secretsList' | 'llmLadder'> {
   return {
-    agent: agentApi(t),
+    agent: agentApi(t, opts.preview === true),
     connections: {
       list: () => t.call('connections.list'),
       put: (input) => t.call('connections.put', { input }),

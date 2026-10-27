@@ -9,7 +9,7 @@
 //!
 //! | Module | What |
 //! |---|---|
-//! | [`ops`] | The core operators (hash, dedupe, filter, manifest, file.copy, file.move, archive.extract, partition, map, join_metadata, window.rollup, zeus.session_acquire). |
+//! | [`ops`] | The core operators (hash, dedupe, filter, manifest, file.copy, file.move, archive.extract, partition, map, join_metadata, parse, export, window.rollup, zeus.session_acquire). |
 //! | [`crawl`], [`acquire`] | Bounded crawling and plain HTTP(S) acquisition through zeus-core, with no session material. |
 //! | [`manifest`], [`builtin`] | Operator manifests (O-03 section 3), discovery and the manifests compiled in. |
 //! | [`runner`], [`sandbox`] | The `jsonl-stdio/0` child runner and the OS sandbox (bubblewrap, sandbox-exec). |
@@ -27,6 +27,7 @@ pub mod builtin;
 pub mod context;
 pub mod crawl;
 pub mod error;
+pub mod export;
 pub mod files;
 pub mod manifest;
 pub mod metadata;
@@ -237,6 +238,8 @@ pub struct Environment {
     /// A read-only directory that adapters with the `workspace:ro` grant may read files from by relative name
     /// (`duckdb` `read`, `pandoc` `template`). `None`: no workspace files.
     pub workspace: Option<PathBuf>,
+    /// Where `export` looks up a connection by name. `None`: this engine has no connections.
+    pub connections: Option<export::ConnectionSource>,
 }
 
 impl Environment {
@@ -251,6 +254,7 @@ impl Environment {
             allow_unsandboxed: false,
             network_access: true,
             workspace: None,
+            connections: None,
         }
     }
 }

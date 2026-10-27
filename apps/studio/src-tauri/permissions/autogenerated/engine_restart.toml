@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-engine-restart"
+description = "Enables the engine_restart command without any pre-configured scope."
+commands.allow = ["engine_restart"]
+
+[[permission]]
+identifier = "deny-engine-restart"
+description = "Denies the engine_restart command without any pre-configured scope."
+commands.deny = ["engine_restart"]

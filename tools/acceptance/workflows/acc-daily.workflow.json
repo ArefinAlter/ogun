@@ -1,0 +1,24 @@
+{
+  "ir_version": 0,
+  "workflow": "acc-daily",
+  "version": 1,
+  "description": "Acceptance: one JSON document per day from a local fixture server, parsed, filtered, split by station count, hashed and listed. 121 daily partitions.",
+  "partitions": { "kind": "time", "granularity": "day", "start": "2026-01-01" },
+  "budgets": { "bytes": 52428800, "wall_ms": 3600000 },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["fixture.localtest.me"],
+        "sources": [{ "url": "http://fixture.localtest.me:38417/daily/{partition}.json", "filename": "day-{partition}.json" }]
+      },
+      "policy": { "retries": 2, "concurrency": 2 }
+    },
+    { "id": "rows", "op": "parse@1", "inputs": ["fetch.artifacts"], "config": { "pointer": "/stations" } },
+    { "id": "busy", "op": "filter@1", "inputs": ["rows.artifacts"], "config": { "where": { "not": { "eq": { "field": "bikes", "value": 0 } } } } },
+    { "id": "by_bikes", "op": "partition@1", "inputs": ["busy.artifacts"], "config": { "by": "id" } },
+    { "id": "hash", "op": "hash@1", "inputs": ["by_bikes.artifacts"] },
+    { "id": "manifest", "op": "manifest@1", "inputs": ["hash.artifacts"] }
+  ]
+}

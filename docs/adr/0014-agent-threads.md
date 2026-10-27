@@ -2,11 +2,17 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-25 |
-| Decided by | Pending the maintainer |
+| Decided by | Accepted by the maintainer's instruction of 2026-10-26 |
 | Refines | ADR 0010 (server mode) and ADR 0011 (extension surfaces) |
 | Specifies | O-17 |
+
+> **Note on this acceptance.** The maintainer's instruction of 2026-10-26 (agents that work "with BYOK API keys", in
+> the standalone desktop applications released as 0.0.1b) was given to the build agent, and the agent recorded this
+> record as accepted in order to build on it. The maintainer should confirm the acceptance in the record (for example by
+> replacing this note with "Decided by: Maintainer, <date>"). Open issue 1 of O-17 is settled by the implementation: the
+> loop runs inside `ogund`.
 
 ## Context
 

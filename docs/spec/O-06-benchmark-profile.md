@@ -4,8 +4,8 @@
 |---|---|
 | Status | Draft 1 |
 | Depends on | O-00, O-01, O-05, O-12 |
-| Decided by | ADR 0005 (benchmark runs are a run profile), ADR 0004 decision 2 |
-| Implemented by | `ogun-bench` (library and the `ogun-bench` binary) |
+| Decided by | ADR 0005 (benchmark runs are a run profile), ADR 0004 decision 2; ADR 0017 (the Windows local runtime) |
+| Implemented by | `ogun-bench` (library and the `ogun-bench` binary); Studio's `bench.*` methods in `ogun-daemon` (section 14) |
 
 ## 1. Purpose
 
@@ -28,9 +28,11 @@ These are requirements, not defaults to be tuned away:
 | Runtime | Isolation | Network denial | Platforms (O-12) |
 |---|---|---|---|
 | `docker`, `podman` (default `docker`) | One container per run: `--cap-drop ALL`, `--security-opt no-new-privileges`, a process limit (default 512), optional CPU and memory limits | `--network none`, or an internal network without egress when the evaluator phase may use the network | Linux full; Windows through Docker or WSL 2; macOS through Docker or Lima |
-| `local` | A temporary directory; commands run as child processes with a cleared environment and their own process group | A user and network namespace (`unshare -r -n`, Linux). Elsewhere the run is refused unless `allow_unisolated_local` is set, and then results say `unisolated_local` | Development and trusted tasks only |
+| `local` | A temporary directory; commands run as child processes with a cleared environment and their own process group | Linux: a user and network namespace (`unshare -r -n`), recorded as `local_netns`. Windows: an AppContainer without the network capability, started by `ogun-sandbox` beside the program (ADR 0017), recorded as `local_appcontainer`; the workspace is its scratch folder, the logs are read-write, the benchmark and tests folders read-only, and the plan carries a minimal `PATH`. Where neither works the run is refused unless `allow_unisolated_local` is set, and then results say `unisolated_local` | Development, trusted tasks and the sample suite (section 14) |
 
 Tasks that ship a container image (Harbor) need a container runtime; on `local` they are refused with `bench.task_unsupported`. MicroVMs are later (ADR 0005).
+
+Windows `local` limits, found by running it: model credentials cannot be passed into the sandbox (the plan file would carry them to disk), so a container-placed agent that lists `pass_env` is refused with `bench.isolation_unavailable`; a host-placed agent reaches the environment only through `ogun-bench exec` and is not affected. `powershell.exe` did not start inside the sandbox, so a task whose agent or evaluator needs it needs a container runtime. The container path has not been run on the Windows machine of the acceptance run (no container runtime answered there).
 
 ## 4. Environment
 
@@ -171,6 +173,9 @@ Each row of `results.json` has the run's agent, task, seed, outcome, `passed`, `
 | `ogun-bench report --results <dir>` | Prints `results.md` again from `results.json` |
 | `ogun-bench replay <trajectory.jsonl> [--summary]` | Verifies the chain and prints the events and their summary |
 | `ogun-bench exec --env-dir <dir> -- <argv>` | Runs a command in an environment (host agents) |
+| `ogun-bench doctor` | Prints JSON: the isolation a `local` run would get here (`local_netns`, `local_appcontainer` or none), whether the `docker` and `podman` CLIs answer, the adapters and the state directory |
+| `ogun-bench sample-matrix --dir <dir> [--runtime <r>] [--probe <addr>] [--seeds <n,...>]` | Writes the sample suite (section 14) and its `matrix.json` under `<dir>`; `<r>` is `local`, `docker` or `podman` |
+| `ogun-bench sample-agent`, `ogun-bench sample-eval` | The sample suite's scripted agent and evaluator: commands the sample matrix names, not for people |
 
 `--state-dir` (or `OGUN_BENCH_STATE_DIR`) selects the benchmark state directory; the default is `$XDG_STATE_HOME/ogun-bench` on Linux and `OgunBench` under the local data directory elsewhere. Logs go to standard error (`OGUN_BENCH_LOG` filters them).
 
@@ -194,5 +199,25 @@ Registered in O-00 section 5.2:
 3. docker-compose Harbor environments (sidecar services such as databases).
 4. Live ingestion of agent-reported events, so `at` and `elapsed_ms` reflect the agent's own timing.
 5. Harness gain and tool ablation across matrices (VISION section 12), and edit efficiency, which needs task-aware heuristics.
-6. Running benchmark matrices from `ogund` as Ogun runs, so a benchmark row is also a node instance with lineage in the run store; today `ogun-bench` is standalone by design (ADR 0005 consequence 2).
-7. The container path has not been exercised end to end in CI yet (no container daemon on the build machine); the local runtime and the adapters' parsers are tested.
+6. Running benchmark matrices from `ogund` as Ogun runs, so a benchmark row is also a node instance with lineage in the run store; today `ogun-bench` is standalone by design (ADR 0005 consequence 2). Studio's `bench.*` methods (section 14) start `ogun-bench` as a separate process and read its results directory; they do not make a benchmark row a node instance.
+7. The container path has not been exercised end to end in CI yet (no container daemon on the build machine); the local runtime (Linux namespaces by the unit tests, the Windows AppContainer by the sample suite's test) and the adapters' parsers are tested.
+
+## 14. Benchmark runs from Studio
+
+Studio's engine (`ogund`) can start `ogun-bench` and show what it produced. The daemon never runs a benchmark itself and `ogun-bench` never connects to `ogund` (section 2, rule 5): the daemon is only its parent.
+
+**What a run is.** A *matrix run* has an id `bmr_<ULID>` (O-00 section 3) and a folder `<bench state>/runs/<id>/` holding `matrix.json`, `meta.json` (suite, runtime, seeds, state, times, probe connection count, error), `harness.log` and `out/` (the results directory of section 10). States: `running`, `finished`, `failed`, `cancelled`, and `interrupted` (the engine stopped while it ran; marked at the next start). The benchmark state directory is `<OGUN_BENCH_STATE_DIR, else the platform default of section 11>/p-<first 10 hex digits of BLAKE3 over the engine's state directory>`, so it is never inside Ogun's own state and two profiles do not see each other's runs. The harness process gets a cleared environment plus `SystemRoot`, `windir`, `PATH`, `LANG`, `TMPDIR`, and `OGUN_HOME` and `OGUN_BENCH_STATE_DIR` (it reads those two only to refuse an overlapping state directory); the agents and evaluators it starts get the cleared environment of section 2, rule 2.
+
+**The sample suite.** The only suite in this version: four tasks in the Spider 2.0-DBT directory layout, written by `ogun-bench` itself (`sample-matrix`), and two **scripted** agents, not models. `reference-script` computes each answer from the task's `data.csv` in the program's own code; `idle-script` does nothing. The evaluator compares `answer.txt` with a gold answer staged only after the agent has finished. The tasks are `sum-amounts`, `count-rows`, `largest-city` and `network-denied`. In the last one the agent is told an address (`PROBE_ADDR`, a loopback listener the engine opened for this run) and reports `blocked` or `reachable`; it passes only when its connection failed, and the engine records how many connections its listener accepted (expected 0). The suite checks the harness: a fresh workspace per run, the network denied, an evaluator, a chained trajectory per run, one OpenLineage event per run and a results table. It says nothing about any model. The adapters of section 9 are not offered from Studio: they need the benchmarks' own task checkouts and, for Harbor, a container runtime, and they remain unverified (open issue 1).
+
+**Methods** (O-15 section 5.1; `human` clients only, so no agent can start a run):
+
+| Method | Parameters | Result |
+|---|---|---|
+| `bench.list` | none | `available`, `runtimes[]` (`id` `local`, `docker` or `podman`; `available`, `isolation`, `note`), `suites[]`, `adapters`, `runs[]` (summaries, newest first, at most 50) |
+| `bench.run` | `suite?` (`sample`), `runtime?` (default `local`), `seeds?` (1 to 5 numbers, default `[1]`) | `{id}`; refused with `bench.isolation_unavailable` when the runtime cannot deny the network here |
+| `bench.status` | `id` | `run` (summary and seeds), `rows[]` and `agents[]` as in section 10, `matrix_blake3`, `markdown`, `log_tail` |
+| `bench.cancel` | `id` | `{cancelled}`; kills the harness and what it started |
+| `bench.replay` | `id`, `agent_run` | `verified`, `summary`, `error?`, `events[]` (at most 400) of that run's trajectory, after `ogun-bench replay` verified its hash chain |
+
+**What was shown.** On Windows 11 x64 the sample suite ran through the AppContainer runtime: the reference agent passed all four tasks, the idle agent none, the loopback listener accepted no connection, and every trajectory verified (`crates/ogun-bench/tests/sample_suite.rs`). It has not been run on Linux or macOS by the author of this section, and no container runtime was available, so the `docker` and `podman` paths of Studio's panel are unrun.

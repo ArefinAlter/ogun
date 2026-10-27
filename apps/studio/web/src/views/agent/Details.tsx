@@ -38,6 +38,16 @@ export function Details({ thread }: { thread: AgentThread }) {
           </dd>
           <dt>model</dt>
           <dd>{thread.model === 'scripted' ? 'Ogun agent, prepared answers' : thread.model}</dd>
+          {thread.spend_usd_micro !== undefined ? (
+            <>
+              <dt>spend</dt>
+              <dd>
+                ${(thread.spend_usd_micro / 1_000_000).toFixed(4)}
+                {settings.data ? ` of $${settings.data.spend_cap_usd.toFixed(2)}` : ''}
+                {thread.input_tokens !== undefined ? <span class="muted"> · {thread.input_tokens.toLocaleString('en-US')} in, {(thread.output_tokens ?? 0).toLocaleString('en-US')} out</span> : null}
+              </dd>
+            </>
+          ) : null}
           <dt>started</dt>
           <dd>{fmtAgo(thread.created_at)}</dd>
           <dt>tool calls</dt>

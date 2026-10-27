@@ -1146,6 +1146,7 @@ mod tests {
                                     kind: ClientKind::Agent,
                                     name: "mcp".into(),
                                     interactive: false,
+                                    surface: ogun_api::policy::Surface::None,
                                     methods: ogun_api::policy::methods_for(
                                         ClientKind::Agent,
                                         false,

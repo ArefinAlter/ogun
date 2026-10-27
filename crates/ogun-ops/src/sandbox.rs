@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::sync::OnceCell;
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::tools;
 
 /// Which sandbox this host offers.
@@ -30,6 +30,8 @@ pub enum Backend {
     Bwrap(PathBuf),
     /// `sandbox-exec` at this path.
     SandboxExec(PathBuf),
+    /// The Windows AppContainer helper (`ogun-sandbox`) at this path.
+    AppContainer(PathBuf),
     /// No OS sandbox.
     None,
 }
@@ -41,9 +43,100 @@ impl Backend {
         match self {
             Self::Bwrap(_) => "bwrap",
             Self::SandboxExec(_) => "sandbox-exec",
+            Self::AppContainer(_) => "appcontainer",
             Self::None => "none",
         }
     }
+}
+
+/// What the sandbox of this host does and does not isolate, in words Studio shows as they are.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Status {
+    /// Whether child operators (adapters, code, model operators) can run here without the unsandboxed escape.
+    pub available: bool,
+    /// `bwrap`, `sandbox-exec`, `appcontainer` or `none`.
+    pub backend: &'static str,
+    /// One sentence.
+    pub summary: String,
+    /// What it isolates.
+    pub isolates: Vec<&'static str>,
+    /// What it does not.
+    pub does_not_isolate: Vec<&'static str>,
+}
+
+impl Backend {
+    /// The status words for this backend.
+    #[must_use]
+    pub fn status(&self) -> Status {
+        match self {
+            Self::Bwrap(_) => Status {
+                available: true,
+                backend: "bwrap",
+                summary: "Operators run in bubblewrap: new namespaces, an empty root with read-only system directories, no network unless granted.".into(),
+                isolates: vec![
+                    "the network (a separate network namespace unless the manifest grants it)",
+                    "the file system (only the inputs, the code file and tool directories read-only, and a scratch directory)",
+                    "processes, IPC and host name (new PID, IPC and UTS namespaces)",
+                    "privileges (all capabilities dropped, a new session, killed with the daemon)",
+                    "memory and CPU time (address-space and CPU limits)",
+                ],
+                does_not_isolate: vec![
+                    "a flaw in the Linux kernel's namespace code",
+                    "timing and other side channels shared with the host",
+                ],
+            },
+            Self::SandboxExec(_) => Status {
+                available: true,
+                backend: "sandbox-exec",
+                summary: "Operators run under sandbox-exec with a generated deny-by-default profile.".into(),
+                isolates: vec![
+                    "the file system (read only the paths the operator is granted, write only scratch)",
+                    "the network unless granted",
+                ],
+                does_not_isolate: vec![
+                    "sandbox-exec is deprecated by Apple and is not a security boundary against a determined program",
+                    "memory beyond the address-space limit",
+                ],
+            },
+            Self::AppContainer(_) => Status {
+                available: true,
+                backend: "appcontainer",
+                summary: "Operators run in a Windows AppContainer inside a job object, with only stdin, stdout and stderr inherited.".into(),
+                isolates: vec![
+                    "the network (an AppContainer without the internet capability cannot connect anywhere, loopback included; a manifest that grants network gets outbound internet and nothing else)",
+                    "your files (the program reads only its scratch folder, its inputs and code file, and its own program folder; your documents, profile and the engine's state are closed)",
+                    "writes (everything but the scratch folder is read-only or closed)",
+                    "other processes and the desktop (a job object with UI restrictions, at most 16 processes, killed when the daemon or the helper dies)",
+                    "memory and CPU time (per-process limits from the manifest)",
+                    "handles (nothing is inherited except stdin, stdout and stderr)",
+                ],
+                does_not_isolate: vec![
+                    "the names of files in the folders that hold an operator's inputs, and of its sibling attempt folders (Windows lets a container open a file only if it can list the folder)",
+                    "files Windows lets every application package read (most of the Windows and Program Files folders)",
+                    "which hosts a network grant reaches (it is all or nothing)",
+                    "disk space (the scratch folder has no quota)",
+                    "a flaw in Windows itself",
+                    "a program folder that cannot be opened to the container (installed for all users outside Program Files) is copied once into the engine's state, up to 1.5 GiB; bigger needs a per-user install",
+                ],
+            },
+            Self::None => Status {
+                available: false,
+                backend: "none",
+                summary: if cfg!(windows) {
+                    "No operator sandbox is available on this machine: code operators (python, sql, dbt, shell, polars) and adapters are not run. Core operators run in the engine without one.".into()
+                } else {
+                    "No operator sandbox is available on this machine (bubblewrap is missing or cannot create namespaces): code operators and adapters are not run. Core operators still run.".into()
+                },
+                isolates: vec![],
+                does_not_isolate: vec!["everything: child operators are refused rather than run without a sandbox"],
+            },
+        }
+    }
+}
+
+/// The status of this host's sandbox.
+pub async fn status() -> Status {
+    detect().await.status()
 }
 
 static DETECTED: OnceCell<Backend> = OnceCell::const_new();
@@ -83,7 +176,35 @@ async fn probe() -> Backend {
         tools::find("sandbox-exec", &[PathBuf::from("/usr/bin")])
             .map_or(Backend::None, Backend::SandboxExec)
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    #[cfg(windows)]
+    {
+        let Some(helper) = tools::find("ogun-sandbox", &[]) else {
+            tracing::info!(
+                "ogun-sandbox is not installed next to ogund; operators are refused on this host"
+            );
+            return Backend::None;
+        };
+        let ok = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            tokio::process::Command::new(&helper)
+                .arg("--self-test")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status(),
+        )
+        .await;
+        match ok {
+            Ok(Ok(s)) if s.success() => Backend::AppContainer(helper),
+            _ => {
+                tracing::warn!(
+                    "the AppContainer self test failed; operators are refused on this host"
+                );
+                Backend::None
+            }
+        }
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
         Backend::None
     }
@@ -323,6 +444,14 @@ pub fn command(backend: &Backend, plan: &Plan) -> tokio::process::Command {
             inner.extend(args);
             (bwrap.clone(), inner)
         }
+        Backend::AppContainer(helper) => {
+            let plan_path = write_windows_plan(plan);
+            inner.push(plan_path.into_os_string());
+            inner.push("--".into());
+            inner.push(program.into_os_string());
+            inner.extend(args);
+            (helper.clone(), inner)
+        }
         Backend::SandboxExec(exec) => {
             inner.extend([
                 OsString::from("-p"),
@@ -347,6 +476,36 @@ pub fn command(backend: &Backend, plan: &Plan) -> tokio::process::Command {
     #[cfg(unix)]
     cmd.process_group(0);
     cmd
+}
+
+/// What the Windows helper reads (`ogun_platform::sandbox`): paths and limits, never a secret. The helper deletes the
+/// file as soon as it has read it. It sits beside the scratch directory, not inside it, where the container cannot
+/// look.
+fn write_windows_plan(plan: &Plan) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let dir = plan
+        .scratch
+        .parent()
+        .map_or_else(std::env::temp_dir, |p| p.join(".plans"));
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join(format!(
+        "{}-{}.json",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let doc = serde_json::json!({
+        "scratch": plan.scratch,
+        "read_only": plan.read_only,
+        "network": plan.network,
+        "memory_bytes": plan.memory_bytes,
+        "cpu_ms": plan.cpu_ms,
+        "env": plan.env,
+        // A private copy of a program's folder goes beside the scratch folders, in the engine's own state.
+        "cache_dir": plan.scratch.parent().and_then(Path::parent).map(|p| p.join("runtime")),
+    });
+    let _ = std::fs::write(&path, doc.to_string());
+    path
 }
 
 /// Kills a child and everything in its process group.

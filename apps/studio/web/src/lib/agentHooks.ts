@@ -4,7 +4,10 @@ import { useEffect, useState } from 'preact/hooks'
 
 import type { AgentApi } from '../api/backend'
 import type { AgentModel, AgentSettings, AgentThread, AgentThreadSummary } from '../api/types'
-import { useAsync, useBackend } from './hooks'
+import { agentReadiness } from './agentGate'
+import type { Readiness } from './agentGate'
+import { useAsync, useBackend, useInfo } from './hooks'
+import { readLadder } from './ladder'
 
 /** The agent API of the backend, or undefined when the daemon offers none. */
 export function useAgent(): AgentApi | undefined {
@@ -43,4 +46,25 @@ export function useAgentModels(): AgentModel[] | undefined {
 export function useAgentSettings() {
   const agent = useAgent()
   return useAsync<AgentSettings | null>(() => (agent ? agent.settings() : Promise.resolve(null)), [agent])
+}
+
+/**
+ * Whether the real agent of the desktop's own engine can answer now, and if not why. `null` where it does not
+ * apply (the scripted and hosted agents call no model) or while the facts are still loading.
+ */
+export function useAgentReadiness(): { readiness: Readiness | null; reload: () => void } {
+  const backend = useBackend()
+  const { info } = useInfo()
+  const applies = !!backend.agent && !!backend.engine && info?.link === 'local'
+  const settings = useAgentSettings()
+  const ladder = useAsync(() => (applies ? backend.llmLadder().catch(() => null) : Promise.resolve(null)), [backend, applies])
+  const secrets = useAsync(() => (applies ? backend.secretsList().catch(() => null) : Promise.resolve(null)), [backend, applies])
+  const reload = () => {
+    settings.reload()
+    ladder.reload()
+    secrets.reload()
+  }
+  if (!applies || settings.loading || ladder.loading || secrets.loading) return { readiness: null, reload }
+  const providers = ladder.data?.available ? readLadder(ladder.data.ladder) : null
+  return { readiness: agentReadiness({ settings: settings.data, providers, secretNames: secrets.data?.names ?? [] }), reload }
 }

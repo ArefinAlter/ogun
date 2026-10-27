@@ -3,8 +3,9 @@
 //!
 //! On accept the daemon learns what it can about the peer: on Unix its uid (a connection from another user is
 //! refused) and pid; on Linux whether the peer has a controlling terminal (`/proc/<pid>/stat`, field `tty_nr`) and
-//! which executable it runs (`/proc/<pid>/exe`). Elsewhere these are unknown and every check that needs them fails
-//! closed: the connection is not interactive.
+//! which executable it runs (`/proc/<pid>/exe`). On Windows the pipe is created with an access list that names only
+//! this user, and the peer's process id and executable come from the system (`ogun-platform`). On macOS they are
+//! unknown and every check that needs them fails closed: the connection is not interactive.
 
 use std::io;
 #[cfg(unix)]
@@ -78,7 +79,9 @@ impl AsyncWrite for Stream {
 pub struct Peer {
     /// Process id, when the OS reports it.
     pub pid: Option<u32>,
-    /// The peer has a controlling terminal (Linux only; `false` when unknown).
+    /// The peer has a controlling terminal. Linux reads it from `/proc`; Windows cannot see another process's
+    /// console, so there it is `true` for every peer and the check that matters is the pinned executable (the CLI
+    /// reads confirmations from `CONIN$`, which only a process with a console has); `false` when unknown.
     pub has_tty: bool,
     /// The peer's executable, when the OS reports it.
     pub exe: Option<PathBuf>,
@@ -235,7 +238,16 @@ impl Listener {
                 .map_err(|e| unavailable("accept failed", &e))?;
             let fresh = pipe_server(&self.name, false)?;
             let connected = std::mem::replace(&mut self.next, fresh);
-            Ok((Stream::PipeServer(connected), Peer::default()))
+            // A failed lookup leaves the peer unknown: not interactive, never a trust surface.
+            let peer = ogun_platform::pipe::client_process(&connected).map_or_else(
+                |_| Peer::default(),
+                |p| Peer {
+                    pid: Some(p.pid),
+                    has_tty: true,
+                    exe: p.exe,
+                },
+            );
+            Ok((Stream::PipeServer(connected), peer))
         }
     }
 }
@@ -252,21 +264,16 @@ fn pipe_server(
     name: &str,
     first: bool,
 ) -> ApiResult<tokio::net::windows::named_pipe::NamedPipeServer> {
-    use tokio::net::windows::named_pipe::ServerOptions;
-    ServerOptions::new()
-        .first_pipe_instance(first)
-        .reject_remote_clients(true)
-        .create(name)
-        .map_err(|e| {
-            if first {
-                ApiError::unavailable(format!(
-                    "another ogund is running or the pipe is taken: {}",
-                    e.kind()
-                ))
-            } else {
-                unavailable("cannot create a pipe instance", &e)
-            }
-        })
+    ogun_platform::pipe::create_server(name, first).map_err(|e| {
+        if first {
+            ApiError::unavailable(format!(
+                "another ogund is running or the pipe is taken: {}",
+                e.kind()
+            ))
+        } else {
+            unavailable("cannot create a pipe instance", &e)
+        }
+    })
 }
 
 /// Reads what Linux reports about a process. Every failure leaves the field at its fail-closed value.

@@ -11,7 +11,9 @@ use std::collections::BTreeMap;
 
 use ogun_ir::Severity;
 use ogun_run::{Cause, NodeState, RunState};
-use ogun_types::{ApprovalId, CredentialId, EdgeId, NodeInstanceId, RunId, Timestamp, WorkflowId};
+use ogun_types::{
+    ApprovalId, CredentialId, EdgeId, NodeInstanceId, OgunError, RunId, Timestamp, WorkflowId,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -165,8 +167,12 @@ pub struct AuthenticateResult {
     pub kind: ClientKind,
     /// The credential's label.
     pub name: String,
-    /// The daemon saw an interactive peer (a process with a controlling terminal running a pinned Ogun binary).
+    /// The daemon saw an interactive peer (a process with a controlling terminal running a pinned Ogun binary,
+    /// or the pinned Ogun Studio binary).
     pub interactive: bool,
+    /// Which trust surface the daemon verified (`terminal`, `studio` or `none`). Absent from older daemons.
+    #[serde(default)]
+    pub surface: crate::policy::Surface,
     /// Methods this connection may call.
     pub methods: Vec<String>,
 }
@@ -396,6 +402,10 @@ pub struct NodeView {
     /// Last cause.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_cause: Option<Cause>,
+    /// The error of the last failed attempt: a registered code and a message that names no secret, URL query or
+    /// configuration value (O-00 section 5). Present on `runs.get` for a failed or retrying instance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<OgunError>,
     /// Last change.
     pub updated_at: Timestamp,
 }

@@ -1,0 +1,177 @@
+[
+  {
+    "name": "the owner and a viewer enrolled through the hub invitations",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "no hub is known at first",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the browser was sent to the provider with PKCE S256 and a loopback redirect",
+    "ok": true,
+    "detail": "http://127.0.0.1:38420/auth"
+  },
+  {
+    "name": "as the public client: no client secret anywhere in the URL",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the app shows the person a short page and then needs nothing else",
+    "ok": true,
+    "detail": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Ogun Studio</title><style>body{font:16px system-ui,san"
+  },
+  {
+    "name": "the sign-in completed",
+    "ok": true,
+    "detail": "{\"ok\":{\"id\":\"hub_f79f0eb3e0\",\"name\":\"127.0.0.1\",\"url\":\"http://127.0.0.1:38421/\",\"auth\":\"oidc\",\"signed_in\":true,\"user\":\"Alice Example\",\"role\":\"owner\",\"workspace\":\"Main\",\"approver\":true,\"active\":false}}"
+  },
+  {
+    "name": "the hub says who this is and what role they have",
+    "ok": true,
+    "detail": "Alice Example / owner / Main"
+  },
+  {
+    "name": "the hub is listed as signed in with browser sign-in",
+    "ok": true,
+    "detail": "[{\"id\":\"hub_f79f0eb3e0\",\"name\":\"127.0.0.1\",\"url\":\"http://127.0.0.1:38421/\",\"auth\":\"oidc\",\"signed_in\":true,\"user\":\"Alice Example\",\"role\":\"owner\",\"workspace\":\"Main\",\"approver\":true,\"active\":false}]"
+  },
+  {
+    "name": "the session and refresh tokens are in the Windows credential store",
+    "ok": true,
+    "detail": "2 entries named Ogun Studio hubs"
+  },
+  {
+    "name": "no file of the app, its engine or its webview holds a session token",
+    "ok": true,
+    "detail": "152 files scanned; "
+  },
+  {
+    "name": "the saved hub list holds no token",
+    "ok": true,
+    "detail": "[\n  {\n    \"id\": \"hub_f79f0eb3e0\",\n    \"name\": \"127.0.0.1\",\n    \"url\": \"http://127.0.0.1:38421/\",\n    \"provider\": \"sample\",\n    \"issuer\": \"http://127.0.0.1:38420\",\n    \"client_id\": \"ogun-studio\",\n    \""
+  },
+  {
+    "name": "the link is the hub, as a person",
+    "ok": true,
+    "detail": "{\"app_version\":\"0.0.1-beta\",\"platform\":\"windows\",\"mobile\":false,\"link\":\"hub\",\"hub_url\":\"http://127.0.0.1:38421/\",\"hub_user\":\"Alice Example\",\"hub_role\":\"owner\",\"hub_workspace\":\"Main\",\"hub_approver\":true,\"connected\":true,\"kind\":\"session\",\"can_write\":true,\"can_decide\":false,\"can_read_settings\":false,\"g"
+  },
+  {
+    "name": "Studio on a hub cannot decide approvals",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "a workflow was stored on the hub by its operator (CLI)",
+    "ok": true,
+    "detail": "acc-local-fixture v1 stored  62f27a52d300f0b0ae39074a27eb389a794abb3a8b5d0a371c035d46b13d9dbb\n  runnable now\n"
+  },
+  {
+    "name": "the hub link lists the hub workflow",
+    "ok": true,
+    "detail": "{\"workflows\":[{\"enabled\":true,\"latest_version\":1,\"name\":\"acc-local-fixture\",\"runnable\":true,\"untrusted_description\":\"Acceptance: releases-like JSON from a local fixture server through parse, filter an"
+  },
+  {
+    "name": "an owner started a run on the hub from Studio and it succeeded",
+    "ok": true,
+    "detail": "succeeded"
+  },
+  {
+    "name": "a pending approval exists on the hub and Studio can read it",
+    "ok": true,
+    "detail": "1 pending"
+  },
+  {
+    "name": "Studio refuses to decide a hub approval",
+    "ok": true,
+    "detail": "{\"class\":\"policy_denied\",\"code\":\"approval.channel_required\",\"message\":\"approvals are decided in Ogun Studio on the desktop, in the ogun CLI on a terminal, or in Studio-web with a passkey\",\"retryable\":"
+  },
+  {
+    "name": "an API token (an agent) can read approvals",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "an API token cannot decide one",
+    "ok": true,
+    "detail": "403 {\"error\":{\"class\":\"policy_denied\",\"code\":\"server.remote_approvals_disabled\",\"message\":\"remote approvals are off on this server (ADR 0010); decide on the host wi"
+  },
+  {
+    "name": "signing out keeps the hub in the list as signed out",
+    "ok": true,
+    "detail": "[{\"id\":\"hub_f79f0eb3e0\",\"name\":\"127.0.0.1\",\"url\":\"http://127.0.0.1:38421/\",\"auth\":\"oidc\",\"signed_in\":false,\"user\":\"Alice Example\",\"role\":\"owner\",\"workspace\":\"Main\",\"approver\":true,\"active\":false}]"
+  },
+  {
+    "name": "signing out removed the tokens from the credential store",
+    "ok": true,
+    "detail": "0 left"
+  },
+  {
+    "name": "the hub ended the session (its log says so)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "and logged the native sign-in by user id, not by token",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "a viewer signs in",
+    "ok": true,
+    "detail": "{\"ok\":{\"id\":\"hub_f79f0eb3e0\",\"name\":\"127.0.0.1\",\"url\":\"http://127.0.0.1:38421/\",\"auth\":\"oidc\",\"signed_in\":true,\"user\":\"Bob Example\",\"role\":\"viewer\",\"workspace\":\"Main\",\"approver\":false,\"active\":false}}"
+  },
+  {
+    "name": "the hub refuses a viewer who tries to start a run",
+    "ok": true,
+    "detail": "{\"class\":\"policy_denied\",\"code\":\"api.permission_denied\",\"message\":\"this needs the editor role in the workspace\",\"retryable\":false}"
+  },
+  {
+    "name": "but the viewer can read",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "an identity with no account on the hub is refused, with a way forward",
+    "ok": true,
+    "detail": "{\"envelope\":{\"class\":\"unauthenticated\",\"code\":\"server.sign_in_failed\",\"message\":\"there is no account for this identity; ask a workspace owner for an invitation link\",\"retryable\":false}}"
+  },
+  {
+    "name": "after the session ended the next call worked: the app refreshed and signed in again",
+    "ok": true,
+    "detail": "{\"ok\":{\"workflows\":[{\"enabled\":true,\"latest_version\":1,\"name\":\"acc-local-fixture\",\"runnable\":true,\"untrusted_description\":\"Acceptance: releases-like JSON from a local fixture server through parse, fil"
+  },
+  {
+    "name": "the provider saw a refresh-token grant",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the hub logged a second native sign-in",
+    "ok": true,
+    "detail": "4"
+  },
+  {
+    "name": "with the refresh token revoked the call fails as unauthenticated",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"unauthenticated\",\"code\":\"api.unauthenticated\",\"message\":\"signed out; sign in to the hub again\",\"retryable\":false}}"
+  },
+  {
+    "name": "and the hub shows as signed out",
+    "ok": true,
+    "detail": "[{\"id\":\"hub_f79f0eb3e0\",\"name\":\"127.0.0.1\",\"url\":\"http://127.0.0.1:38421/\",\"auth\":\"oidc\",\"signed_in\":false,\"user\":\"Alice Example\",\"role\":\"owner\",\"workspace\":\"Main\",\"approver\":true,\"active\":true}]"
+  },
+  {
+    "name": "signing in again works",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "signing out of a signed-out hub removes it from the list",
+    "ok": true,
+    "detail": ""
+  }
+]

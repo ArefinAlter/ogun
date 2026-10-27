@@ -22,7 +22,7 @@ pub async fn run(d: Arc<Daemon>) {
             () = tokio::time::sleep(Duration::from_millis(5_000)) => {}
             _ = shutdown.changed() => break,
         }
-        if d.config.scheduler_enabled {
+        if d.studio.runtime.scheduler_enabled() {
             tick(&d);
         }
     }

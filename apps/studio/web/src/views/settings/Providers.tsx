@@ -6,10 +6,11 @@ import { PROVIDERS, providerHost } from '../../connectors/providers'
 import type { ProviderPreset } from '../../connectors/providers'
 import { secretCommand } from '../../connectors'
 import { download } from '../../lib/evidence'
+import { useAgentSettings } from '../../lib/agentHooks'
 import { fmtCount, idempotencyKey } from '../../lib/format'
 import { useAsync, useBackend, useInfo } from '../../lib/hooks'
-import { DEFAULT_BASE, KINDS, NEEDS_KEY, defaultCapabilities, isLoopback, ladderDocument, readLadder, toMicro, usd, validateLadder } from '../../lib/ladder'
-import { Chip, CodeCopy, CopyButton, ErrorBox, ExternalLink, Loading, Notice, PageHead, Segmented, SettingsGroup, Switch } from '../../ui/components'
+import { DEFAULT_BASE, KINDS, NEEDS_KEY, defaultCapabilities, isLoopback, ladderDocument, readLadder, suggestSecretName, toMicro, usd, validateLadder } from '../../lib/ladder'
+import { Chip, CodeCopy, CopyButton, ErrorBox, ExternalLink, Loading, Notice, PageHead, Segmented, SettingRow, SettingsGroup, Switch } from '../../ui/components'
 import { Icon } from '../../ui/icons'
 
 function fromPreset(p: ProviderPreset, taken: Set<string>): LadderProvider {
@@ -32,6 +33,14 @@ function fromPreset(p: ProviderPreset, taken: Set<string>): LadderProvider {
   }
 }
 
+function providerHostOf(url: string): string {
+  try {
+    return new URL(url).host || url
+  } catch {
+    return url
+  }
+}
+
 function priceUnset(p: LadderProvider): boolean {
   return p.enabled && p.kind !== 'ollama' && !isLoopbackUrl(p.base_url) && p.input_per_mtok_usd_micro === 0 && p.output_per_mtok_usd_micro === 0
 }
@@ -44,9 +53,59 @@ function isLoopbackUrl(u: string): boolean {
   }
 }
 
+/** A masked field for one provider's key. The value lives in this input until Save; it is then sent once to the
+ *  engine's secret store and cleared. It is never put in a URL, local storage or any other state. */
+function KeyEntry({ required, stored, onSave, onRemove }: { required: boolean; stored: boolean; onSave: (value: string) => Promise<void>; onRemove: () => Promise<void> }) {
+  const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<OgunError | undefined>()
+  const save = async () => {
+    setBusy(true)
+    setError(undefined)
+    const v = value
+    setValue('')
+    try {
+      await onSave(v)
+    } catch (e) {
+      setError(asOgunError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div class="stack-tight">
+      <div class="label">
+        API key {required ? <span class="req">required to enable</span> : <span class="muted">optional</span>} {stored ? <Chip tone="ok">key stored</Chip> : <Chip tone={required ? 'bad' : ''}>no key stored</Chip>}
+      </div>
+      <div class="keyrow">
+        <input
+          type="password"
+          autocomplete="off"
+          spellcheck={false}
+          aria-label="API key"
+          placeholder={stored ? 'Paste a new key to replace the stored one' : 'Paste the key'}
+          value={value}
+          onInput={(e) => setValue((e.target as HTMLInputElement).value)}
+        />
+        <button type="button" class="btn small primary" disabled={busy || value.trim().length < 8} onClick={() => void save()}>
+          Save key
+        </button>
+        {stored ? (
+          <button type="button" class="btn small ghost" disabled={busy} onClick={() => void onRemove().catch((e) => setError(asOgunError(e)))}>
+            Remove key
+          </button>
+        ) : null}
+      </div>
+      <div class="muted small-text">The key is kept in your operating system's credential store by the engine on this computer. It is never shown again, written to a log, or put in a prompt; the provider receives it only in the request header.</div>
+      <ErrorBox error={error} title="Key" />
+    </div>
+  )
+}
+
 export function ProvidersSettings() {
   const backend = useBackend()
   const { info } = useInfo()
+  const agentSettings = useAgentSettings()
   const ladder = useAsync(() => backend.llmLadder(), [backend])
   const secrets = useAsync(() => backend.secretsList().catch(() => ({ names: [] as string[] })), [backend])
   const [list, setList] = useState<LadderProvider[] | null>(null)
@@ -98,6 +157,43 @@ export function ProvidersSettings() {
   const cur = list?.[sel]
   const taken = new Set((list ?? []).map((p) => p.name))
   const presets = PROVIDERS.filter((p) => region === 'all' || p.regions.includes(region))
+  const own = !!backend.engine
+  const showPresets = adding || (own && ladder.data?.available === true && (list ?? []).length === 0)
+  const as = agentSettings.data
+  const setAgent = async (patch: Partial<NonNullable<typeof as>>) => {
+    setError(undefined)
+    try {
+      await backend.agent?.setSettings(patch, idempotencyKey('agent-settings'))
+      agentSettings.reload()
+    } catch (e) {
+      setError(asOgunError(e))
+    }
+  }
+  const saveKey = async (value: string) => {
+    if (!cur || !backend.engine) return
+    const name = cur.api_key_secret || suggestSecretName(cur.name)
+    await backend.engine.putSecret(name, value)
+    const inSync = !dirty
+    if (cur.api_key_secret !== name) edit(sel, { api_key_secret: name })
+    secrets.reload()
+    // Name the key in the engine's ladder too, when that does not carry along other unsaved edits.
+    if (inSync && list && cur.api_key_secret !== name) {
+      const next = list.map((p, j) => (j === sel ? { ...p, api_key_secret: name } : p))
+      if (validateLadder(next).length === 0) {
+        await backend.setLadder?.(next, idempotencyKey('ladder'))
+        setDirty(false)
+        setApplied(true)
+        ladder.reload()
+      }
+    }
+  }
+  const removeKey = async () => {
+    if (!cur?.api_key_secret || !backend.engine) return
+    await backend.engine.deleteSecret(cur.api_key_secret)
+    secrets.reload()
+  }
+  const consented = as?.consented_providers ?? []
+  const toggleConsent = (name: string, on: boolean) => void setAgent({ consented_providers: on ? [...new Set([...consented, name])] : consented.filter((n) => n !== name) })
   const apply = async () => {
     setError(undefined)
     try {
@@ -234,8 +330,20 @@ export function ProvidersSettings() {
                         </label>
                       ) : null}
                     </div>
+                    {own ? (
+                      <KeyEntry required={NEEDS_KEY[cur.kind]} stored={!!cur.api_key_secret && have.has(cur.api_key_secret)} onSave={saveKey} onRemove={removeKey} />
+                    ) : null}
+                    {own && backend.agent && as ? (
+                      <div class="stack-tight">
+                        <label class="check wide">
+                          <input type="checkbox" checked={consented.includes(cur.name)} onChange={(e) => toggleConsent(cur.name, (e.target as HTMLInputElement).checked)} />
+                          Allow the agent to send prompts to <span class="mono">{providerHostOf(cur.base_url)}</span>
+                        </label>
+                        <div class="muted small-text">Nothing is sent to this provider until this is ticked. Workflows with llm operators are separate: they use this ladder only when run defaults allow model access, and need their own egress approval.</div>
+                      </div>
+                    ) : null}
                     {priceUnset(cur) ? <Notice kind="warn">The price is 0, so this provider's calls record no spend and no budget can stop them. Take the price from the vendor's list.</Notice> : null}
-                    {cur.api_key_secret && !have.has(cur.api_key_secret) ? (
+                    {!own && cur.api_key_secret && !have.has(cur.api_key_secret) ? (
                       <div class="stack-tight">
                         <div class="label">Store the key on a terminal</div>
                         <CodeCopy text={secretCommand(cur.api_key_secret)} label="Copy command" />
@@ -252,7 +360,7 @@ export function ProvidersSettings() {
                 )}
               </div>
             </div>
-            {adding ? (
+            {showPresets ? (
               <div class="rows">
                 <div class="row stack">
                   <div class="toolbar tight">
@@ -296,7 +404,7 @@ export function ProvidersSettings() {
               </ul>
             </div>
           ) : null}
-          <SettingsGroup title="llm.json" note={`Place this file in the daemon's state directory; ogund reads it at start. Studio cannot write it for you${backend.setLadder ? ', except here' : ''}. Keys are never in it, only the names of secrets.`}>
+          <SettingsGroup title="llm.json" note={own ? 'This is the ladder file (llm.json) in the state folder of your engine; Apply writes it through the engine. Keys are never in it, only the names of secrets.' : `Place this file in the daemon's state directory; ogund reads it at start. Studio cannot write it for you${backend.setLadder ? ', except here' : ''}. Keys are never in it, only the names of secrets.`}>
             <div class="row stack">
               <div class="toolbar tight">
                 <CopyButton text={doc} label="Copy file" />
@@ -305,7 +413,7 @@ export function ProvidersSettings() {
                 </button>
                 {backend.setLadder ? (
                   <button type="button" class="btn small primary" disabled={!dirty || issues.length > 0} onClick={() => void apply()}>
-                    Apply to this daemon
+                    {own ? 'Apply to the engine' : 'Apply to this daemon'}
                   </button>
                 ) : null}
                 {applied ? <Chip tone="ok">applied</Chip> : null}
@@ -315,6 +423,25 @@ export function ProvidersSettings() {
             </div>
           </SettingsGroup>
         </>
+      ) : null}
+      {own && backend.agent && as ? (
+        <SettingsGroup title="Agent and spend limits" note="These apply to the agent screen. A cap of 0 means no model call at all; the daemon stops a thread at its cap and stops everything at the day's cap.">
+          <SettingRow title="Offline" desc="No model call is made while this is on, whatever else is set up. Workflows without llm operators are not affected.">
+            <Switch label="Offline" checked={as.offline} onChange={(on) => void setAgent({ offline: on })} />
+          </SettingRow>
+          <SettingRow title="Cap per thread" desc="Model spend in US dollars after which a thread stops calling the model.">
+            <input type="number" min={0} max={1000} step={0.5} aria-label="Cap per thread in US dollars" value={as.spend_cap_usd} onChange={(e) => {
+              const v = Number((e.target as HTMLInputElement).value)
+              if (Number.isFinite(v) && v >= 0) void setAgent({ spend_cap_usd: v })
+            }} />
+          </SettingRow>
+          <SettingRow title="Cap per day" desc="Model spend in US dollars across all threads in one UTC day. The ledger is the same one the llm operators write.">
+            <input type="number" min={0} max={10000} step={1} aria-label="Cap per day in US dollars" value={as.day_cap_usd} onChange={(e) => {
+              const v = Number((e.target as HTMLInputElement).value)
+              if (Number.isFinite(v) && v >= 0) void setAgent({ day_cap_usd: v })
+            }} />
+          </SettingRow>
+        </SettingsGroup>
       ) : null}
       <SettingsGroup title="Spend">
         {spend ? (

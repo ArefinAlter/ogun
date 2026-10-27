@@ -1,7 +1,7 @@
 {
   "name": "ogun-studio-web",
   "private": true,
-  "version": "0.0.1-alpha",
+  "version": "0.0.1-beta",
   "description": "Ogun Studio frontend, shared by the Tauri shells (desktop, Android, iOS) and Studio-web.",
   "license": "Apache-2.0",
   "author": "Verne Ltd.",

@@ -6,6 +6,7 @@ import type { OgunError, PartitionSelector, PutWorkflowResult, ValidateResult, W
 import { fmtAgo, fmtTime, idempotencyKey } from '../lib/format'
 import { href, navigate, useAsync, useBackend, useInfo } from '../lib/hooks'
 import { Dag } from '../ui/Dag'
+import { ImportBanner, SampleImport } from './Welcome'
 import { Empty, ErrorBox, Hash, JsonBlock, Kv, Loading, Notice, PageHead, Tabs, Untrusted } from '../ui/components'
 
 export function Workflows() {
@@ -23,10 +24,19 @@ export function Workflows() {
         ) : null}
       </PageHead>
       {importing ? <ImportWorkflow onStored={() => list.reload()} /> : null}
+      <ImportBanner />
       <ErrorBox error={list.error} />
       {list.loading && !list.data ? <Loading /> : null}
       {list.data && list.data.workflows.length === 0 ? (
-        <Empty>No workflows stored. Store one with `ogun` or import it here.</Empty>
+        <>
+          <Empty>No workflows stored. Store one with `ogun` or import it here.</Empty>
+          {backend.engine ? (
+            <div class="panel">
+              <h2>Start from a sample project</h2>
+              <SampleImport compact onImported={() => list.reload()} />
+            </div>
+          ) : null}
+        </>
       ) : null}
       {list.data && list.data.workflows.length > 0 ? (
         <div class="table-wrap">

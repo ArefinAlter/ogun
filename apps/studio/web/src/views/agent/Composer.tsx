@@ -12,6 +12,7 @@ import { Chip } from '../../ui/components'
 import { Icon } from '../../ui/icons'
 import type { IconName } from '../../ui/icons'
 import { Popover } from '../../ui/Popover'
+import { PreviewDialog } from './Preview'
 
 const drafts = new Map<string, { text: string; mentions: Mention[] }>()
 
@@ -70,6 +71,7 @@ export function Composer({
   const [mentions, setMentions] = useState<Mention[]>(saved?.mentions ?? [])
   const [menu, setMenu] = useState<null | { kind: '@' | '/'; query: string; start: number }>(null)
   const [sel, setSel] = useState(0)
+  const [previewing, setPreviewing] = useState(false)
   const area = useRef<HTMLTextAreaElement>(null)
 
   // A different thread, a different draft.
@@ -255,6 +257,11 @@ export function Composer({
             )}
           </Popover>
           <span class="spacer" />
+          {backend.agent?.preview ? (
+            <button type="button" class="icon-btn" aria-label="What will be sent" title="What will be sent to the provider" onClick={() => setPreviewing(true)}>
+              <Icon name="eye" />
+            </button>
+          ) : null}
           <button
             type="button"
             class="icon-btn"
@@ -285,6 +292,7 @@ export function Composer({
           )}
         </div>
       </div>
+      {previewing ? <PreviewDialog threadId={draftKey === 'new' ? null : draftKey} text={text.trim()} onClose={() => setPreviewing(false)} /> : null}
       <div class="cmp-note">
         {disabledReason ? <Chip tone="warn">{disabledReason}</Chip> : null}
         <span>The agent's words are not verified by Ogun. It cannot decide an approval.</span>

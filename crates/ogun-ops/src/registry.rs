@@ -23,7 +23,9 @@ use tokio::time::Instant;
 use crate::context::RunContext;
 use crate::error::{OpError, OpResult, config};
 use crate::manifest::{Determinism, Installed, LoadedManifest, ManifestSource, discover};
-use crate::ops::{CoreFail, Job, archive, blocking, files_ops, records, rollup, session, simple};
+use crate::ops::{
+    CoreFail, Job, archive, blocking, files_ops, parse, records, rollup, session, simple,
+};
 use crate::secrets::ResolvedSecrets;
 use crate::{Context, Environment, Invocation, Outcome, Registry, files, runner};
 
@@ -450,6 +452,13 @@ async fn run_core(
         "manifest" => blocking(job, simple::manifest).await,
         "map" => blocking(job, simple::map).await,
         "join_metadata" => blocking(job, simple::join_metadata).await,
+        "parse" => blocking(job, parse::parse).await,
+        "export" => {
+            let fut = crate::export::export(&job, env);
+            tokio::time::timeout(timeout, fut)
+                .await
+                .unwrap_or(Err(CoreFail::Cancelled))
+        }
         "filter" => blocking(job, records::filter).await,
         "partition" => blocking(job, records::partition).await,
         "file.copy" => blocking(job, files_ops::copy).await,

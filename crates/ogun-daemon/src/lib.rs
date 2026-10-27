@@ -15,12 +15,14 @@ pub mod exec;
 pub mod handlers;
 pub mod lineage;
 mod llm_budget;
+pub mod redact;
 pub mod sched;
 pub mod secrets;
 pub mod server;
 pub mod session;
 pub mod state;
 pub mod streams;
+pub mod studio;
 pub mod sync;
 pub mod webauthn;
 
@@ -64,13 +66,48 @@ impl Running {
 ///
 /// # Errors
 ///
-/// Any startup failure, including another `ogund` already listening.
+/// Any startup failure, including another `ogun` daemon already listening.
 pub async fn start(paths: OgunPaths) -> DaemonResult<Running> {
+    start_with(paths, StartOptions::default()).await
+}
+
+/// What a supervising app adds to a start.
+#[derive(Debug, Default)]
+pub struct StartOptions {
+    /// A credential held in memory only (see [`creds::Credentials::add_transient`]).
+    pub transient_credential: Option<ogun_api::Credential>,
+    /// Keep secret values in the OS credential store when the machine has one (a desktop app's own daemon).
+    pub prefer_os_secrets: bool,
+    /// A passphrase for the encrypted-file store, for machines without a credential store.
+    pub secrets_passphrase: Option<zeroize::Zeroizing<String>>,
+}
+
+/// As [`start`], with the options of a supervised launch.
+///
+/// # Errors
+///
+/// Any startup failure, including another daemon already listening.
+pub async fn start_with(paths: OgunPaths, options: StartOptions) -> DaemonResult<Running> {
     let endpoint = paths.endpoint();
     let listener = Listener::bind(&endpoint).await?;
-    let daemon = tokio::task::spawn_blocking(move || Daemon::open(paths))
+    let open = state::OpenOptions {
+        prefer_os_secrets: options.prefer_os_secrets,
+        secrets_passphrase: options.secrets_passphrase.clone(),
+    };
+    let daemon = tokio::task::spawn_blocking(move || Daemon::open_with(paths, &open))
         .await
         .map_err(|_| DaemonError::State("startup task failed".into()))??;
+    if let Some(cred) = &options.transient_credential {
+        let mut creds = state::lock(&daemon.creds);
+        creds.add_transient(cred)?;
+        // A supervising app also runs the ingest bridge, which needs its own `service` credential.
+        creds.ensure(
+            &daemon.paths,
+            &daemon.ids,
+            "ingest",
+            ogun_api::ClientKind::Service,
+        )?;
+    }
     tracing::info!(endpoint = %endpoint, state = %daemon.paths.state_dir.display(), "ogund listening");
     daemon.streams.activate_all(&daemon);
     let tasks = vec![

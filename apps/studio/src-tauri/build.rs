@@ -35,6 +35,20 @@ const COMMANDS: &[&str] = &[
     "credentials_list",
     "secrets_list",
     "llm_ladder",
+    "engine_info",
+    "engine_restart",
+    "engine_call",
+    "secret_put",
+    "secret_delete",
+    "shell_prefs_get",
+    "shell_prefs_set",
+    "samples_list",
+    "sample_import",
+    "hub_environments",
+    "hub_signin_start",
+    "hub_signin_cancel",
+    "hub_signout",
+    "hub_use",
 ];
 
 fn main() {

@@ -1,0 +1,56 @@
+/* Benchmarks (O-06): the states a run and a row can be in, and the few things the screen adds to the shared
+   components. States print the exact word; colour is the second channel. */
+
+.s-finished,
+.s-completed,
+.s-passed {
+  color: var(--success-foreground);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.s-cancelled,
+.s-interrupted,
+.s-timed_out {
+  color: var(--warning-foreground);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+.s-error {
+  color: var(--error-foreground);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+}
+.s-notpassed {
+  color: var(--muted-foreground);
+  background: var(--accent);
+}
+
+.bench-facts {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+.bench-facts li::marker {
+  color: var(--muted-foreground);
+}
+
+.probe.ok {
+  color: var(--success-foreground);
+}
+.probe.bad {
+  color: var(--error-foreground);
+  font-weight: 500;
+}
+
+details.bench-log {
+  margin: 0 0 var(--space-4);
+}
+details.bench-log .toolbar {
+  margin: 8px 0;
+}
+details.bench-log pre {
+  margin: 8px 0 0;
+  max-height: 320px;
+  overflow: auto;
+}

@@ -584,6 +584,22 @@ export interface AgentSettings {
   /** The tools the agent may call at all (an allow-list over the tool table). */
   tools_enabled: string[]
   retention_days: number
+  /** Global offline switch: while on, no model call is made at all. */
+  offline: boolean
+  /** The ladder entries the person allowed to receive prompts. Empty by default: nothing is sent anywhere until a person ticks one. */
+  consented_providers: string[]
+  /** Model spend allowed per UTC day, in US dollars; 0 means no model call. */
+  day_cap_usd: number
+}
+
+/** Exactly what the next model request would carry, redacted: shown before anything is sent. */
+export interface AgentPreview {
+  provider: string
+  model: string
+  host: string
+  system: string
+  messages: { role: string; content: string }[]
+  tools: string[]
 }
 
 export interface AgentThreadSummary {
@@ -595,6 +611,10 @@ export interface AgentThreadSummary {
   created_at: string
   updated_at: string
   item_count: number
+  /** Model spend of this thread so far, in micro US dollars, when the daemon counts it (the real engine does). */
+  spend_usd_micro?: number
+  input_tokens?: number
+  output_tokens?: number
 }
 
 /** Something the person pointed the agent at with `@`. */
@@ -650,3 +670,206 @@ export interface AgentThread extends AgentThreadSummary {
 
 /** What a person can press on a card. The daemon does it with the person's own role, never the agent's. */
 export type AgentAction = 'store' | 'start_backfill' | 'retry'
+
+// ---------------------------------------------------------------- the desktop's own engine (ADR 0015)
+
+export type EngineStateName = 'starting' | 'running' | 'restarting' | 'failed' | 'stopped' | 'external'
+
+/** What the shell's supervisor reports about the `ogund` it runs for this Studio. */
+export interface EngineInfo {
+  state: EngineStateName
+  pid?: number
+  version?: string
+  /** The restart attempt, while `restarting`. */
+  attempt?: number
+  /** Why the last run ended, while `restarting` or `failed`. */
+  error?: string
+  restarts: number
+  log_path: string
+  state_dir: string
+}
+
+export interface EngineReport extends EngineInfo {
+  /** The end of the daemon's log, present while it is not running. */
+  log_tail: string[]
+}
+
+/** What `sandbox.status` says about running code operators (O-03 section 4). */
+export interface SandboxStatus {
+  /** Whether child operators can run at all on this machine. */
+  available: boolean
+  /** `bwrap`, `sandbox-exec`, `appcontainer` or `none`. */
+  backend: string
+  /** One plain sentence. */
+  summary: string
+  /** What the sandbox does isolate, one fact per line. */
+  isolates?: string[]
+  /** What it does not isolate, one fact per line. */
+  does_not_isolate?: string[]
+}
+
+export interface ShellPrefs {
+  /** Closing the window hides Studio to the tray; the engine keeps running and its schedules keep firing. */
+  keep_in_tray: boolean
+}
+
+export interface SampleInfo {
+  id: string
+  name: string
+  description: string
+  workflows: string[]
+  /** How many of the workflows the engine already holds. */
+  stored: number
+}
+
+export interface SampleImportResult {
+  project: string
+  workflows: { name: string; version: number; workflow_hash: string; created: boolean; approvals: number }[]
+}
+
+/** A hub this Studio can use besides its own engine. */
+export interface HubEnvironment {
+  id: string
+  name: string
+  url: string
+  auth: 'token' | 'oidc'
+  /** For `oidc`: whether tokens are held and still refresh. */
+  signed_in: boolean
+  /** The signed-in user's name, when there is one. */
+  user?: string
+  /** The role in the workspace Studio addresses on that hub. */
+  role?: string
+  workspace?: string
+  /** The approver flag on the hub (deciding still needs a passkey on the hub itself). */
+  approver?: boolean
+  /** This is the environment Studio shows now. */
+  active: boolean
+}
+
+// ---------------------------------------------------------------- benchmarks (O-06, ADR 0005)
+// `bench.*` on the engine Studio runs for itself. The engine starts the `ogun-bench` harness with a cleared
+// environment and a state directory of its own; the screens only read what it produced.
+
+/** Where a benchmark run executes: this computer with the network denied, or a container runtime. */
+export type BenchRuntimeId = 'local' | 'docker' | 'podman'
+
+/** One place a benchmark can run, and whether this computer can really deny the network there. */
+export interface BenchRuntime {
+  id: BenchRuntimeId
+  title: string
+  available: boolean
+  /** `local_appcontainer`, `local_netns` or `container`; null when it is not available. */
+  isolation: string | null
+  /** One plain sentence about how the network is denied, or why it cannot be. */
+  note: string
+}
+
+/** A suite the engine offers. Today only the sample suite. */
+export interface BenchSuite {
+  id: string
+  title: string
+  adapter: string
+  tasks: string[]
+  agents: string[]
+  note: string
+}
+
+/** `interrupted`: the engine stopped while the run was going. */
+export type BenchRunState = 'running' | 'finished' | 'failed' | 'cancelled' | 'interrupted'
+
+/** What `bench.list` says about one run. */
+export interface BenchRunSummary {
+  id: string
+  suite: string
+  runtime: string
+  state: BenchRunState
+  started_at: string
+  finished_at?: string | null
+  /** Rows the harness has written so far. */
+  runs: number
+  passed: number
+  /** The isolation the first row recorded; null before any row exists. */
+  isolation: string | null
+  /** Connections the loopback probe accepted while the run went on. Zero means the network stayed closed. */
+  probe_hits: number
+  error?: string | null
+}
+
+export interface BenchList {
+  /** The harness answered. False when `ogun-bench` is missing or did not answer. */
+  available: boolean
+  runtimes: BenchRuntime[]
+  suites: BenchSuite[]
+  /** The adapters the harness has (`harbor`, `spider2_dbt`, `ade_bench`); none is offered here. */
+  adapters: string[]
+  runs: BenchRunSummary[]
+}
+
+/** How an agent run ended (O-06). */
+export type BenchOutcome = 'completed' | 'failed' | 'timed_out' | 'cancelled' | 'error'
+
+/** One row of a run's results table: one agent on one task with one seed. */
+export interface BenchRow {
+  agent_run: string
+  benchmark: string
+  task_id: string
+  agent: string
+  agent_version: string
+  model?: string | null
+  seed: number
+  outcome: BenchOutcome
+  passed: boolean
+  score_ppm: number
+  agent_ms: number
+  wall_ms: number
+  tool_calls: number
+  failed_tool_calls: number
+  files_touched: number
+  cached: boolean
+  isolation: string
+  error_code?: string | null
+}
+
+/** Per-agent totals (integers only; rates are parts per million). */
+export interface BenchAgentSummary {
+  agent: string
+  agent_version: string
+  model?: string | null
+  runs: number
+  errors: number
+  scored: number
+  passed: number
+  pass_rate_ppm: number
+  mean_score_ppm: number
+  timed_out: number
+  mean_agent_ms: number
+  tool_calls: number
+}
+
+export interface BenchStatus {
+  run: BenchRunSummary & { seeds: number[] }
+  rows: BenchRow[]
+  agents: BenchAgentSummary[]
+  matrix_blake3: string | null
+  /** The results table as Markdown, once the harness has finished. */
+  markdown: string | null
+  /** The last lines of the harness's own log. */
+  log_tail: string | null
+}
+
+/** One trajectory event as `bench.replay` returns it. The text in it came from the agent. */
+export interface BenchEvent {
+  seq: number
+  at: string
+  elapsed_ms: number
+  type: string
+  [field: string]: unknown
+}
+
+export interface BenchReplay {
+  /** The hash chain of the trajectory checked out. */
+  verified: boolean
+  summary: { events: number; head_blake3: string; tool_calls: number; failed_tool_calls: number; agent_ms: number } | null
+  error: string | null
+  events: BenchEvent[]
+}

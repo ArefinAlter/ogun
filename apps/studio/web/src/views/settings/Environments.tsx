@@ -1,7 +1,7 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 
 import { asOgunError } from '../../api'
-import type { BridgeView, EnvironmentView, OgunError } from '../../api/types'
+import type { BridgeView, EngineInfo, EnvironmentView, HubEnvironment, OgunError } from '../../api/types'
 import { fmtAgo, fmtTime, idempotencyKey } from '../../lib/format'
 import { useAsync, useBackend, useInfo } from '../../lib/hooks'
 import { useScope } from '../../lib/scope'
@@ -16,6 +16,156 @@ function bridgeChip(b: BridgeView) {
   return <Chip>not configured</Chip>
 }
 
+function engineChip(e: EngineInfo) {
+  switch (e.state) {
+    case 'running':
+      return <Chip tone="ok">running</Chip>
+    case 'starting':
+      return <Chip tone="warn">starting</Chip>
+    case 'restarting':
+      return <Chip tone="warn">restarting, attempt {e.attempt ?? 1}</Chip>
+    case 'failed':
+      return <Chip tone="bad">failed</Chip>
+    case 'stopped':
+      return <Chip>stopped</Chip>
+    default:
+      return <Chip>a daemon you started</Chip>
+  }
+}
+
+/** Studio's own engine: the default environment of the desktop app (ADR 0015). */
+function EngineGroup({ engine, onChanged }: { engine: EngineInfo; onChanged: () => void }) {
+  const backend = useBackend()
+  const prefs = useAsync(() => (backend.engine ? backend.engine.prefs() : Promise.resolve(null)), [backend])
+  const [error, setError] = useState<OgunError | undefined>()
+  const [busy, setBusy] = useState(false)
+  const restart = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      await backend.engine?.restart()
+      onChanged()
+    } catch (e) {
+      setError(asOgunError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const setTray = async (on: boolean) => {
+    setError(undefined)
+    try {
+      await backend.engine?.setPrefs({ keep_in_tray: on })
+      prefs.reload()
+    } catch (e) {
+      setError(asOgunError(e))
+    }
+  }
+  return (
+    <SettingsGroup title={<>Local engine {engineChip(engine)}</>} note="Ogun Studio runs its own engine (ogund) on this computer, started with Studio and stopped with it. Its data stays in the state folder above, and uninstalling Studio does not delete it.">
+      <ErrorBox error={error} title="Engine" />
+      <SettingRow title="State" desc={engine.state === 'running' ? `Process ${engine.pid ?? '?'}${engine.version ? `, version ${engine.version}` : ''}. Restarted ${engine.restarts} time${engine.restarts === 1 ? '' : 's'} since Studio opened.` : (engine.error ?? 'Not running.')}>
+        <button type="button" class="btn small" disabled={busy || engine.state === 'external'} onClick={() => void restart()}>
+          Restart the engine
+        </button>
+      </SettingRow>
+      <SettingRow title="Keep running in the tray" desc="Closing the window hides Studio to the tray and keeps the engine running, so schedules keep firing. Quit from the tray menu to stop it. Off: closing the window stops the engine and its schedules.">
+        <Switch label="Keep Studio running in the tray when I close the window (schedules keep firing)" checked={!!prefs.data?.keep_in_tray} disabled={!prefs.data} onChange={(on) => void setTray(on)} />
+      </SettingRow>
+      <SettingRow title="Network access" desc="Limited to this computer. The engine listens only on a local pipe or socket, with a credential that exists only while Studio runs." />
+      <SettingRow title="State folder" desc={<span class="mono">{engine.state_dir}</span>} />
+      <SettingRow title="Log" desc={<span class="mono">{engine.log_path}</span>} />
+    </SettingsGroup>
+  )
+}
+
+/** Hubs, optional: signed in to with a browser, or reached with a read-only token. */
+function HubsGroup({ onAdd, onChanged }: { onAdd: () => void; onChanged: () => void }) {
+  const backend = useBackend()
+  const { info } = useInfo()
+  const hubs = useAsync(() => (backend.hubs ? backend.hubs.list() : Promise.resolve([] as HubEnvironment[])), [backend, info?.link])
+  const [error, setError] = useState<OgunError | undefined>()
+  const act = async (f: () => Promise<unknown>) => {
+    setError(undefined)
+    try {
+      await f()
+      hubs.reload()
+      onChanged()
+    } catch (e) {
+      setError(asOgunError(e))
+    }
+  }
+  const saved = info?.link === 'hub' && info.hubUrl ? info.hubUrl : null
+  const list = hubs.data ?? []
+  return (
+    <SettingsGroup title="Hubs" note="A hub is an Ogun server your team runs. It is optional: Studio works fully on its own engine. On a hub, what you may do is decided by the hub's own roles, and agents on a hub can never decide an approval.">
+      <ErrorBox error={error} title="Hub" />
+      {hubs.error ? (
+        <div class="row">
+          <div class="text">
+            <div class="desc">Signing in to hubs is not available in this build: {hubs.error.message}</div>
+          </div>
+        </div>
+      ) : null}
+      {saved && list.length === 0 ? (
+        <SettingRow title={<>{saved} <Chip tone="ok">in use</Chip> <Chip>API token, read-only</Chip></>} desc="This hub was added with a token.">
+          <button type="button" class="btn small" onClick={() => void act(async () => void (await backend.linkLocal?.().then(onChanged)))}>
+            Use the local engine
+          </button>
+        </SettingRow>
+      ) : null}
+      {list.map((h) => (
+        <SettingRow
+          key={h.id}
+          title={
+            <>
+              {h.name} {h.active ? <Chip tone="ok">in use</Chip> : null} <Chip>{h.auth === 'oidc' ? 'browser sign-in' : 'API token, read-only'}</Chip> {h.auth === 'oidc' ? (h.signed_in ? <Chip tone="ok">signed in</Chip> : <Chip tone="warn">signed out</Chip>) : null}
+            </>
+          }
+          desc={[
+            h.url,
+            h.user ? `signed in as ${h.user}` : '',
+            h.role ? `${h.role}${h.workspace ? ` in ${h.workspace}` : ''}${h.approver ? ', approver' : ''}` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        >
+          <span class="inline">
+            {h.active ? (
+              <button type="button" class="btn small" onClick={() => void act(async () => void (await backend.linkLocal?.()))}>
+                Use the local engine
+              </button>
+            ) : (
+              <button type="button" class="btn small" disabled={h.auth === 'oidc' && !h.signed_in} onClick={() => void act(async () => void (await backend.hubs?.use(h.id)))}>
+                Use this hub
+              </button>
+            )}
+            {h.auth === 'oidc' ? (
+              <button type="button" class="btn small ghost" onClick={() => void act(() => backend.hubs?.signOut(h.id) ?? Promise.resolve())}>
+                {h.signed_in ? 'Sign out' : 'Remove'}
+              </button>
+            ) : null}
+          </span>
+        </SettingRow>
+      ))}
+      {list.length === 0 && !saved && !hubs.error ? (
+        <div class="row">
+          <div class="text">
+            <div class="desc">No hub. Add one to look at a team server from this Studio.</div>
+          </div>
+        </div>
+      ) : null}
+      <div class="row">
+        <div class="text" />
+        <div class="control">
+          <button type="button" class="btn small" onClick={onAdd}>
+            <Icon name="plus" /> Add hub
+          </button>
+        </div>
+      </div>
+    </SettingsGroup>
+  )
+}
+
 function AddHub({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const backend = useBackend()
   const [url, setUrl] = useState('')
@@ -24,6 +174,20 @@ function AddHub({ onClose, onDone }: { onClose: () => void; onDone: () => void }
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState<OgunError | undefined>()
   const [busy, setBusy] = useState(false)
+  const [waiting, setWaiting] = useState(false)
+  const signIn = async () => {
+    setWaiting(true)
+    setError(undefined)
+    try {
+      await backend.hubs?.signIn(url, ca.trim() ? ca : null)
+      onDone()
+      onClose()
+    } catch (e) {
+      setError(asOgunError(e))
+    } finally {
+      setWaiting(false)
+    }
+  }
   const connect = async () => {
     setBusy(true)
     setError(undefined)
@@ -39,35 +203,47 @@ function AddHub({ onClose, onDone }: { onClose: () => void; onDone: () => void }
     }
   }
   return (
-    <Dialog title="Connect to a hub" onClose={onClose}>
+    <Dialog title="Add a hub" onClose={onClose}>
       {backend.linkHub ? (
         <>
-          <p class="muted">A hub is a self-hosted ogun-server. Studio connects read-only with an API token, which acts as an agent and can never decide an approval. The token stays in Studio's native process; this page never reads it back.</p>
-          <div class="form-row">
-            <label class="field">
-              Hub URL
-              <input value={url} placeholder="https://hub.example.org" size={36} onInput={(e) => setUrl((e.target as HTMLInputElement).value)} />
-            </label>
-            <label class="field">
-              API token
-              <input type="password" autocomplete="off" value={token} size={30} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
-            </label>
-          </div>
+          <p class="muted">A hub is an Ogun server your team runs (ogun-server). It is optional: Studio works fully on its own engine.</p>
+          <label class="field">
+            Hub URL
+            <input value={url} placeholder="https://hub.example.org" size={44} onInput={(e) => setUrl((e.target as HTMLInputElement).value)} />
+          </label>
           <label class="field">
             CA certificate (PEM), only for a hub with a private CA
-            <textarea value={ca} style={{ minHeight: '90px' }} onInput={(e) => setCa((e.target as HTMLTextAreaElement).value)} />
+            <textarea value={ca} style={{ minHeight: '56px' }} onInput={(e) => setCa((e.target as HTMLTextAreaElement).value)} />
+          </label>
+          {backend.hubs ? (
+            <>
+              <h3 style={{ margin: '14px 0 4px' }}>Sign in with your browser</h3>
+              <p class="muted">Studio opens the hub's sign-in page in your browser (authorization code with PKCE) and never sees your password. The tokens are kept in your operating system's credential store and refreshed for you. On the hub you act with your own roles; an agent on a hub can never decide an approval.</p>
+              <div class="toolbar">
+                <button type="button" class="btn primary" disabled={waiting || busy || !url} onClick={() => void signIn()}>
+                  {waiting ? 'Waiting for the browser…' : 'Sign in with your browser'}
+                </button>
+              </div>
+              <hr style={{ margin: '14px 0' }} />
+            </>
+          ) : null}
+          <h3 style={{ margin: '0 0 4px' }}>{backend.hubs ? 'Or use an API token (read-only)' : 'Use an API token (read-only)'}</h3>
+          <p class="muted">An API token acts as an agent: Studio can read the hub and can never decide an approval with it. The token stays in Studio's native process; this page never reads it back.</p>
+          <label class="field">
+            API token
+            <input type="password" autocomplete="off" value={token} size={44} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
           </label>
           <label class="check" style={{ margin: '8px 0' }}>
             <input type="checkbox" checked={remember} onChange={(e) => setRemember((e.target as HTMLInputElement).checked)} />
             remember this hub on this device
           </label>
           <ErrorBox error={error} />
-          <div class="decide-row">
+          <div class="toolbar">
             <button type="button" class="btn" onClick={onClose}>
               Cancel
             </button>
-            <button type="button" class="btn primary" disabled={busy || !url || !token} onClick={() => void connect()}>
-              Connect
+            <button type="button" class="btn" disabled={busy || waiting || !url || !token} onClick={() => void connect()}>
+              Connect with the token
             </button>
           </div>
         </>
@@ -76,7 +252,7 @@ function AddHub({ onClose, onDone }: { onClose: () => void; onDone: () => void }
           <p>
             Only the desktop app links to a hub. {backend.demo ? 'This build is not linked to a hub.' : 'Studio-web is served by the hub itself, so it is already there.'} On the hub, a person with a browser session creates the API token; it acts as an agent.
           </p>
-          <div class="decide-row">
+          <div class="toolbar">
             <button type="button" class="btn" onClick={onClose}>
               Close
             </button>
@@ -129,10 +305,11 @@ export function EnvironmentsSettings() {
     <>
       <PageHead title="Environments" sub="The daemon this Studio talks to, the hubs and edges it can see, and the bridges that connect them.">
         <button type="button" class="btn" onClick={() => setAdding(true)}>
-          <Icon name="plus" /> Add environment
+          <Icon name="plus" /> Add hub
         </button>
       </PageHead>
       <ScopeBar workflows={false} environments />
+      {info?.engine && backend.engine ? <EngineGroup engine={info.engine} onChanged={() => (refresh(), envs.reload())} /> : null}
       <ErrorBox error={envs.error} />
       <ErrorBox error={error} title="Environment" />
       {envs.loading && !e && backend.environments ? <Loading /> : null}
@@ -142,7 +319,7 @@ export function EnvironmentsSettings() {
           <div class="panel">
             <Kv
               rows={[
-                ['link', info?.link === 'local' ? `ogund on this machine${info.profile ? `, profile ${info.profile}` : ''}` : info?.link === 'hub' ? `hub ${info.hubUrl ?? ''}, read-only` : info?.link === 'server' ? 'ogun-server, signed in' : 'not connected'],
+                ['link', info?.link === 'local' ? `ogund on this machine${info.profile ? `, profile ${info.profile}` : ''}` : info?.link === 'hub' ? (info.hubUser ? `hub ${info.hubUrl ?? ''}, signed in as ${info.hubUser}${info.hubRole ? ` (${info.hubRole})` : ''}; approvals are decided on the hub` : `hub ${info.hubUrl ?? ''}, read-only`) : info?.link === 'server' ? 'ogun-server, signed in' : 'not connected'],
                 ['state', info?.connected ? 'connected' : info?.error ? `${info.error.message} [${info.error.code}]` : 'not connected'],
                 ['platform', info?.platform ?? ''],
               ]}
@@ -165,14 +342,14 @@ export function EnvironmentsSettings() {
         </>
       ) : null}
       {e && local && showLocal ? (
-        <SettingsGroup title={local.name}>
+        <SettingsGroup title={info?.engine && backend.engine ? 'Scheduler and clients' : local.name}>
           <SettingRow title="Scheduler" desc="Fires cron triggers and starts runs for stream windows. Turn off to pause every schedule at once; runs already started finish.">
             <Switch label="Scheduler" checked={e.scheduler_enabled} disabled={!backend.setSchedulerEnabled} onChange={(on) => void setScheduler(on)} />
           </SettingRow>
           <SettingRow title="Version" desc={[local.endpoint, local.detail].filter(Boolean).join(' · ')}>
             <span class="muted">{local.version}</span>
           </SettingRow>
-          <SettingRow title="Network access" desc="Limited to this machine. ogund never listens on the network: its one listener is a local socket. A hub (ogun-server) is a separate process in front of it." />
+          {info?.engine && backend.engine ? null : <SettingRow title="Network access" desc="Limited to this machine. ogund never listens on the network: its one listener is a local socket. A hub (ogun-server) is a separate process in front of it." />}
           <div class="row">
             <div class="text">
               <div class="title">
@@ -239,6 +416,7 @@ export function EnvironmentsSettings() {
           )}
         </SettingsGroup>
       ) : null}
+      {backend.hubs ? <HubsGroup onAdd={() => setAdding(true)} onChanged={() => (refresh(), envs.reload())} /> : null}
       {adding ? <AddHub onClose={() => setAdding(false)} onDone={() => (refresh(), envs.reload())} /> : null}
     </>
   )

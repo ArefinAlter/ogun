@@ -1,0 +1,39 @@
+{
+  "ir_version": 0,
+  "workflow": "acc-export",
+  "version": 1,
+  "description": "Acceptance: rows from a local fixture delivered to a folder, a SQLite database and an S3-compatible bucket, each delivery approved by a person.",
+  "budgets": { "bytes": 52428800, "wall_ms": 300000 },
+  "nodes": [
+    {
+      "id": "fetch",
+      "op": "acquire@1",
+      "config": {
+        "allowed_domains": ["fixture.localtest.me"],
+        "sources": [{ "url": "http://fixture.localtest.me:38417/releases.json", "filename": "releases.json" }]
+      }
+    },
+    { "id": "rows", "op": "parse@1", "inputs": ["fetch.artifacts"], "config": {} },
+    {
+      "id": "to_files",
+      "op": "export@1",
+      "inputs": ["rows.artifacts"],
+      "config": { "connection": "files-out", "to": "releases/{filename}" },
+      "policy": { "approval": "always" }
+    },
+    {
+      "id": "to_db",
+      "op": "export@1",
+      "inputs": ["rows.artifacts"],
+      "config": { "connection": "db-out", "table": "releases", "mode": "replace" },
+      "policy": { "approval": "always" }
+    },
+    {
+      "id": "to_bucket",
+      "op": "export@1",
+      "inputs": ["rows.artifacts"],
+      "config": { "connection": "bucket", "to": "releases/{filename}" },
+      "policy": { "approval": "always" }
+    }
+  ]
+}

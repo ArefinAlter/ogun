@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hub-signout"
+description = "Enables the hub_signout command without any pre-configured scope."
+commands.allow = ["hub_signout"]
+
+[[permission]]
+identifier = "deny-hub-signout"
+description = "Denies the hub_signout command without any pre-configured scope."
+commands.deny = ["hub_signout"]

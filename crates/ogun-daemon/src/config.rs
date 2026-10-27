@@ -17,6 +17,9 @@ pub struct Config {
     /// Executables whose processes count as trust surfaces besides the `ogun` and `ogun-studio`
     /// files next to `ogund` (O-15 section 4.4).
     pub trusted_binaries: Vec<PathBuf>,
+    /// Executables that count as Ogun Studio for `studio` approval evidence and the Studio-callable
+    /// methods, besides the `ogun-studio` file next to `ogund`.
+    pub trusted_studio_binaries: Vec<PathBuf>,
     /// Whether `model` operators may run (constraint 6).
     pub model_access: bool,
     /// Directories searched for operator manifests.
@@ -47,6 +50,7 @@ impl Default for Config {
             scheduler_enabled: true,
             max_parallel_attempts: 4,
             trusted_binaries: Vec::new(),
+            trusted_studio_binaries: Vec::new(),
             model_access: true,
             operator_dirs: Vec::new(),
             allow_unsandboxed: false,

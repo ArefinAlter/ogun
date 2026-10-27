@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hub-environments"
+description = "Enables the hub_environments command without any pre-configured scope."
+commands.allow = ["hub_environments"]
+
+[[permission]]
+identifier = "deny-hub-environments"
+description = "Denies the hub_environments command without any pre-configured scope."
+commands.deny = ["hub_environments"]

@@ -6,7 +6,12 @@
 //! ogun-bench report --results results/                      print results.md again from results.json
 //! ogun-bench replay results/runs/agr_.../trajectory.jsonl   verify and print a trajectory
 //! ogun-bench exec --env-dir <dir> -- <argv>                 run a command in an environment (host agents)
+//! ogun-bench doctor                                         what isolation this computer can give (JSON)
+//! ogun-bench sample-matrix --dir <dir> [--probe <addr>]     write the sample suite and its matrix
 //! ```
+//!
+//! `sample-agent` and `sample-eval` are the scripted agent and evaluator of the sample suite; they are commands the
+//! sample matrix names, not something a person runs.
 //!
 //! The binary never reads Ogun's or Zeus's state and never talks to `ogund` or `zeusd`.
 
@@ -76,6 +81,49 @@ enum Command {
         #[arg(long)]
         summary: bool,
     },
+    /// Print as JSON which isolation this computer can give a local run, and which container runtimes answer.
+    Doctor,
+    /// Write the sample suite and its `matrix.json` under a directory.
+    SampleMatrix {
+        /// The directory (`suite/` and `matrix.json` are written in it).
+        #[arg(long)]
+        dir: PathBuf,
+        /// `local`, `docker` or `podman`.
+        #[arg(long, default_value = "local")]
+        runtime: String,
+        /// A loopback address the network task tries to reach (the caller listens on it).
+        #[arg(long)]
+        probe: Option<String>,
+        /// Seeds.
+        #[arg(long, value_delimiter = ',', default_value = "1")]
+        seeds: Vec<u64>,
+    },
+    /// The sample suite's scripted agent.
+    SampleAgent {
+        /// `solve` or `idle`.
+        mode: String,
+        /// The task id.
+        #[arg(long)]
+        task: String,
+        /// The workspace.
+        #[arg(long)]
+        workspace: PathBuf,
+        /// The agent's trajectory log.
+        #[arg(long)]
+        trajectory: PathBuf,
+    },
+    /// The sample suite's evaluator.
+    SampleEval {
+        /// The task id.
+        #[arg(long)]
+        task: String,
+        /// The workspace.
+        #[arg(long)]
+        workspace: PathBuf,
+        /// The staged evaluation suite.
+        #[arg(long)]
+        tests: PathBuf,
+    },
     /// Run a command in an existing environment (the shim host-placed agents use).
     Exec {
         /// The environment directory (`$OGUN_BENCH_ENV_DIR`).
@@ -91,17 +139,7 @@ enum Command {
 }
 
 fn default_state_dir() -> Result<PathBuf> {
-    if let Some(p) = std::env::var_os("OGUN_BENCH_STATE_DIR").filter(|v| !v.is_empty()) {
-        return Ok(PathBuf::from(p));
-    }
-    let base = directories::BaseDirs::new().context("cannot determine the home directory")?;
-    Ok(if cfg!(windows) || cfg!(target_os = "macos") {
-        base.data_local_dir().join("OgunBench")
-    } else {
-        base.state_dir()
-            .unwrap_or_else(|| base.data_local_dir())
-            .join("ogun-bench")
-    })
+    ogun_bench::default_state_dir().context("cannot determine the home directory")
 }
 
 fn describe(kind: &TrajectoryKind) -> String {
@@ -207,6 +245,9 @@ async fn real_main() -> Result<ExitCode> {
                 Some(s) => s,
                 None => default_state_dir()?,
             };
+            // Commands run in a workspace of their own; every path they are given must work from there.
+            let state = std::path::absolute(&state).unwrap_or(state);
+            let out = std::path::absolute(&out).unwrap_or(out);
             let results = run_matrix(&spec, &state, &out)
                 .await
                 .map_err(|e| anyhow::anyhow!("{}: {e}", e.code()))?;
@@ -260,6 +301,66 @@ async fn real_main() -> Result<ExitCode> {
             summary,
         } => {
             replay(&trajectory, summary)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::Doctor => {
+            let local = ogun_bench::env::local_isolation().await;
+            let docker = ogun_bench::env::runtime_available(ogun_bench::Runtime::Docker).await;
+            let podman = ogun_bench::env::runtime_available(ogun_bench::Runtime::Podman).await;
+            let state = match cli.state_dir {
+                Some(s) => Some(s),
+                None => ogun_bench::default_state_dir(),
+            };
+            let doc = serde_json::json!({
+                "local_isolation": local,
+                "docker": docker,
+                "podman": podman,
+                "state_dir": state.map(|p| p.display().to_string()),
+                "adapters": ogun_bench::adapters::ADAPTERS,
+            });
+            println!("{doc}");
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::SampleMatrix {
+            dir,
+            runtime,
+            probe,
+            seeds,
+        } => {
+            let runtime = match runtime.as_str() {
+                "local" => ogun_bench::Runtime::Local,
+                "docker" => ogun_bench::Runtime::Docker,
+                "podman" => ogun_bench::Runtime::Podman,
+                other => bail!("unknown runtime {other}; use local, docker or podman"),
+            };
+            let suite = dir.join("suite");
+            ogun_bench::sample::write_suite(&suite)
+                .map_err(|e| anyhow::anyhow!("{}: {e}", e.code()))?;
+            let exe = std::env::current_exe().context("cannot find this program")?;
+            let spec = ogun_bench::sample::matrix(&suite, &exe, runtime, probe.as_deref(), seeds);
+            std::fs::write(dir.join("matrix.json"), serde_json::to_vec_pretty(&spec)?)?;
+            println!("{}", dir.join("matrix.json").display());
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::SampleAgent {
+            mode,
+            task,
+            workspace,
+            trajectory,
+        } => {
+            let probe = std::env::var(ogun_bench::sample::PROBE_VAR).ok();
+            ogun_bench::sample::run_agent(&mode, &task, &workspace, &trajectory, probe.as_deref())?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::SampleEval {
+            task,
+            workspace,
+            tests,
+        } => {
+            println!(
+                "{}",
+                ogun_bench::sample::evaluate(&task, &workspace, &tests)
+            );
             Ok(ExitCode::SUCCESS)
         }
         Command::Exec {

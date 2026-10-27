@@ -1,0 +1,9 @@
+{
+  "id": "starter",
+  "name": "Getting started",
+  "description": "Two workflows that run on the public internet and nothing else: the releases of a public GitHub repository, and a day of earthquakes per partition from the USGS Earthquake Catalog.",
+  "workflows": [
+    "github-releases.workflow.json",
+    "earthquakes-daily.workflow.json"
+  ]
+}

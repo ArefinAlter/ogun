@@ -8,9 +8,10 @@ use ogun_api::jsonrpc::{Request, Response};
 use ogun_api::methods::{
     AuthenticateParams, AuthenticateResult, HelloParams, HelloResult, PROTOCOL_VERSION, name,
 };
+use ogun_api::policy::Surface;
 use ogun_api::transport::{Listener, Peer, Stream};
 use ogun_api::{ApiError, ApiResult, policy};
-use ogun_types::CredentialId;
+use ogun_types::{CredentialId, Timestamp};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tokio::io::BufReader;
@@ -28,8 +29,10 @@ pub struct Conn {
     pub name: String,
     /// What the daemon saw of the peer.
     pub peer: Peer,
-    /// Human, with a terminal, running a pinned CLI.
+    /// Human, with a terminal, running a pinned CLI; or the pinned Studio binary.
     pub interactive: bool,
+    /// The trust surface verified for this connection.
+    pub surface: Surface,
 }
 
 impl Conn {
@@ -160,23 +163,38 @@ async fn handle(d: &Arc<Daemon>, s: &mut Session, peer: &Peer, req: Request) -> 
                 s.failures += 1;
                 return Err(ApiError::new("api.unauthenticated", "credential refused"));
             };
-            let interactive = c.kind == ClientKind::Human
-                && peer.has_tty
-                && d.trusted.is_cli(peer.exe.as_deref());
+            let surface = if c.kind != ClientKind::Human {
+                Surface::None
+            } else if peer.has_tty && d.trusted.is_cli(peer.exe.as_deref()) {
+                Surface::Terminal
+            } else if d.trusted.is_studio(peer.exe.as_deref()) {
+                Surface::Studio
+            } else {
+                Surface::None
+            };
+            if c.kind == ClientKind::Service && c.name == "ingest" {
+                d.ingest_seen_ms.store(
+                    Timestamp::now().unix_millis(),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
+            }
+            let interactive = surface.is_interactive();
             let conn = Conn {
                 kind: c.kind,
                 credential: c.id,
                 name: c.name.clone(),
                 peer: peer.clone(),
                 interactive,
+                surface,
             };
-            tracing::debug!(credential = %conn.credential, kind = %conn.kind, interactive, "authenticated");
+            tracing::debug!(credential = %conn.credential, kind = %conn.kind, ?surface, "authenticated");
             s.conn = Some(conn);
             result(&AuthenticateResult {
                 kind: c.kind,
                 name: c.name,
                 interactive,
-                methods: policy::methods_for(c.kind, interactive),
+                surface,
+                methods: policy::methods_for_surface(c.kind, surface),
             })
         }
         method => {
@@ -198,10 +216,22 @@ async fn handle(d: &Arc<Daemon>, s: &mut Session, peer: &Peer, req: Request) -> 
                     conn.kind
                 )));
             }
-            if row.interactive && !conn.interactive {
-                return Err(ApiError::denied(format!(
-                    "{method} needs the ogun CLI on a terminal (an interactive human connection)"
-                )));
+            if !conn.surface.admits(row) {
+                return Err(ApiError::denied(if row.studio {
+                    format!(
+                        "{method} needs the ogun CLI on a terminal or Ogun Studio (an interactive human connection)"
+                    )
+                } else {
+                    format!(
+                        "{method} needs the ogun CLI on a terminal (an interactive human connection)"
+                    )
+                }));
+            }
+            if conn.kind == ClientKind::Service && conn.name == "ingest" {
+                d.ingest_seen_ms.store(
+                    Timestamp::now().unix_millis(),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
             }
             crate::handlers::dispatch(d, &conn, method, req.params).await
         }

@@ -51,6 +51,10 @@ export interface CustomTheme {
   accent: string
 }
 
+/** The desktop app opens on Overview, where a new workspace offers its sample projects; the agent needs a provider
+ *  key before it can answer, so it is not the first thing a person meets. A browser keeps the Agent as the start page. */
+const DESKTOP = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window && import.meta.env.VITE_OGUN_DESKTOP_DEMO !== '1'
+
 export const DEFAULTS: Prefs = {
   appearance: 'system',
   theme: 'ogun',
@@ -59,7 +63,7 @@ export const DEFAULTS: Prefs = {
   contentWidth: 'comfortable',
   statusColors: 'standard',
   reduceMotion: false,
-  startPage: 'agent',
+  startPage: DESKTOP ? '' : 'agent',
   timeMode: 'utc',
   confirmCancel: true,
   notifications: 'important',

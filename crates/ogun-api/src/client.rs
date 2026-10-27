@@ -81,6 +81,7 @@ impl Client {
                 kind: cred.kind,
                 name: String::new(),
                 interactive: false,
+                surface: crate::policy::Surface::None,
                 methods: vec![],
             },
         };
@@ -127,6 +128,12 @@ impl Client {
     #[must_use]
     pub fn interactive(&self) -> bool {
         self.session.interactive
+    }
+
+    /// The trust surface the daemon verified for this connection.
+    #[must_use]
+    pub fn surface(&self) -> crate::policy::Surface {
+        self.session.surface
     }
 
     /// Methods this connection may call.

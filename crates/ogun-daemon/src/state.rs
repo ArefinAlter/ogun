@@ -105,6 +105,9 @@ pub struct OutputRecord {
     pub artifact_id: String,
     /// When committed.
     pub committed_at: Timestamp,
+    /// The artifact was removed by a storage cleanup; the record stays so the run's history is whole.
+    #[serde(default)]
+    pub removed: bool,
 }
 
 /// An idempotency record (`Collection::Idempotency`).
@@ -152,6 +155,11 @@ impl Trusted {
         for p in &config.trusted_binaries {
             if let Ok(c) = p.canonicalize() {
                 me.cli.push(c);
+            }
+        }
+        for p in &config.trusted_studio_binaries {
+            if let Ok(c) = p.canonicalize() {
+                me.studio.push(c);
             }
         }
         me
@@ -216,6 +224,10 @@ pub struct Daemon {
     pub llm_budget_lock: Mutex<()>,
     /// Chunks of objects edges are uploading (O-11), under `sync/incoming`.
     pub hub: ogun_sync::hub::ChunkAssembler,
+    /// Settings, connections, the agent and benchmarks behind Studio's screens.
+    pub studio: crate::studio::Studio,
+    /// When the ingest bridge last authenticated, Unix ms (0: never since this start).
+    pub ingest_seen_ms: std::sync::atomic::AtomicI64,
 }
 
 impl std::fmt::Debug for Daemon {
@@ -232,6 +244,15 @@ pub fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// What a supervising app changes about how the daemon opens its stores.
+#[derive(Debug, Default, Clone)]
+pub struct OpenOptions {
+    /// Keep secret values in the OS credential store when there is one.
+    pub prefer_os_secrets: bool,
+    /// A passphrase for the encrypted-file store.
+    pub secrets_passphrase: Option<zeroize::Zeroizing<String>>,
+}
+
 impl Daemon {
     /// Opens every store under the state directory and recovers from a crash.
     ///
@@ -239,6 +260,15 @@ impl Daemon {
     ///
     /// Any startup failure.
     pub fn open(paths: OgunPaths) -> DaemonResult<Arc<Self>> {
+        Self::open_with(paths, &OpenOptions::default())
+    }
+
+    /// As [`Daemon::open`], with the options of a supervised launch.
+    ///
+    /// # Errors
+    ///
+    /// Any startup failure.
+    pub fn open_with(paths: OgunPaths, options: &OpenOptions) -> DaemonResult<Arc<Self>> {
         let config = crate::config::Config::load(&paths.config_file())?;
         let ids = IdGenerator::new();
         let (creds, ipc_secret) = Credentials::load_or_init(&paths, &ids)?;
@@ -265,9 +295,13 @@ impl Daemon {
             zeus_artifact::StoreConfig {
                 product: "ogun".into(),
                 version: env!("CARGO_PKG_VERSION").into(),
-                quota_bytes: config.artifact_quota_bytes,
+                quota_bytes: config
+                    .artifact_quota_bytes
+                    .or_else(|| crate::studio::storage::quota_from_rules(&paths.state_dir)),
                 min_free_bytes: config.min_free_bytes,
                 write_roots: vec![],
+                // Unreferenced content is collected when a cleanup asks for it; nothing waits a day.
+                gc_grace: std::time::Duration::ZERO,
                 ..Default::default()
             },
             Arc::new(zeus_fs::RealFs),
@@ -275,7 +309,24 @@ impl Daemon {
             None,
         )
         .map_err(|e| DaemonError::Artifacts(e.to_string()))?;
+        let secrets = Arc::new(if options.prefer_os_secrets {
+            let id = blake3::hash(paths.state_dir.display().to_string().as_bytes()).to_hex();
+            SecretStore::open_preferring_os(
+                paths.secrets_dir(),
+                paths.state_dir.join("secrets-index"),
+                &format!("Ogun secrets {}", &id.as_str()[..12]),
+                options.secrets_passphrase.as_ref(),
+            )?
+        } else {
+            SecretStore::open(paths.secrets_dir())?
+        });
+        let docs = crate::studio::Docs::open(&paths.state_dir)?;
+        let connections = Arc::new(crate::studio::connections::Connections::load(
+            &docs,
+            secrets.clone(),
+        ));
         let mut env = ogun_ops::Environment::new(paths.state_dir.clone());
+        env.connections = Some(ogun_ops::export::ConnectionSource(connections.clone()));
         env.operator_dirs.clone_from(&config.operator_dirs);
         env.operator_dirs.push(paths.state_dir.join("operators"));
         // `ogun-op-shim` and `ogun-op-llm` ship next to `ogund`.
@@ -283,19 +334,27 @@ impl Daemon {
             .ok()
             .and_then(|e| e.parent().map(Path::to_path_buf))
         {
+            // The Python Studio ships (`python/` beside the app) is where `python3` is found on Windows.
+            env.operator_dirs.push(dir.join("python"));
             env.operator_dirs.push(dir);
         }
         env.model_access = config.model_access;
         env.allow_unsandboxed = config.allow_unsandboxed;
         env.workspace.clone_from(&config.workspace);
         let registry = Registry::new(env);
-        let secrets = Arc::new(SecretStore::open(paths.secrets_dir())?);
         let last = store.last_event_seq()?;
         let trusted = Trusted::discover(&config);
         let streams = Streams::new(paths.state_dir.join("streams"));
         let hub =
             ogun_sync::hub::ChunkAssembler::open(&paths.state_dir.join("sync").join("incoming"))
                 .map_err(|e| DaemonError::State(format!("sync store: {e}")))?;
+        let studio = crate::studio::Studio::open(
+            &paths.state_dir,
+            docs,
+            connections,
+            config.scheduler_enabled,
+            config.max_parallel_attempts,
+        )?;
         let daemon = Arc::new(Self {
             paths,
             config,
@@ -318,6 +377,8 @@ impl Daemon {
             trusted,
             llm_budget_lock: Mutex::new(()),
             hub,
+            studio,
+            ingest_seen_ms: std::sync::atomic::AtomicI64::new(0),
         });
         Ok(daemon)
     }

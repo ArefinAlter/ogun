@@ -467,15 +467,14 @@ async fn acquire_live() {
     let (ctx, mut rx, _c) = context(Arc::new(NoSecrets));
     let url = std::env::var("OGUN_LIVE_URL")
         .unwrap_or_else(|_| "https://www.rfc-editor.org/rfc/rfc9309.txt".into());
+    // `OGUN_LIVE_CONFIG` replaces the whole configuration (a workflow node's `config`).
+    let config = std::env::var("OGUN_LIVE_CONFIG")
+        .ok()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_else(|| json!({"sources": [{"url": url}]}));
     let out = reg
         .run(
-            invocation(
-                "acquire@1",
-                &dir.path().join("s"),
-                json!({"sources": [{"url": url}]}),
-                vec![],
-                None,
-            ),
+            invocation("acquire@1", &dir.path().join("s"), config, vec![], None),
             ctx,
         )
         .await;
@@ -514,4 +513,106 @@ async fn crawl_live() {
     let urls = outputs.iter().find(|o| o.port == "urls").unwrap();
     eprintln!("{:?}", urls.metadata);
     assert!(std::fs::read_to_string(&urls.path).unwrap().lines().count() > 0);
+}
+
+#[tokio::test]
+async fn core_parse_turns_json_and_csv_into_rows_that_partition_reads() {
+    let dir = tempfile::tempdir().unwrap();
+    let json_file = dir.path().join("releases.json");
+    std::fs::write(
+        &json_file,
+        r#"{"data":{"items":[{"tag":"v1","at":1704067200000},{"tag":"v2","at":1706745600000},7]}}"#,
+    )
+    .unwrap();
+    let csv_file = dir.path().join("stations.csv");
+    std::fs::write(&csv_file, "id,name\r\n1,\"Dock, North\"\r\n2,South\r\n").unwrap();
+    let reg = registry(&dir.path().join("state"));
+    assert!(reg.knows("parse@1"));
+    let (ctx, _rx, _cancel) = context(Arc::new(NoSecrets));
+    let out = reg
+        .run(
+            invocation(
+                "parse@1",
+                &dir.path().join("s1"),
+                json!({"pointer": "/data/items"}),
+                vec![input("fetch.artifacts", &json_file, "application/json")],
+                None,
+            ),
+            ctx.clone(),
+        )
+        .await;
+    let Outcome::Succeeded { outputs } = out else {
+        panic!("{out:?}")
+    };
+    assert_eq!(outputs.len(), 1);
+    assert_eq!(outputs[0].media_type, "application/x-ndjson");
+    assert_eq!(outputs[0].metadata.as_ref().unwrap()["rows"], 3);
+    let rows = std::fs::read_to_string(&outputs[0].path).unwrap();
+    assert_eq!(rows.lines().count(), 3);
+    assert!(rows.contains(r#"{"value":7}"#));
+
+    // The rows are what `partition` reads: by month of `at`.
+    let parsed = input("parse.artifacts", &outputs[0].path, "application/x-ndjson");
+    let out = reg
+        .run(
+            invocation(
+                "partition@1",
+                &dir.path().join("s2"),
+                json!({"time_field": "at", "granularity": "month"}),
+                vec![parsed],
+                None,
+            ),
+            ctx.clone(),
+        )
+        .await;
+    let Outcome::Succeeded { outputs } = out else {
+        panic!("{out:?}")
+    };
+    let mut keys: Vec<_> = outputs
+        .iter()
+        .map(|o| {
+            o.metadata.as_ref().unwrap()["partition_key"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+    keys.sort();
+    assert_eq!(keys, ["2024-01", "2024-02", "_missing"]);
+
+    let out = reg
+        .run(
+            invocation(
+                "parse@1",
+                &dir.path().join("s3"),
+                json!({}),
+                vec![input("fetch.artifacts", &csv_file, "text/csv")],
+                None,
+            ),
+            ctx.clone(),
+        )
+        .await;
+    let Outcome::Succeeded { outputs } = out else {
+        panic!("{out:?}")
+    };
+    let rows = std::fs::read_to_string(&outputs[0].path).unwrap();
+    assert_eq!(
+        rows.lines().next().unwrap(),
+        r#"{"id":"1","name":"Dock, North"}"#
+    );
+
+    // A pointer that is not there is an input error, not an empty result.
+    let out = reg
+        .run(
+            invocation(
+                "parse@1",
+                &dir.path().join("s4"),
+                json!({"pointer": "/nope"}),
+                vec![input("fetch.artifacts", &json_file, "application/json")],
+                None,
+            ),
+            ctx,
+        )
+        .await;
+    assert!(matches!(out, Outcome::Failed { .. }), "{out:?}");
 }

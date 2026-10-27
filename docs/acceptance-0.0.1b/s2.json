@@ -1,0 +1,97 @@
+[
+  {
+    "name": "acquire, parse, filter, partition, hash and manifest run to success on a local fixture",
+    "ok": true,
+    "detail": "succeeded []"
+  },
+  {
+    "name": "the run produced artifacts",
+    "ok": true,
+    "detail": "9 artifacts"
+  },
+  {
+    "name": "the bytes of every artifact hash to its BLAKE3 digest (checked with the ogun CLI)",
+    "ok": true,
+    "detail": "9 checked"
+  },
+  {
+    "name": "parse turned the JSON array into 10 rows",
+    "ok": true,
+    "detail": "10 rows"
+  },
+  {
+    "name": "filter dropped the one draft",
+    "ok": true,
+    "detail": "9 rows"
+  },
+  {
+    "name": "lineage events (OpenLineage) were recorded for the run",
+    "ok": true,
+    "detail": "14 events"
+  },
+  {
+    "name": "the GitHub releases workflow runs against the real API",
+    "ok": true,
+    "detail": "succeeded []"
+  },
+  {
+    "name": "the fetched document is GitHub JSON that names the v0.0.1a release",
+    "ok": true,
+    "detail": "19252 bytes"
+  },
+  {
+    "name": "the plan covers 121 partitions",
+    "ok": true,
+    "detail": "{\"ranges\":[{\"count\":121,\"from\":\"2026-01-01\",\"state\":\"missing\",\"to\":\"2026-05-01\"}],\"to_run\":121,\"up_to_date\":0,\"workflow_hash\":\"e9bfcfbf432178b939d1913ce4791b187c00cc67091c77004e74974c35f36da9\"}"
+  },
+  {
+    "name": "the app restarted the engine by itself",
+    "ok": true,
+    "detail": "11748 -> 21560, restarts 1"
+  },
+  {
+    "name": "some partitions finished before the kill and some did not",
+    "ok": true,
+    "detail": "28 done"
+  },
+  {
+    "name": "asking for the range again right after the restart starts no duplicate work",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"invalid_request\",\"code\":\"api.invalid_params\",\"message\":\"every partition in the range is up to date or already being worked on; pass force to run it again\",\"retryable\":false}}"
+  },
+  {
+    "name": "all 121 partitions are done",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "every partition was fetched, and only the ones in flight at the kill more than once",
+    "ok": true,
+    "detail": "121 days, 0 fetched twice"
+  },
+  {
+    "name": "no partition that was done before the kill ran again",
+    "ok": true,
+    "detail": "28 done before; reran: "
+  },
+  {
+    "name": "a further backfill has nothing to do",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"invalid_request\",\"code\":\"api.invalid_params\",\"message\":\"every partition in the range is up to date or already being worked on; pass force to run it again\",\"retryable\":false}}"
+  },
+  {
+    "name": "the app and its engine are gone",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "after the whole app was killed, the backfill finishes on the next launch",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"invalid_request\",\"code\":\"api.invalid_params\",\"message\":\"every partition in the range is up to date or already being worked on; pass force to ru"
+  },
+  {
+    "name": "all 121 days of the second range were fetched, only those in flight at the kill more than once",
+    "ok": true,
+    "detail": "121 days, 2 twice"
+  }
+]
