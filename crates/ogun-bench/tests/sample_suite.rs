@@ -3,6 +3,8 @@
 //! passes none. Skipped where this computer cannot deny the network to a local run (no user namespaces, no
 //! Windows sandbox helper next to the test binaries).
 
+#![allow(clippy::print_stderr)]
+
 use std::net::TcpListener;
 use std::path::PathBuf;
 

@@ -258,7 +258,7 @@ fn has_grant(acl: *const ACL, sid: PSID, mask: u32, folder: bool) -> bool {
 fn readable_by_every_package(path: &Path) -> bool {
     ["SystemRoot", "ProgramFiles", "ProgramFiles(x86)"]
         .iter()
-        .filter_map(|v| std::env::var_os(v))
+        .filter_map(std::env::var_os)
         .any(|root| {
             let (p, r) = (
                 path.to_string_lossy().to_lowercase(),

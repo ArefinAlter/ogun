@@ -1,0 +1,82 @@
+[
+  {
+    "name": "the app owns a running engine",
+    "ok": true,
+    "detail": "{\"state\":\"running\",\"pid\":25652,\"version\":\"0.0.1-beta\",\"restarts\":0,\"log_path\":\"D:\\\\verne-build\\\\ogun\\\\acc\\\\f-s1\\\\home\\\\profiles\\\\studio\\\\logs\\\\ogund.log\",\"state_dir\":\"D:\\\\verne-build\\\\ogun\\\\acc\\\\f-s1\\\\home\\\\profiles\\\\studio\",\"log_tail\":[]}"
+  },
+  {
+    "name": "exactly one ogund child of the app",
+    "ok": true,
+    "detail": "[25652]"
+  },
+  {
+    "name": "the engine takes no secret on its command line",
+    "ok": true,
+    "detail": "\"D:\\verne-build\\ogun\\installed\\ogund.exe\" --supervised --profile studio"
+  },
+  {
+    "name": "the engine listens on no TCP port (a named pipe only)",
+    "ok": true,
+    "detail": "listening sockets: 0"
+  },
+  {
+    "name": "the link is the local engine and it answers",
+    "ok": true,
+    "detail": "{\"app_version\":\"0.0.1-beta\",\"platform\":\"windows\",\"mobile\":false,\"link\":\"local\",\"hub_approver\":false,\"profile\":\"studio\",\"connected\":true,\"kind\":\"human\",\"can_write\":true,\"can_decide\":true,\"can_read_sett"
+  },
+  {
+    "name": "the workspace starts empty",
+    "ok": true,
+    "detail": "{\"workflows\":[]}"
+  },
+  {
+    "name": "the bundled samples are offered",
+    "ok": true,
+    "detail": "starter,bikeshare"
+  },
+  {
+    "name": "the sample project is imported from the first-run screen",
+    "ok": true,
+    "detail": "via UI: true"
+  },
+  {
+    "name": "the sample import reports workflows with BLAKE3 workflow hashes",
+    "ok": true,
+    "detail": "6 workflows"
+  },
+  {
+    "name": "each hash the engine stored equals the hash `ogun hash` computes from the file (JCS plus BLAKE3)",
+    "ok": true,
+    "detail": "6 files, 6 stored"
+  },
+  {
+    "name": "importing again creates nothing new",
+    "ok": true,
+    "detail": "[false,false,false,false,false,false]"
+  },
+  {
+    "name": "workflows.list shows each of them by name",
+    "ok": true,
+    "detail": "5 names, 6 versions"
+  },
+  {
+    "name": "closing the app stops the engine",
+    "ok": true,
+    "detail": "engine pid 25652"
+  },
+  {
+    "name": "and the app itself",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "a second launch starts a new engine",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the workspace survived the restart",
+    "ok": true,
+    "detail": "5 workflows"
+  }
+]

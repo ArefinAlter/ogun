@@ -1,0 +1,67 @@
+[
+  {
+    "name": "the engine reports the local runtime with its isolation kind",
+    "ok": true,
+    "detail": "{\"available\":true,\"id\":\"local\",\"isolation\":\"local_appcontainer\",\"note\":\"Commands run in a Windows AppContainer with no network and write access only to the run's workspace and logs.\",\"title\":\"This computer, network denied\"}"
+  },
+  {
+    "name": "and says the sample suite is scripted agents, not models",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the run finished",
+    "ok": true,
+    "detail": "finished "
+  },
+  {
+    "name": "eight runs: four tasks for each of two agents",
+    "ok": true,
+    "detail": "8"
+  },
+  {
+    "name": "the reference script passed every task, including the network task",
+    "ok": true,
+    "detail": "count-rows:true largest-city:true network-denied:true sum-amounts:true"
+  },
+  {
+    "name": "the idle script passed none",
+    "ok": true,
+    "detail": "count-rows:false largest-city:false network-denied:false sum-amounts:false"
+  },
+  {
+    "name": "every run says how it was isolated: an AppContainer with the network denied",
+    "ok": true,
+    "detail": "local_appcontainer"
+  },
+  {
+    "name": "the engine opened a loopback listener for the network task and nothing connected to it",
+    "ok": true,
+    "detail": "0 connections"
+  },
+  {
+    "name": "control: outside the sandbox the same script reaches the listener and answers \"reachable\"",
+    "ok": true,
+    "detail": "answer reachable, hits 1"
+  },
+  {
+    "name": "a trajectory verifies as a hash chain",
+    "ok": true,
+    "detail": "12 events"
+  },
+  {
+    "name": "the benchmark added no run and no workflow to the app",
+    "ok": true,
+    "detail": "runs 0->0, workflows 0->0"
+  },
+  {
+    "name": "its files are outside the engine state directory",
+    "ok": true,
+    "detail": "D:\\verne-build\\ogun\\acc\\f-s10\\bench"
+  },
+  {
+    "name": "and a benchmark pointed at a state directory inside the engine state is refused",
+    "ok": true,
+    "detail": "ogun-bench: bench.isolation_unavailable: the benchmark state directory must not overlap the Ogun state directory\n"
+  }
+]

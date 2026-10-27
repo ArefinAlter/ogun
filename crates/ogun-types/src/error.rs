@@ -243,7 +243,9 @@ mod tests {
                     "lineage",
                     "bench",
                     "zeus",
-                    "server"
+                    "server",
+                    "connection",
+                    "agent"
                 ]
                 .contains(&ns),
                 "{}",

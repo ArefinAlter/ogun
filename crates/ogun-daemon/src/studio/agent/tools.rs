@@ -365,7 +365,7 @@ pub async fn run(d: &Arc<Daemon>, conn: &Conn, thread: &str, call_: &ToolCall) -
                 Err(e) => fail("could not list runs", &e),
             }
         }
-        "runs.get" => match need(a, "run_id").and_then(|id| Ok(json!({ "run_id": id }))) {
+        "runs.get" => match need(a, "run_id").map(|id| json!({ "run_id": id })) {
             Ok(p) => match call(d, conn, name::RUNS_GET, p).await {
                 Ok(v) => {
                     let mut cards = Vec::new();

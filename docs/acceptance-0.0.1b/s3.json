@@ -1,0 +1,72 @@
+[
+  {
+    "name": "the scheduler started runs on its own while the app was open",
+    "ok": true,
+    "detail": "2 runs"
+  },
+  {
+    "name": "and they succeeded",
+    "ok": true,
+    "detail": "succeeded,succeeded"
+  },
+  {
+    "name": "about a minute apart",
+    "ok": true,
+    "detail": "60 s"
+  },
+  {
+    "name": "the daemon log attributes them to the scheduler, not to a person",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "a paused workflow gets no new scheduled run",
+    "ok": true,
+    "detail": "2 -> 2"
+  },
+  {
+    "name": "the ingest bridge is supervised by the app and reports running",
+    "ok": true,
+    "detail": "{\"detail\":\"ogun-ingest reads MQTT, LoRaWAN, Modbus, file-tail and HTTP sources into stream windows (O-10). Studio starts it with the engine; it connects when a stream workflow is stored.\",\"id\":\"ingest\",\"name\":\"Ingest bridge\",\"state\":\"running\"}"
+  },
+  {
+    "name": "three event-time windows sealed and started their runs",
+    "ok": true,
+    "detail": "3 runs"
+  },
+  {
+    "name": "and they succeeded",
+    "ok": true,
+    "detail": "succeeded,succeeded,succeeded"
+  },
+  {
+    "name": "the first window rolled up its five records for station S1 and no more",
+    "ok": true,
+    "detail": "{\"bucket_end_ms\":1793075040000,\"bucket_start_ms\":1793074980000,\"fields\":{\"bikes\":{\"count\":5,\"max\":9,\"min\":5,\"scale\":1,\"sum\":35},\"ts_ms\":{\"count\":5,\"max\":1793074984000,\"min\":1793074980000,\"scale\":1,\"sum\":8965374910000}},\"group\":{\"station_id\":\"S1\"},\"records\":5}"
+  },
+  {
+    "name": "a late record revised its window: a new run followed",
+    "ok": true,
+    "detail": "3 -> 4"
+  },
+  {
+    "name": "the revision counts six records for S1 (five and the late one) and still five for S2: the duplicate was not counted",
+    "ok": true,
+    "detail": "S1 6, S2 5"
+  },
+  {
+    "name": "the ingest bridge is a child of the app",
+    "ok": true,
+    "detail": "[27396]"
+  },
+  {
+    "name": "the app restarted the ingest bridge",
+    "ok": true,
+    "detail": "27396 -> 36356"
+  },
+  {
+    "name": "records appended after the restart were ingested (a window ran again)",
+    "ok": true,
+    "detail": "4 -> 5"
+  }
+]

@@ -647,6 +647,9 @@ fn find_card<'a>(f: &'a mut ThreadFile, item_id: &str) -> Option<&'a mut Value> 
         })
 }
 
+/// What to write back into a card once its action has run.
+type CardPatch = Box<dyn Fn(&mut Value, &Value) + Send>;
+
 /// A person presses a button on a card. The action runs with the caller's own role.
 pub(super) async fn act(
     d: &Arc<Daemon>,
@@ -675,10 +678,7 @@ pub(super) async fn act(
                 .collect::<String>()
         )
     };
-    let (method, params, patch): (&str, Value, Box<dyn Fn(&mut Value, &Value) + Send>) = match (
-        action,
-        card["type"].as_str(),
-    ) {
+    let (method, params, patch): (&str, Value, CardPatch) = match (action, card["type"].as_str()) {
         ("store", Some("proposal")) => {
             if card["valid"] != json!(true) || card.get("stored").is_some() {
                 return Err(ApiError::invalid_params(

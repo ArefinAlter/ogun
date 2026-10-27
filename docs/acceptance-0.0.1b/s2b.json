@@ -1,0 +1,32 @@
+[
+  {
+    "name": "the GitHub releases workflow runs against the real API",
+    "ok": true,
+    "detail": "succeeded []"
+  },
+  {
+    "name": "the fetched document is GitHub JSON that names the v0.0.1a release",
+    "ok": true,
+    "detail": "19252 bytes"
+  },
+  {
+    "name": "parse made one row per release",
+    "ok": true,
+    "detail": "1 rows"
+  },
+  {
+    "name": "the earthquakes workflow runs three daily partitions against the real USGS API",
+    "ok": true,
+    "detail": "succeeded []"
+  },
+  {
+    "name": "three documents came back, and they are USGS GeoJSON",
+    "ok": true,
+    "detail": "3 fetched"
+  },
+  {
+    "name": "the three partitions are done",
+    "ok": true,
+    "detail": "[{\"count\":3,\"from\":\"2026-01-01\",\"state\":\"done\",\"to\":\"2026-01-03\"}]"
+  }
+]

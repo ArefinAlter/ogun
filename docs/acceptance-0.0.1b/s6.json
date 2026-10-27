@@ -1,0 +1,167 @@
+[
+  {
+    "name": "a provider is configured with the key named, not the key",
+    "ok": true,
+    "detail": "{\"ok\":{}}"
+  },
+  {
+    "name": "the provider is listed but not available until the person agrees to send text to it",
+    "ok": true,
+    "detail": "[{\"available\":false,\"id\":\"mock\",\"label\":\"mock · acceptance-model\",\"note\":\"You have not agreed to send this thread's text to mock. Tick it in Settings, Agent.\",\"provider\":\"openai_compatible\"}]"
+  },
+  {
+    "name": "without consent no model call is made",
+    "ok": true,
+    "detail": "{\"class\":\"unavailable\",\"code\":\"agent.not_available\",\"message\":\"You have not agreed to send this thread's text to mock. Tick it in Settings, Agent.\",\"retryable\":false}"
+  },
+  {
+    "name": "and the provider received nothing",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the person can see what would be sent before it is sent",
+    "ok": true,
+    "detail": "{\"host\":\"127.0.0.1:38417\",\"messages\":[{\"content\":\"list workflows please\",\"role\":\"user\"}],\"model\":\"acceptance-model\",\"provider\":\"mock\",\"system\":\"You are the agent of Ogun Studio, working on this person's own Ogun engine through a fixed set o"
+  },
+  {
+    "name": "the agent called workflows.list through the closed table and answered from the result",
+    "ok": true,
+    "detail": "user | tool:workflows.list:ok | assistant"
+  },
+  {
+    "name": "the provider was called with the key (checked by the provider) and the key was not in any body",
+    "ok": true,
+    "detail": "2 requests"
+  },
+  {
+    "name": "the tools offered are the closed table at read access only",
+    "ok": true,
+    "detail": "status__get,workflows__list,workflows__get,workflows__validate,runs__list,runs__get,partitions__status,backfills__plan,artifacts__list,artifacts__read,lineage__get,approvals__list,connectors__search"
+  },
+  {
+    "name": "the request carries no secret and no path to one",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "the thread shows token counts and a spend from the provider usage",
+    "ok": true,
+    "detail": "210 in, 42 out, 294 micro-USD"
+  },
+  {
+    "name": "the spend meter and the hash-chained ledger saw it",
+    "ok": true,
+    "detail": "{\"cap_usd_micro\":155000000,\"entries\":2,\"month_usd_micro\":294}"
+  },
+  {
+    "name": "a start-a-run request at read access is refused by the table, whatever the model asked",
+    "ok": true,
+    "detail": "{\"at\":\"2026-10-27T05:13:09.067Z\",\"id\":\"itm_01M5XWDKPBKX1CDYPK3V73WFNS\",\"input\":{\"partitions\":{\"kind\":\"latest\"},\"workflow\":\"acc-local-fixture\"},\"kind\":\"tool\",\"ms\":0,\"state\":\"denied\",\"summary\":\"refused: it needs operate access and this thread"
+  },
+  {
+    "name": "and no run was started",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "at operate access the same request starts the run and the thread shows a run card",
+    "ok": true,
+    "detail": "{\"at\":\"2026-10-27T05:13:09.597Z\",\"card\":{\"run_id\":\"orun_01M5XWDM6TR3ATTTP4PJ3VG4Q0\",\"type\":\"run\",\"workflow\":\"acc-local-fixture\"},\"id\":\"itm_01M5XWDM6XY0QHW6Y237H81VQJ\",\"kind\":\"card\"}"
+  },
+  {
+    "name": "and the run the agent started is the one the card names",
+    "ok": true,
+    "detail": "orun_01M5XWDM6TR3ATTTP4PJ3VG4Q0"
+  },
+  {
+    "name": "a model that invents approvals.decide gets a refusal: it is not a tool",
+    "ok": true,
+    "detail": "{\"at\":\"2026-10-27T05:13:10.116Z\",\"id\":\"itm_01M5XWDMQ496056TGNZHXA1RA8\",\"input\":{\"approval_id\":\"oap_none\",\"decision\":\"approve\"},\"kind\":\"tool\",\"ms\":0,\"state\":\"denied\",\"summary\":\"refused: there is no such tool\",\"tool\":\"approvals.decide\"}"
+  },
+  {
+    "name": "and no approval changed",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "standing instructions that contain a key are refused",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"invalid_request\",\"code\":\"agent.secret_refused\",\"message\":\"the instructions look like they contain a secret (a key, a token, a private key or a password). Name a secret instead of writ"
+  },
+  {
+    "name": "a message that contains a key is refused",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"invalid_request\",\"code\":\"agent.secret_refused\",\"message\":\"this message looks like it contains a secret (a key, a token, a private key or a password). It was not sent. Name the secret "
+  },
+  {
+    "name": "and neither reached the provider",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "anthropic: the thread called workflows.list and answered from the result",
+    "ok": true,
+    "detail": "user | tool:workflows.list:ok | assistant"
+  },
+  {
+    "name": "anthropic: its own authentication was accepted and no key was in any body",
+    "ok": true,
+    "detail": "2 requests"
+  },
+  {
+    "name": "anthropic: usage from the stream reached the thread",
+    "ok": true,
+    "detail": "154 in, 35 out"
+  },
+  {
+    "name": "google: the thread called workflows.list and answered from the result",
+    "ok": true,
+    "detail": "user | tool:workflows.list:ok | assistant"
+  },
+  {
+    "name": "google: its own authentication was accepted and no key was in any body",
+    "ok": true,
+    "detail": "2 requests"
+  },
+  {
+    "name": "google: usage from the stream reached the thread",
+    "ok": true,
+    "detail": "136 in, 28 out"
+  },
+  {
+    "name": "ollama: the thread called workflows.list and answered from the result",
+    "ok": true,
+    "detail": "user | tool:workflows.list:ok | assistant"
+  },
+  {
+    "name": "ollama: its own authentication was accepted and no key was in any body",
+    "ok": true,
+    "detail": "2 requests"
+  },
+  {
+    "name": "ollama: usage from the stream reached the thread",
+    "ok": true,
+    "detail": "113 in, 25 out"
+  },
+  {
+    "name": "a spend cap of zero means no model call",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"unavailable\",\"code\":\"agent.not_available\",\"message\":\"A spend cap of zero means no model call. Raise it in Settings, Agent.\",\"retryable\":false}}"
+  },
+  {
+    "name": "the offline switch stops every model call",
+    "ok": true,
+    "detail": "{\"err\":{\"class\":\"unavailable\",\"code\":\"agent.not_available\",\"message\":\"Offline mode is on in Settings, Agent: no model is called.\",\"retryable\":false}}"
+  },
+  {
+    "name": "the provider key is in no file of the engine (it is in the credential store)",
+    "ok": true,
+    "detail": "27 files scanned; "
+  },
+  {
+    "name": "no thread item, event or ledger line holds it",
+    "ok": true,
+    "detail": ""
+  }
+]

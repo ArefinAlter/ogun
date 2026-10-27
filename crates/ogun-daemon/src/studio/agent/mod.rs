@@ -548,7 +548,7 @@ pub async fn dispatch(
                     .values()
                     .map(|l| lock(&l.data).thread.clone())
                     .collect();
-                rows.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+                rows.sort_by_key(|r| std::cmp::Reverse(r.updated_at.unix_millis()));
                 Ok(
                     json!({ "rev": agents.seq.load(Ordering::Relaxed), "threads": rows.iter().map(Thread::summary).collect::<Vec<_>>() }),
                 )

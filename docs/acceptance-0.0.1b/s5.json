@@ -1,0 +1,67 @@
+[
+  {
+    "name": "the Windows sandbox is available and says what it does and does not isolate",
+    "ok": true,
+    "detail": "appcontainer"
+  },
+  {
+    "name": "the workflow is stored but waits for approval of its code",
+    "ok": true,
+    "detail": "[{\"approval_id\":\"oap_01M5XTZ415RP7E9MBYAQ2436WH\",\"kind\":\"code_change\"}]"
+  },
+  {
+    "name": "before approval the run does not start",
+    "ok": true,
+    "detail": "{\"class\":\"policy_denied\",\"code\":\"workflow.not_approved\",\"details\":{\"approvals\":[\"oap_01M5XTZ415RP7E9MBYAQ2436WH\"]},\"message\":\"this version needs approvals a person has not granted\",\"retryable\":false}"
+  },
+  {
+    "name": "a person approved exactly that code in Studio",
+    "ok": true,
+    "detail": "approved via studio"
+  },
+  {
+    "name": "the code operator ran to success inside the sandbox",
+    "ok": true,
+    "detail": "[\"fetch:succeeded\",\"rows:succeeded\",\"summary:succeeded\",\"hash:succeeded\"]"
+  },
+  {
+    "name": "it read its input rows (10) with the bundled Python",
+    "ok": true,
+    "detail": "{\"prerelease\":3,\"python\":\"3.13.9\",\"rows\":10}"
+  },
+  {
+    "name": "it wrote in its scratch folder",
+    "ok": true,
+    "detail": "{\"list_the_person_profile\":\"blocked\",\"write_outside_scratch\":\"blocked\",\"read_a_file_nobody_granted\":\"blocked\",\"connect_to_loopback\":\"blocked\",\"write_in_scratch\":\"allowed\"}"
+  },
+  {
+    "name": "it could not list the person profile folder",
+    "ok": true,
+    "detail": "{\"list_the_person_profile\":\"blocked\",\"write_outside_scratch\":\"blocked\",\"read_a_file_nobody_granted\":\"blocked\",\"connect_to_loopback\":\"blocked\",\"write_in_scratch\":\"allowed\"}"
+  },
+  {
+    "name": "it could not write a file next to the secret",
+    "ok": true,
+    "detail": "{\"list_the_person_profile\":\"blocked\",\"write_outside_scratch\":\"blocked\",\"read_a_file_nobody_granted\":\"blocked\",\"connect_to_loopback\":\"blocked\",\"write_in_scratch\":\"allowed\"}"
+  },
+  {
+    "name": "it could not read a file nobody granted",
+    "ok": true,
+    "detail": "{\"list_the_person_profile\":\"blocked\",\"write_outside_scratch\":\"blocked\",\"read_a_file_nobody_granted\":\"blocked\",\"connect_to_loopback\":\"blocked\",\"write_in_scratch\":\"allowed\"}"
+  },
+  {
+    "name": "it could not reach a loopback listener",
+    "ok": true,
+    "detail": "listener hits 0"
+  },
+  {
+    "name": "the canary never appears in the operator output",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "changing the code makes a new version that needs a new approval",
+    "ok": true,
+    "detail": "1 approvals"
+  }
+]

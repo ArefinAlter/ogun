@@ -2,6 +2,8 @@
 //! cannot do. Windows only; on other platforms the file is empty.
 
 #![cfg(windows)]
+// A skipped probe says why on stderr.
+#![allow(clippy::print_stderr)]
 
 use std::io::Read as _;
 use std::net::TcpListener;
@@ -260,21 +262,18 @@ fn killing_the_helper_kills_what_it_started() {
     );
 }
 
-/// `OGUN_SANDBOX_TEST_PYTHON` (the embeddable distribution Studio ships), else the first real `python.exe` on
-/// PATH (not the Microsoft Store stub), if any.
+/// `OGUN_SANDBOX_TEST_PYTHON`: the interpreter to probe with, normally the embeddable distribution Studio ships (a
+/// folder this user owns). The test is skipped without it: a Python installed for all users in a folder such as
+/// `E:\Python310` cannot be opened to an AppContainer by a per-user process, and a private copy of a big tree
+/// would make this test slow and machine-dependent.
 fn python() -> Option<PathBuf> {
-    if let Some(p) = std::env::var_os("OGUN_SANDBOX_TEST_PYTHON") {
-        return Some(PathBuf::from(p));
-    }
-    std::env::split_paths(&std::env::var_os("PATH")?)
-        .map(|d| d.join("python.exe"))
-        .find(|p| p.is_file() && !p.to_string_lossy().to_lowercase().contains("windowsapps"))
+    std::env::var_os("OGUN_SANDBOX_TEST_PYTHON").map(PathBuf::from)
 }
 
 #[test]
 fn python_runs_reads_its_input_lists_scratch_and_cannot_reach_the_network_or_the_profile() {
     let Some(py) = python() else {
-        eprintln!("no python on PATH; skipped");
+        eprintln!("OGUN_SANDBOX_TEST_PYTHON is not set; skipped");
         return;
     };
     let scratch = tempfile::tempdir().unwrap();

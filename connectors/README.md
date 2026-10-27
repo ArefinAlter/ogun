@@ -3,12 +3,12 @@
 A connector is a manifest that describes one external system Ogun can read from, write to, send telemetry to, or be
 called by: what it is, how it authenticates (names only), where it connects, and which operators it would
 contribute. The contract is [O-16](../docs/spec/O-16-connectors-and-connections.md) and the decision is
-[ADR 0013](../docs/adr/0013-connectors.md) (Proposed).
+[ADR 0013](../docs/adr/0013-connectors.md) (Accepted).
 
 | Path | What |
 |---|---|
 | `schema/connector.v0.schema.json` | The manifest schema. |
-| `catalog/*.connector.json` | One manifest per system. 99 today. |
+| `catalog/*.connector.json` | One manifest per system. 101 today. |
 | `tools/check.mjs` | The validator: the schema, plus the rules a schema cannot say (secret fields, domain placeholders, unique operators, code that exists). Dependency-free. |
 | `tools/check.test.mjs` | Shows each rule failing. |
 

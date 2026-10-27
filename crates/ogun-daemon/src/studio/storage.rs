@@ -478,7 +478,7 @@ pub fn dispatch(d: &Arc<Daemon>, conn: &Conn, method: &str, p: Value) -> Option<
             )?;
             info(d)
         }),
-        "storage.cleanup_plan" => plan(d).and_then(|p| {
+        "storage.cleanup_plan" => plan(d).map(|p| {
             let artifacts: u64 = p.lines.iter().map(|l| l.artifacts).sum();
             let bytes: u64 = p.lines.iter().map(|l| l.bytes).sum();
             let mut lines: Vec<Value> = p
@@ -489,13 +489,13 @@ pub fn dispatch(d: &Arc<Daemon>, conn: &Conn, method: &str, p: Value) -> Option<
             if !p.caches.is_empty() {
                 lines.push(json!({"rule": "Caches older than the cache rule", "artifacts": 0, "bytes": p.caches_bytes}));
             }
-            Ok(json!({
+            json!({
                 "artifacts": artifacts,
                 "bytes": bytes,
                 "caches_bytes": p.caches_bytes,
                 "logs": 0,
                 "lines": lines,
-            }))
+            })
         }),
         "storage.cleanup" => {
             tracing::info!(by = %conn.label(), "storage cleanup requested");

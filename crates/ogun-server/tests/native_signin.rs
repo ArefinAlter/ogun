@@ -197,7 +197,7 @@ async fn an_id_token_from_the_native_client_becomes_a_person_session() {
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{me}");
-    assert_eq!(me.to_string().matches("editor").count() >= 1, true, "{me}");
+    assert!(me.to_string().contains("editor"), "{me}");
 
     // A person's session may create an API token (an agent's credential); an API token never may. No CSRF header
     // is needed for a bearer.

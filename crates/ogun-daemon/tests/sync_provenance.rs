@@ -141,6 +141,8 @@ fn shared_bytes_preserve_all_offered_identities_before_acknowledgement() {
         // The CAS deliberately marks objects read-only; Windows refuses to unlink them until
         // that attribute is cleared. This simulates loss of the object, not a normal API delete.
         let mut permissions = std::fs::metadata(&object_path).unwrap().permissions();
+        // Windows-only: the attribute is the thing under test, and there is no Unix mode to widen.
+        #[allow(clippy::permissions_set_readonly_false)]
         permissions.set_readonly(false);
         std::fs::set_permissions(&object_path, permissions).unwrap();
     }
