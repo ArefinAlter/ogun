@@ -19,7 +19,7 @@ const outDir = resolve(process.argv[2] ?? '.')
 const i = process.argv.indexOf('--exe')
 const target = process.env.CARGO_TARGET_DIR ? resolve(process.env.CARGO_TARGET_DIR) : join(repo, 'apps', 'studio', 'src-tauri', 'target')
 const exe = i >= 0 ? resolve(process.argv[i + 1]) : join(target, 'release', 'ogun-studio.exe')
-const version = process.env.OGUN_VERSION ?? '0.0.1b'
+const version = process.env.OGUN_VERSION ?? '0.0.1c'
 if (!existsSync(exe)) throw new Error(`${exe} does not exist; build the shell first`)
 
 const name = `ogun-studio-${version}-windows-x64-portable`

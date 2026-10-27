@@ -1,12 +1,12 @@
 #!/bin/sh
-# Collects the release assets of one platform into OUT with release names (0.0.1b).
+# Collects the release assets of one platform into OUT with release names (0.0.1c).
 #   sh package.sh windows-x64|linux-x64 OUT
 # Paths can be overridden: BIN_DIR (the cargo release directory of the workspace), STUDIO_DIR (the Tauri target/release
 # directory), PORTABLE_ZIP (the portable Studio zip made by apps/studio/scripts/portable.mjs). V sets the version.
 set -eu
 PLATFORM=$1
 OUT=$2
-V=${V:-0.0.1b}
+V=${V:-0.0.1c}
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 BIN_DIR=${BIN_DIR:-$ROOT/target/release}
 STUDIO_DIR=${STUDIO_DIR:-$ROOT/apps/studio/src-tauri/target/release}
@@ -25,7 +25,7 @@ ogun-op-llm, ogun-op-shim  helper programs the daemon starts for model operators
 ogun-sandbox (Windows)     the helper that starts operators in an AppContainer
 
 Start the daemon with "ogund", then "ogun daemon status". The binaries are not signed.
-Documentation: https://github.com/ArefinAlter/ogun (README, docs/IMPLEMENTATION_STATUS.md, docs/ACCEPTANCE-0.0.1b.md)
+Documentation: https://github.com/ArefinAlter/ogun (README, docs/IMPLEMENTATION_STATUS.md, docs/ACCEPTANCE-0.0.1c.md)
 TXT
 case "$PLATFORM" in
   windows-x64)

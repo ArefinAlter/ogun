@@ -273,7 +273,7 @@ impl Ctx {
         task: &str,
         docs: &[Document<'_>],
         schema: &Schema,
-        check: &dyn Fn(&Value) -> Result<(), String>,
+        check: &(dyn Fn(&Value) -> Result<(), String> + Sync),
     ) -> Result<Value, LlmError> {
         let p = prompt::build(task, docs);
         self.prompts.insert(p.system_blake3());

@@ -11,6 +11,8 @@ publish.workspace = true
 
 [dependencies]
 ogun-types.workspace = true
+ogun-llm = { path = "../ogun-llm", features = ["http"] }
+ogun-op-llm = { path = "../ogun-op-llm" }
 ogun-ir.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -2918,6 +2918,8 @@ dependencies = [
  "jsonpath-rust",
  "jsonschema",
  "ogun-ir",
+ "ogun-llm",
+ "ogun-op-llm",
  "ogun-types",
  "regex",
  "reqwest",

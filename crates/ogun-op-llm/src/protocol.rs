@@ -9,7 +9,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
-/// Largest accepted start line. It carries the configuration, the ladder, the input list and the secrets.
+tokio::task_local! {
+    /// Per-attempt event sink. Task-local scope prevents concurrent runs from sharing events.
+    pub(crate) static NATIVE_EVENTS: tokio::sync::mpsc::UnboundedSender<Value>;
+}
+
+/// Largest start line, including the configuration, inputs and secrets.
 const MAX_START_BYTES: u64 = 16 * 1024 * 1024;
 
 /// The start line.
@@ -130,6 +135,14 @@ pub struct Emitter;
 
 impl Emitter {
     fn line(self, v: &Value) {
+        if NATIVE_EVENTS
+            .try_with(|sink| {
+                let _ = sink.send(v.clone());
+            })
+            .is_ok()
+        {
+            return;
+        }
         let stdout = std::io::stdout();
         let mut out = stdout.lock();
         let _ = serde_json::to_writer(&mut out, v);

@@ -14,6 +14,6 @@ Subscription prices are not API prices. Provider quotas, extra-usage billing and
 
 ## Ogun
 
-Studio presets and both the in-app assistant and HTTP-enabled `ogun-llm` chat transport use installed agents. Embeddings require an embedding provider. Workflow operator subprocesses still run in their existing restricted sandbox: CLI executability and access to the CLI's sign-in inside that sandbox are not claimed by this increment. Desktop assistant requests run through the host daemon. No changes to zeus-core or approval authority.
+Studio presets and both the in-app assistant and HTTP-enabled `ogun-llm` chat transport use installed agents. Embeddings require an embedding provider. Built-in workflow model operators now run their compiled native implementation for exclusively installed-agent ladders, preserving model/network grants, budgets and the existing output collector. Installed/replaced manifests and mixed API/subscription ladders retain their sandbox. See ADR 0018. A real constant-only Claude request passed through the registry, produced the expected scratch artifact and reported usage. Desktop assistant requests run through the host daemon. No changes to zeus-core or approval authority.
 
 Frontend type checking, frontend tests and production build pass. Native workspace Clippy with warnings denied passes; the full workspace tests pass (353 tests, four environment-specific fixtures ignored). The Windows shell test needs Git usr/bin on PATH; crash tests run with per-process error dialogs disabled.

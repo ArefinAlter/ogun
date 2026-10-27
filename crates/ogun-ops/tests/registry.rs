@@ -616,3 +616,98 @@ async fn core_parse_turns_json_and_csv_into_rows_that_partition_reads() {
         .await;
     assert!(matches!(out, Outcome::Failed { .. }), "{out:?}");
 }
+
+fn subscription_ladder() -> Value {
+    json!({"version":1,"providers":[{
+        "name":"claude_code", "kind":"openai_compatible", "enabled":true,
+        "base_url":"https://claude.local-agent.invalid/v1", "model":"default",
+        "input_per_mtok_usd_micro":0,"output_per_mtok_usd_micro":0,
+        "max_output_tokens":256,"timeout_ms":120000,"capabilities":["chat"]
+    }]})
+}
+
+#[tokio::test]
+async fn native_subscription_models_obey_environment_network_denial() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("llm.json"),
+        subscription_ladder().to_string(),
+    )
+    .unwrap();
+    let mut env = Environment::new(dir.path().to_path_buf());
+    env.model_access = true;
+    env.network_access = false;
+    let reg = Registry::new(env);
+    let (ctx, _events, _cancel) = context(Arc::new(NoSecrets));
+    let out = reg
+        .run(
+            invocation(
+                "llm.map@1",
+                &dir.path().join("scratch"),
+                json!({"llm_budget_usd_micro":0,"instructions":"fixture"}),
+                vec![],
+                None,
+            ),
+            ctx,
+        )
+        .await;
+    assert!(
+        matches!(out,Outcome::Failed{ref error,..} if error.code.as_str()=="op.network_denied"),
+        "{out:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "real Claude subscription request; run explicitly with OGUN_TEST_SUBSCRIPTION=claude"]
+async fn native_subscription_model_live() {
+    assert_eq!(
+        std::env::var("OGUN_TEST_SUBSCRIPTION").as_deref(),
+        Ok("claude")
+    );
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("llm.json"),
+        subscription_ladder().to_string(),
+    )
+    .unwrap();
+    let file = dir.path().join("fixture.txt");
+    std::fs::write(
+        &file,
+        "A constant-only acceptance fixture, with no project data.",
+    )
+    .unwrap();
+    let mut env = Environment::new(dir.path().to_path_buf());
+    env.model_access = true;
+    // No allow_unsandboxed and no installed operator binary: only compiled code may run.
+    let reg = Registry::new(env);
+    let (ctx, mut events, _cancel) = context(Arc::new(NoSecrets));
+    let mut inv = invocation(
+        "llm.map@1",
+        &dir.path().join("scratch"),
+        json!({"llm_budget_usd_micro":0,"max_calls":1,"repair":false,"fallback":false,"instructions":"Set content to exactly VERNE_NATIVE_MODEL_OK. Do not include other text in content."}),
+        vec![input("fixture.artifacts", &file, "text/plain")],
+        None,
+    );
+    inv.timeout_ms = 150000;
+    let out = reg.run(inv, ctx).await;
+    let Outcome::Succeeded { outputs } = out else {
+        panic!("{out:?}")
+    };
+    assert_eq!(outputs.len(), 1);
+    assert_eq!(
+        std::fs::read_to_string(&outputs[0].path).unwrap().trim(),
+        "VERNE_NATIVE_MODEL_OK"
+    );
+    assert!(
+        outputs[0]
+            .path
+            .starts_with(dir.path().join("scratch").canonicalize().unwrap())
+    );
+    let mut usage = false;
+    while let Ok(event) = events.try_recv() {
+        if matches!(event, OpEvent::Usage { .. }) {
+            usage = true;
+        }
+    }
+    assert!(usage, "native model usage must reach the daemon ledger");
+}

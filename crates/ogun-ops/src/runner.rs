@@ -72,6 +72,55 @@ pub(crate) async fn run(run: ChildRun<'_>) -> Outcome {
     }
 }
 
+/// Run the compiled model library on the host, without executing a manifest command.
+/// Subscription CLIs receive only the bounded inference prompt in their own empty scratch directory.
+pub(crate) async fn run_native(run: ChildRun<'_>) -> Outcome {
+    let inv = run.inv;
+    let start = json!({"type":"start", "op":inv.op, "node_instance":inv.node_instance, "config":run.config, "inputs":inv.inputs, "secrets":{}});
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let model = ogun_op_llm::run_native(start, inv.scratch.clone(), tx);
+    tokio::pin!(model);
+    let deadline = tokio::time::sleep(Duration::from_millis(inv.timeout_ms.max(1)));
+    tokio::pin!(deadline);
+    let mut cancel = run.ctx.cancel.clone();
+    let cancelled = async move {
+        loop {
+            if *cancel.borrow() {
+                return;
+            }
+            if cancel.changed().await.is_err() {
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+    tokio::pin!(cancelled);
+    let mut state = Collected::default();
+    let scrubber = run.secrets.scrubber();
+    let process = |value: Value, state: &mut Collected| -> OpResult<()> {
+        let line =
+            serde_json::to_vec(&value).map_err(|_| internal("native model protocol encoding"))?;
+        if line.len() > MAX_LINE {
+            return Err(OpError::new(
+                "op.limit_exceeded",
+                "Native model event exceeds its byte limit.",
+            ));
+        }
+        handle_line(&line, &run, &scrubber, state)
+    };
+    loop {
+        tokio::select! {
+            biased;
+            () = &mut cancelled => return Outcome::Cancelled,
+            () = &mut deadline => return OpError::new("op.timeout","The native model attempt exceeded its deadline.").into_outcome(),
+            value=rx.recv() => if let Some(value)=value && let Err(e)=process(value,&mut state) { return e.into_outcome(); },
+            _ = &mut model => {
+                while let Ok(value)=rx.try_recv() { if let Err(e)=process(value,&mut state) { return e.into_outcome(); } }
+                return finish(&run,state,None).unwrap_or_else(OpError::into_outcome);
+            }
+        }
+    }
+}
+
 struct Prepared {
     plan: Plan,
     backend: Backend,

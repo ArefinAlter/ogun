@@ -108,7 +108,7 @@ impl Ladder {
         p: &Provider,
         req: &ChatRequest,
         budget: &mut CallBudget,
-        on_usage: &mut dyn FnMut(&Usage),
+        on_usage: &mut (dyn FnMut(&Usage) + Send),
     ) -> Result<ChatResponse, LlmError> {
         let bound = p.worst_case_chat(req);
         budget.admit(bound)?;
@@ -132,7 +132,7 @@ impl Ladder {
         error: &LlmError,
         bound: u64,
         budget: &mut CallBudget,
-        on_usage: &mut dyn FnMut(&Usage),
+        on_usage: &mut (dyn FnMut(&Usage) + Send),
     ) {
         if matches!(
             error,
@@ -165,7 +165,7 @@ impl Ladder {
         &self,
         req: &ChatRequest,
         budget: &mut CallBudget,
-        on_usage: &mut dyn FnMut(&Usage),
+        on_usage: &mut (dyn FnMut(&Usage) + Send),
     ) -> Result<ChatResponse, LlmError> {
         let mut last = None;
         for (_, p) in self.eligible() {
@@ -192,9 +192,9 @@ impl Ladder {
         &self,
         req: &ChatRequest,
         schema: &Schema,
-        check: &dyn Fn(&Value) -> Result<(), String>,
+        check: &(dyn Fn(&Value) -> Result<(), String> + Sync),
         budget: &mut CallBudget,
-        on_usage: &mut dyn FnMut(&Usage),
+        on_usage: &mut (dyn FnMut(&Usage) + Send),
     ) -> Result<JsonAnswer, LlmError> {
         let mut req = req.clone();
         req.schema = Some(schema.value().clone());
@@ -251,7 +251,7 @@ impl Ladder {
         req: &EmbedRequest,
         pinned: &mut Option<usize>,
         budget: &mut CallBudget,
-        on_usage: &mut dyn FnMut(&Usage),
+        on_usage: &mut (dyn FnMut(&Usage) + Send),
     ) -> Result<EmbedResponse, LlmError> {
         let candidates: Vec<(usize, &Provider)> = match *pinned {
             Some(i) => self.rungs.get(i).map(|p| (i, p)).into_iter().collect(),
@@ -291,7 +291,7 @@ impl Ladder {
 fn judge(
     resp: &ChatResponse,
     schema: &Schema,
-    check: &dyn Fn(&Value) -> Result<(), String>,
+    check: &(dyn Fn(&Value) -> Result<(), String> + Sync),
 ) -> Result<Value, String> {
     let cut = if resp.finish == Finish::Length {
         " (the reply was cut off at the output limit)"
