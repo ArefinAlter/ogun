@@ -69,4 +69,6 @@ Rust 1.90 or newer.
 
 Apache-2.0, like Zeus (Zeus ADR 0006). Ogun is a product of Verne Ltd. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
+0.1.0-alpha.1 adds the responsive desktop panel fixes and a restricted Grok Build subscription connector with a separate official sign-in. Windows release validation is recorded in [alpha acceptance](docs/ACCEPTANCE-0.1.0-alpha.1.md).
+
 0.0.1c: Studio and built-in workflow model steps can use installed subscription CLIs. Compiled built-in model operators preserve model/network grants, budgets, artifact containment and usage accounting; installed replacements and mixed API/subscription ladders retain their sandbox. A real Claude workflow produced the expected artifact and reported usage. See [installed agent connections](docs/INSTALLED-AGENTS.md) and [acceptance](docs/ACCEPTANCE-0.0.1c.md).
