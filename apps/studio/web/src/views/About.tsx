@@ -12,7 +12,7 @@ export function About() {
   const [svc, setSvc] = useState<SvcInfo | null>(null)
   useEffect(() => void svcInfo().then(setSvc), [])
   const hosted = !!svc || (info?.link === 'hub' && !!backend.agent)
-  // The desktop app's own engine: real data and a real agent with the person's own keys.
+  // The desktop app's own engine: real data and a real agent with the person's selected provider.
   const own = !!backend.engine && !!info?.engine
   const sandbox = useAsync(() => (backend.engine ? backend.engine.sandboxStatus().catch(() => null) : Promise.resolve(null)), [backend])
   return (
@@ -43,9 +43,9 @@ export function About() {
         />
         {own ? (
           <>
-            <h3 style={{ marginTop: '20px' }}>Pre-alpha release</h3>
+            <h3 style={{ marginTop: '20px' }}>Alpha release</h3>
             <p>
-              This is a pre-alpha release. Studio is one installer with its own engine: nothing else to install or start, no account, and no network unless something you run uses it. What is real, and what is not:
+              This is an alpha release. Studio is one installer with its own engine: nothing else to install or start, no account, and no network unless something you run uses it. What is real, and what is not:
             </p>
             <Kv
               rows={[
@@ -54,7 +54,7 @@ export function About() {
                 ['schedules', 'fire while Studio is open, or while it keeps running in the tray if you turn that on. They do not fire when the engine is stopped'],
                 ['code operators', sandbox.data ? sandbox.data.summary : 'checked when a run needs one: the engine runs python, sql, dbt, shell and polars nodes only where this computer offers a sandbox, and Settings, General says exactly what it isolates'],
                 ['approvals', 'decided only by you, in Studio or on a terminal, with the facts the engine computed and the request hash they are bound to. No agent, token or schedule can decide one'],
-                ['agent', 'answers with a model you choose, using your own provider key. Nothing is sent to a provider until you allow it in Settings, Providers, and "What will be sent" shows each request first. Its words are not verified by Ogun, it has no tool that decides an approval, reads a secret or runs a shell, and every change it proposes is a button you press'],
+                ['agent', 'answers with a model you choose, using your provider key or an officially signed-in local agent CLI. Nothing is sent to a provider until you allow it in Settings, Providers, and "What will be sent" shows each request first. Its words are not verified by Ogun, it has no tool that decides an approval, reads a secret or runs a shell, and every change it proposes is a button you press'],
                 ['keys', 'typed once, kept by the engine in the credential store of this computer where it has one; never shown again, logged or put in a prompt'],
                 ['hubs', 'optional. A hub is an Ogun server your team runs; on it you act with its own roles'],
                 ['not in this release', 'macOS, Android and iOS builds; signed installers (Windows may warn that the app is unsigned); connectors marked manifest only in the catalogue'],
