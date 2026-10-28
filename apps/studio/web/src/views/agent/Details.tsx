@@ -8,6 +8,7 @@ import { ACCESS_INFO, ACCESS_ORDER, NEVER, TOOLS, accessRank, mayCall } from '..
 import { useAgent, useAgentSettings } from '../../lib/agentHooks'
 import { fmtAgo } from '../../lib/format'
 import { href, navigate } from '../../lib/hooks'
+import { setPrefs } from '../../lib/prefs'
 import { Chip } from '../../ui/components'
 import { Icon } from '../../ui/icons'
 
@@ -30,6 +31,7 @@ export function Details({ thread }: { thread: AgentThread }) {
   const refused = calls.filter((i) => i.kind === 'tool' && i.state === 'denied').length
   return (
     <aside class="agent-side" aria-label="Thread details">
+      <div class="details-heading"><strong>Thread details</strong><button type="button" class="icon-btn" aria-label="Close thread details" onClick={() => setPrefs({ agentDetails: false })}><Icon name="x" /></button></div>
       <Section title="Thread">
         <dl class="kvs">
           <dt>state</dt>
