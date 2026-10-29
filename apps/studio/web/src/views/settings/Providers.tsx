@@ -6,7 +6,7 @@ import { PROVIDERS, providerHost } from '../../connectors/providers'
 import type { ProviderPreset } from '../../connectors/providers'
 import { secretCommand } from '../../connectors'
 import { download } from '../../lib/evidence'
-import { useAgentSettings } from '../../lib/agentHooks'
+import { useAgentModels, useAgentSettings } from '../../lib/agentHooks'
 import { fmtCount, idempotencyKey } from '../../lib/format'
 import { useAsync, useBackend, useInfo } from '../../lib/hooks'
 import { DEFAULT_BASE, KINDS, NEEDS_KEY, defaultCapabilities, isLoopback, ladderDocument, readLadder, suggestSecretName, toMicro, usd, validateLadder } from '../../lib/ladder'
@@ -106,6 +106,7 @@ export function ProvidersSettings() {
   const backend = useBackend()
   const { info } = useInfo()
   const agentSettings = useAgentSettings()
+  const agentModels = useAgentModels()
   const ladder = useAsync(() => backend.llmLadder(), [backend])
   const secrets = useAsync(() => backend.secretsList().catch(() => ({ names: [] as string[] })), [backend])
   const [list, setList] = useState<LadderProvider[] | null>(null)
@@ -194,6 +195,35 @@ export function ProvidersSettings() {
   }
   const consented = as?.consented_providers ?? []
   const toggleConsent = (name: string, on: boolean) => void setAgent({ consented_providers: on ? [...new Set([...consented, name])] : consented.filter((n) => n !== name) })
+  const subscriptionPresets = PROVIDERS.filter((p) => p.id.endsWith('-subscription'))
+  const toggleSubscription = async (preset: ProviderPreset) => {
+    if (!backend.setLadder) return
+    setError(undefined)
+    try {
+      const existing = (list ?? []).find((item) => item.name === preset.entry_name)
+      let next: LadderProvider[]
+      if (existing) {
+        next = (list ?? []).map((item) => (item.name === preset.entry_name ? { ...item, enabled: !item.enabled, model: item.model || 'default' } : item))
+      } else {
+        const added = fromPreset(preset, taken)
+        added.enabled = true
+        added.model = 'default'
+        next = [...(list ?? []), added]
+      }
+      setList(next)
+      await backend.setLadder(next, idempotencyKey('ladder'))
+      setDirty(false)
+      setApplied(true)
+      const consentedList = as?.consented_providers ?? []
+      if (!consentedList.includes(preset.entry_name)) {
+        await setAgent({ consented_providers: [...consentedList, preset.entry_name] })
+      }
+      ladder.reload()
+      agentSettings.reload()
+    } catch (e) {
+      setError(asOgunError(e))
+    }
+  }
   const apply = async () => {
     setError(undefined)
     try {
@@ -212,6 +242,37 @@ export function ProvidersSettings() {
       <ErrorBox error={error} title="Ladder" />
       {ladder.loading && !ladder.data ? <Loading /> : null}
       {ladder.data && !ladder.data.available ? <Notice>This daemon does not report its ladder over this connection, so there is nothing to start from. You can still build one below and place it on the daemon host.</Notice> : null}
+      <SettingsGroup
+        title="Installed agent connections"
+        note="Discovery checks for the official CLI executable. It does not read account credentials, start a model call or confirm subscription access. Click 'Enable in Agent' to activate an installed subscription immediately."
+      >
+        {subscriptionPresets.map((p) => {
+          const modelInfo = (agentModels ?? []).find((m) => m.id === p.entry_name)
+          const isInstalled = !!modelInfo
+          const ladderEntry = (list ?? []).find((item) => item.name === p.entry_name)
+          const isEnabled = ladderEntry?.enabled === true
+          return (
+            <SettingRow
+              key={p.id}
+              title={p.name}
+              desc={p.id === 'grok-subscription' ? 'Uses a separate official login in a dedicated Verne profile.' : 'Uses the active subscription already signed in through the official CLI.'}
+            >
+              <div class="inline gap">
+                <Chip tone={isInstalled ? 'ok' : 'info'}>{isInstalled ? 'CLI found' : 'CLI not found'}</Chip>
+                {isInstalled && backend.setLadder ? (
+                  <button
+                    type="button"
+                    class={`btn small ${isEnabled ? 'on' : 'primary'}`}
+                    onClick={() => void toggleSubscription(p)}
+                  >
+                    {isEnabled ? 'Enabled in Agent ✓' : 'Enable in Agent'}
+                  </button>
+                ) : null}
+              </div>
+            </SettingRow>
+          )
+        })}
+      </SettingsGroup>
       {list || (ladder.data && !ladder.data.available) ? (
         <>
           <section class="sgroup">

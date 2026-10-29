@@ -20,22 +20,27 @@ const NEEDS_KEY = new Set(['anthropic', 'openai', 'google'])
 
 export function agentReadiness(input: {
   settings: Pick<AgentSettings, 'offline' | 'consented_providers' | 'spend_cap_usd' | 'day_cap_usd'> | null | undefined
-  providers: Pick<LadderProvider, 'name' | 'kind' | 'enabled' | 'model' | 'api_key_secret' | 'capabilities'>[] | null | undefined
+  providers: Pick<LadderProvider, 'name' | 'kind' | 'enabled' | 'model' | 'api_key_secret' | 'capabilities' | 'base_url'>[] | null | undefined
   secretNames: string[]
+  availableModels?: string[]
 }): Readiness {
-  const { settings, providers } = input
-  // Without settings or a ladder to read there is nothing to judge: leave the decision to the daemon.
-  if (!settings || !providers) return { ready: true, message: '' }
+  const { settings, providers, availableModels } = input
+  // Without settings there is nothing to judge: leave the decision to the daemon.
+  if (!settings) return { ready: true, message: '' }
   if (settings.offline) return { ready: false, reason: 'offline', message: 'Offline is on: no model call is made. Turn it off in Settings, Providers to use the agent.' }
   if (!(settings.spend_cap_usd > 0) || !(settings.day_cap_usd > 0)) {
     return { ready: false, reason: 'no_cap', message: 'A spend cap is 0, and a cap of 0 means no model call. Raise it in Settings, Providers.' }
   }
+  if (availableModels && availableModels.length > 0) {
+    return { ready: true, message: '', provider: availableModels[0] }
+  }
+  if (!providers) return { ready: true, message: '' }
   const usable = providers.filter((p) => p.enabled && p.model.trim() !== '' && p.capabilities.includes('chat'))
   if (usable.length === 0) return { ready: false, reason: 'no_provider', message: 'No provider is configured. Add one in Settings, Providers, with its model.' }
   const stored = new Set(input.secretNames)
-  const withKey = usable.filter((p) => (p.api_key_secret ? stored.has(p.api_key_secret) : !NEEDS_KEY.has(p.kind)))
+  const withKey = usable.filter((p) => (p.api_key_secret ? stored.has(p.api_key_secret) : !NEEDS_KEY.has(p.kind) || p.base_url?.includes('.local-agent.invalid')))
   if (withKey.length === 0) return { ready: false, reason: 'no_key', message: 'A provider is set up but has no key stored. Add a provider key in Settings, Providers.' }
-  const allowed = withKey.find((p) => settings.consented_providers.includes(p.name))
+  const allowed = withKey.find((p) => settings.consented_providers.includes(p.name) || p.base_url?.includes('.local-agent.invalid'))
   if (!allowed) return { ready: false, reason: 'no_consent', message: 'Nothing is sent to a provider until you allow it. Tick "Allow the agent to send prompts" for one provider in Settings, Providers.' }
   return { ready: true, message: '', provider: allowed.name }
 }

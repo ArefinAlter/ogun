@@ -291,6 +291,15 @@ impl Agents {
     }
 }
 
+/// Supported local subscription agents.
+pub(crate) const SUBSCRIPTION_AGENTS: &[(&str, &str, &str)] = &[
+    ("claude_subscription", "claude", "Claude Code (Subscription)"),
+    ("codex_subscription", "codex", "Codex (Subscription)"),
+    ("antigravity_subscription", "antigravity", "Antigravity (Subscription)"),
+    ("cursor_subscription", "cursor", "Cursor (Subscription)"),
+    ("grok_subscription", "grok", "Grok Build (Subscription)"),
+];
+
 /// Why a thread may not call a model right now, or the provider to use.
 pub(crate) fn gate(
     d: &Daemon,
@@ -302,32 +311,70 @@ pub(crate) fn gate(
         return Err("Offline mode is on in Settings, Agent: no model is called.".into());
     }
     let ladder = LadderConfig::load(&d.paths.state_dir)
-        .map_err(|e| format!("The provider list (llm.json) is not valid: {e}"))?
-        .ok_or_else(|| "No provider is configured. Add one in Settings, Providers.".to_owned())?;
-    let cfg = ladder
-        .providers
-        .iter()
-        .find(|p| p.name == model && p.enabled)
-        .ok_or_else(|| format!("No enabled provider is named {model}. Pick one in the thread's model menu or add it in Settings, Providers."))?
-        .clone();
-    if cfg.model.is_empty() {
-        return Err(format!("Provider {model} has no model id yet."));
+        .map_err(|e| format!("The provider list (llm.json) is not valid: {e}"))?;
+
+    let mut cfg_opt = ladder
+        .as_ref()
+        .and_then(|l| l.providers.iter().find(|p| p.name == model && p.enabled).cloned());
+
+    if cfg_opt.is_none() {
+        for (sub_name, agent, _) in SUBSCRIPTION_AGENTS {
+            if model == *sub_name || model == *agent {
+                if ogun_llm::local_agent::installed(agent) {
+                    cfg_opt = Some(ProviderConfig {
+                        name: (*sub_name).to_string(),
+                        kind: ogun_llm::config::ProviderKind::OpenaiCompatible,
+                        enabled: true,
+                        base_url: Some(format!("https://{agent}.local-agent.invalid/v1")),
+                        model: "default".into(),
+                        api_key_secret: None,
+                        input_per_mtok_usd_micro: 0,
+                        output_per_mtok_usd_micro: 0,
+                        max_output_tokens: 8192,
+                        timeout_ms: 120_000,
+                        capabilities: Some(vec![ogun_llm::config::Capability::Chat]),
+                        api_version: None,
+                        allow_insecure_http: false,
+                    });
+                    break;
+                }
+            }
+        }
     }
+
+    let mut cfg = cfg_opt.ok_or_else(|| {
+        format!("No enabled provider is named {model}. Pick one in the thread's model menu or add it in Settings, Providers.")
+    })?;
+
+    let is_subscription = cfg
+        .base_url
+        .as_deref()
+        .map(|u| u.contains(".local-agent.invalid"))
+        .unwrap_or(false);
+
+    if cfg.model.is_empty() {
+        if is_subscription {
+            cfg.model = "default".into();
+        } else {
+            return Err(format!("Provider {model} has no model id yet."));
+        }
+    }
+
     let key = match &cfg.api_key_secret {
         Some(name) => ogun_ops::Secrets::resolve(d.secrets.as_ref(), name),
         None => None,
     };
-    if cfg.kind.requires_key() && key.is_none() {
+    if !is_subscription && cfg.kind.requires_key() && key.is_none() {
         return Err(format!(
             "No API key is stored for {model}. Add it in Settings, Providers."
         ));
     }
-    if !settings.consented_providers.iter().any(|p| p == model) {
+    if !is_subscription && !settings.consented_providers.iter().any(|p| p == model) {
         return Err(format!(
             "You have not agreed to send this thread's text to {model}. Tick it in Settings, Agent."
         ));
     }
-    if settings.spend_cap_usd <= 0.0 || settings.day_cap_usd <= 0.0 {
+    if !is_subscription && (settings.spend_cap_usd <= 0.0 || settings.day_cap_usd <= 0.0) {
         return Err("A spend cap of zero means no model call. Raise it in Settings, Agent.".into());
     }
     if let Some(t) = thread {
@@ -497,18 +544,50 @@ fn settings_put(d: &Daemon, patch: serde_json::Map<String, Value>) -> ApiResult<
 
 fn models(d: &Daemon) -> Value {
     let settings = d.studio.agent.settings();
-    let list = match LadderConfig::load(&d.paths.state_dir) {
+    let mut list = match LadderConfig::load(&d.paths.state_dir) {
         Ok(Some(l)) => l.providers,
         _ => Vec::new(),
     };
+    for (name, agent, _) in SUBSCRIPTION_AGENTS {
+        let already_present = list.iter().any(|p| {
+            p.name == *name
+                || p.base_url
+                    .as_deref()
+                    .unwrap_or("")
+                    .contains(&format!("{agent}.local-agent.invalid"))
+        });
+        if !already_present && ogun_llm::local_agent::installed(agent) {
+            list.push(ProviderConfig {
+                name: (*name).to_string(),
+                kind: ogun_llm::config::ProviderKind::OpenaiCompatible,
+                enabled: true,
+                base_url: Some(format!("https://{agent}.local-agent.invalid/v1")),
+                model: "default".into(),
+                api_key_secret: None,
+                input_per_mtok_usd_micro: 0,
+                output_per_mtok_usd_micro: 0,
+                max_output_tokens: 8192,
+                timeout_ms: 120_000,
+                capabilities: Some(vec![ogun_llm::config::Capability::Chat]),
+                api_version: None,
+                allow_insecure_http: false,
+            });
+        }
+    }
     let rows: Vec<Value> = list
         .iter()
         .filter(|p| p.enabled && p.has(ogun_llm::config::Capability::Chat))
         .map(|p| {
             let gated = gate(d, &settings, &p.name, None);
+            let is_sub = p.base_url.as_deref().unwrap_or("").contains(".local-agent.invalid");
+            let label = if is_sub {
+                format!("{} · Pro/Team (Subscription)", p.name)
+            } else {
+                format!("{} · {}", p.name, p.model)
+            };
             json!({
                 "id": p.name,
-                "label": format!("{} · {}", p.name, p.model),
+                "label": label,
                 "provider": p.kind.as_str(),
                 "available": gated.is_ok(),
                 "note": gated.err(),
@@ -581,12 +660,19 @@ pub async fn dispatch(
                 return Err(ApiError::invalid_params("too many threads; delete some"));
             }
             let model = c.model.filter(|m| !m.is_empty()).unwrap_or_else(|| {
-                if settings.default_model.is_empty() {
+                if settings.default_model.is_empty() || settings.default_model == "scripted" {
                     settings
                         .consented_providers
                         .first()
                         .cloned()
-                        .unwrap_or_default()
+                        .unwrap_or_else(|| {
+                            for (sub_name, agent, _) in SUBSCRIPTION_AGENTS {
+                                if ogun_llm::local_agent::installed(agent) {
+                                    return (*sub_name).to_string();
+                                }
+                            }
+                            String::new()
+                        })
                 } else {
                     settings.default_model.clone()
                 }
