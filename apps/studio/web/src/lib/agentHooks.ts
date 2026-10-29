@@ -57,6 +57,7 @@ export function useAgentReadiness(): { readiness: Readiness | null; reload: () =
   const { info } = useInfo()
   const applies = !!backend.agent && !!backend.engine && info?.link === 'local'
   const settings = useAgentSettings()
+  const models = useAgentModels()
   const ladder = useAsync(() => (applies ? backend.llmLadder().catch(() => null) : Promise.resolve(null)), [backend, applies])
   const secrets = useAsync(() => (applies ? backend.secretsList().catch(() => null) : Promise.resolve(null)), [backend, applies])
   const reload = () => {
@@ -66,5 +67,6 @@ export function useAgentReadiness(): { readiness: Readiness | null; reload: () =
   }
   if (!applies || settings.loading || ladder.loading || secrets.loading) return { readiness: null, reload }
   const providers = ladder.data?.available ? readLadder(ladder.data.ladder) : null
-  return { readiness: agentReadiness({ settings: settings.data, providers, secretNames: secrets.data?.names ?? [] }), reload }
+  const availableModels = (models ?? []).filter((m) => m.available).map((m) => m.id)
+  return { readiness: agentReadiness({ settings: settings.data, providers, secretNames: secrets.data?.names ?? [], availableModels }), reload }
 }

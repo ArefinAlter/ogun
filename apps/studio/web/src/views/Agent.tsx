@@ -86,7 +86,8 @@ function NewThread() {
   const [model, setModel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const effectiveAccess = access ?? settings.data?.default_access ?? 'read'
-  const effectiveModel = model ?? settings.data?.default_model ?? 'scripted'
+  const firstAvailable = (models ?? []).find((m) => m.available)?.id
+  const effectiveModel = model ?? (settings.data?.default_model && settings.data.default_model !== 'scripted' ? settings.data.default_model : firstAvailable ?? 'scripted')
 
   const start = async (text: string, mentions: Mention[]) => {
     if (!agent) return

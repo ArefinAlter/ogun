@@ -231,13 +231,16 @@ export function Composer({
             {(close) => (
               <>
                 <div class="pophead">Model</div>
-                {models.map((m) => (
-                  <button type="button" role="menuitemradio" aria-checked={m.id === model} disabled={!m.available} class={m.id === model ? 'on' : ''} onClick={() => (onModel(m.id), close())}>
-                    <span class="name">{m.label}</span>
-                    <span class="meta">{m.provider}</span>
-                    <span class="desc">{m.note ?? ''}</span>
-                  </button>
-                ))}
+                {models.map((m) => {
+                  const isSub = m.id.endsWith('_subscription') || m.label.toLowerCase().includes('subscription')
+                  return (
+                    <button type="button" role="menuitemradio" aria-checked={m.id === model} disabled={!m.available} class={m.id === model ? 'on' : ''} onClick={() => (onModel(m.id), close())}>
+                      <span class="name">{m.label}</span>
+                      <span class="meta">{isSub ? <Chip tone="ok">Pro/Team</Chip> : m.provider}</span>
+                      <span class="desc">{m.note ?? ''}</span>
+                    </button>
+                  )
+                })}
               </>
             )}
           </Popover>
