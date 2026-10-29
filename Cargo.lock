@@ -3097,6 +3097,7 @@ dependencies = [
  "hyper-util",
  "jsonwebtoken",
  "ogun-api",
+ "ogun-ir",
  "ogun-types",
  "p256 0.14.0",
  "redb",

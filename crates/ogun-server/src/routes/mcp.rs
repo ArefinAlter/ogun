@@ -239,6 +239,71 @@ async fn call_tool(s: &AppState, a: &Access, tool: &str, args: &Value) -> Result
     })
 }
 
+fn server_resources_list() -> Value {
+    json!([
+        {
+            "uri": "ogun://schema/workflow-ir",
+            "name": "Ogun Workflow IR v0 Schema",
+            "description": "JSON Schema specification for Ogun Workflow IR v0 DAGs, nodes, operators, and routing predicates.",
+            "mimeType": "application/schema+json"
+        },
+        {
+            "uri": "ogun://operators",
+            "name": "Built-in Operator Catalogue",
+            "description": "Full catalogue of built-in Ogun operators (core, adapter, code, model, source) with inputs and outputs.",
+            "mimeType": "application/json"
+        }
+    ])
+}
+
+fn server_prompts_list() -> Value {
+    json!([
+        {
+            "name": "draft_etl_pipeline",
+            "description": "Template to draft a durable Ogun ETL pipeline with source acquisition, parsing, deduplication, and export.",
+            "arguments": [
+                {
+                    "name": "source_description",
+                    "description": "Description of the data source and desired transformations",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "name": "troubleshoot_run",
+            "description": "Template to diagnose a failed or waiting Ogun workflow run and identify root causes.",
+            "arguments": [
+                {
+                    "name": "run_id",
+                    "description": "The run identifier (e.g. orun_...)",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "name": "plan_backfill",
+            "description": "Template to plan a date-partitioned backfill over a historical range.",
+            "arguments": [
+                {
+                    "name": "workflow",
+                    "description": "Name of the partitioned workflow",
+                    "required": true
+                },
+                {
+                    "name": "from_date",
+                    "description": "Start partition key (e.g. 2026-01-01)",
+                    "required": true
+                },
+                {
+                    "name": "to_date",
+                    "description": "End partition key (inclusive, e.g. 2026-03-31)",
+                    "required": true
+                }
+            ]
+        }
+    ])
+}
+
 async fn handle(s: &AppState, a: &Access, msg: &Value) -> Option<Value> {
     let id = msg.get("id").cloned()?;
     let method = msg.get("method").and_then(Value::as_str)?;
@@ -255,7 +320,11 @@ async fn handle(s: &AppState, a: &Access, msg: &Value) -> Option<Value> {
                 .unwrap_or(&PROTOCOL_VERSIONS[0]);
             Ok(json!({
                 "protocolVersion": version,
-                "capabilities": { "tools": { "listChanged": false } },
+                "capabilities": {
+                    "tools": { "listChanged": false },
+                    "resources": { "subscribe": false, "listChanged": false },
+                    "prompts": { "listChanged": false }
+                },
                 "serverInfo": { "name": "ogun-server", "title": "Ogun server", "version": env!("CARGO_PKG_VERSION") },
                 "instructions": format!(
                     "Ogun workflow tools for workspace {}. You act as an agent: you can read workflows and runs, validate workflow IR and start runs of stored versions with an idempotency key. You can never decide an approval; a person does that on the Ogun CLI or in Studio.",
@@ -272,6 +341,111 @@ async fn handle(s: &AppState, a: &Access, msg: &Value) -> Option<Value> {
                 .cloned()
                 .unwrap_or_else(|| json!({}));
             call_tool(s, a, tool, &args).await
+        }
+        "resources/list" => Ok(json!({ "resources": server_resources_list() })),
+        "resources/read" => {
+            let uri = params.get("uri").and_then(Value::as_str).unwrap_or("");
+            match uri {
+                "ogun://schema/workflow-ir" => {
+                    let schema = json!({
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "title": "Ogun Workflow IR v0",
+                        "type": "object"
+                    });
+                    Ok(json!({
+                        "contents": [{
+                            "uri": uri,
+                            "mimeType": "application/schema+json",
+                            "text": serde_json::to_string_pretty(&schema).unwrap_or_default()
+                        }]
+                    }))
+                }
+                "ogun://operators" => {
+                    let ops: Vec<Value> = ogun_ir::catalogue::BUILTIN
+                        .iter()
+                        .map(|op| {
+                            json!({
+                                "name": op.name,
+                                "majors": op.majors,
+                                "outputs": op.outputs,
+                                "kind": format!("{:?}", op.kind).to_lowercase()
+                            })
+                        })
+                        .collect();
+                    Ok(json!({
+                        "contents": [{
+                            "uri": uri,
+                            "mimeType": "application/json",
+                            "text": serde_json::to_string_pretty(&ops).unwrap_or_default()
+                        }]
+                    }))
+                }
+                _ => Err(RpcError(-32602, format!("resource not found: {uri}"))),
+            }
+        }
+        "prompts/list" => Ok(json!({ "prompts": server_prompts_list() })),
+        "prompts/get" => {
+            let name = params.get("name").and_then(Value::as_str).unwrap_or("");
+            let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+            match name {
+                "draft_etl_pipeline" => {
+                    let desc = args.get("source_description").and_then(Value::as_str).unwrap_or("");
+                    Ok(json!({
+                        "description": "Draft an Ogun ETL pipeline with source acquisition, parsing, deduplication, and export.",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": {
+                                    "type": "text",
+                                    "text": format!(
+                                        "You are an expert data engineer using Ogun. Draft a durable workflow for this requirement:\n\n{}\n\nFollow these steps:\n1. Construct the Workflow IR v0 JSON.\n2. Validate it using `ogun_validate`.\n3. Present the verified JSON workflow document.",
+                                        desc
+                                    )
+                                }
+                            }
+                        ]
+                    }))
+                }
+                "troubleshoot_run" => {
+                    let run_id = args.get("run_id").and_then(Value::as_str).unwrap_or("");
+                    Ok(json!({
+                        "description": "Diagnose an Ogun workflow run.",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": {
+                                    "type": "text",
+                                    "text": format!(
+                                        "Diagnose run `{}` in Ogun:\n1. Call `ogun_run_status` with `run_id`: \"{}\".\n2. Inspect all node instances.\n3. Read error diagnostics and suggest a fix.",
+                                        run_id, run_id
+                                    )
+                                }
+                            }
+                        ]
+                    }))
+                }
+                "plan_backfill" => {
+                    let workflow = args.get("workflow").and_then(Value::as_str).unwrap_or("");
+                    let from = args.get("from_date").and_then(Value::as_str).unwrap_or("");
+                    let to = args.get("to_date").and_then(Value::as_str).unwrap_or("");
+                    Ok(json!({
+                        "description": "Plan a date-partitioned backfill.",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": {
+                                    "type": "text",
+                                    "text": format!(
+                                        "Plan a backfill for workflow `{}` from `{}` to `{}`:\n1. Call `ogun_partitions_status` for workflow \"{}\" from \"{}\" to \"{}\".\n2. Call `ogun_run_start` with an `idempotency_key`.",
+                                        workflow, from, to, workflow, from, to
+                                    )
+                                }
+                            }
+                        ]
+                    }))
+                }
+                _ => Err(RpcError(-32602, format!("prompt not found: {name}"))),
+            }
         }
         other => Err(RpcError(-32601, format!("method not found: {other}"))),
     };
