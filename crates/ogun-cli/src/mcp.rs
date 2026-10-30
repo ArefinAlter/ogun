@@ -524,7 +524,7 @@ const DAEMON_TOOLS: &[DaemonTool] = &[
     DaemonTool {
         name: "ogun_backfill_plan",
         title: "Plan a backfill in ogund",
-        description: "What a backfill over from..to would run for a stored workflow: keys to run, keys already up to date, and the compressed ranges. Plans only; start it with ogun_run_start and a range.",
+        description: "What a backfill over from..to would run for a stored workflow: keys to run, keys already up to date, and the compressed ranges. Plans only; a person starts the run through Ogun CLI or Studio.",
         method: name::BACKFILLS_PLAN,
         read_only: true,
         schema: || {
@@ -854,7 +854,10 @@ fn prompts_list() -> Value {
 fn get_prompt(name: &str, args: &Value) -> Result<Value, String> {
     match name {
         "draft_etl_pipeline" => {
-            let desc = args.get("source_description").and_then(Value::as_str).unwrap_or("");
+            let desc = args
+                .get("source_description")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             Ok(json!({
                 "description": "Draft an Ogun ETL pipeline with source acquisition, parsing, deduplication, and export.",
                 "messages": [
@@ -901,7 +904,7 @@ fn get_prompt(name: &str, args: &Value) -> Result<Value, String> {
                         "content": {
                             "type": "text",
                             "text": format!(
-                                "Plan a backfill for workflow `{}` from `{}` to `{}`:\n1. Call `ogun_partitions_status` for workflow \"{}\" from \"{}\" to \"{}\" to check which partition keys are missing or failed.\n2. Formulate the backfill plan.\n3. Provide the `ogun_run_start` call with a unique `idempotency_key` and range partition selector.",
+                                "Plan a backfill for workflow `{}` from `{}` to `{}`:\n1. Call `ogun_partitions_status` for workflow \"{}\" from \"{}\" to \"{}\" to check which partition keys are missing or failed.\n2. Formulate the backfill plan.\n3. Ask a person to start the run in Ogun CLI or Studio with the proposed range.",
                                 workflow, from, to, workflow, from, to
                             )
                         }
@@ -947,7 +950,7 @@ impl McpServer {
             tools.extend(
                 DAEMON_TOOLS
                     .iter()
-                    .filter(|t| methods.iter().any(|m| m == t.method))
+                    .filter(|t| t.read_only && methods.iter().any(|m| m == t.method))
                     .map(daemon_tool_json),
             );
         }
@@ -1032,7 +1035,7 @@ impl McpServer {
         if let Some(result) = call_offline(name, args, now_ms) {
             return result;
         }
-        match DAEMON_TOOLS.iter().find(|t| t.name == name) {
+        match DAEMON_TOOLS.iter().find(|t| t.read_only && t.name == name) {
             Some(tool) => self.call_daemon(tool, args),
             None => Err(format!("unknown tool {name}")),
         }
@@ -1188,7 +1191,12 @@ mod tests {
         use ogun_api::policy::lookup;
         for t in DAEMON_TOOLS {
             let row = lookup(t.method).expect("method in the policy table");
-            assert!(row.kinds.contains(&ClientKind::Agent), "{}", t.method);
+            assert_eq!(
+                row.kinds.contains(&ClientKind::Agent),
+                t.read_only,
+                "{}",
+                t.method
+            );
             assert!(!row.interactive, "{}", t.method);
             for forbidden in [
                 "approvals.decide",
@@ -1391,7 +1399,19 @@ mod tests {
             .iter()
             .map(|t| t["name"].as_str().unwrap().to_owned())
             .collect();
-        assert!(names.contains(&"ogun_run_start".to_owned()), "{names:?}");
+        assert!(!names.contains(&"ogun_run_start".to_owned()), "{names:?}");
+        assert!(
+            !names.contains(&"ogun_workflow_put".to_owned()),
+            "{names:?}"
+        );
+        for tool in ["ogun_run_start", "ogun_workflow_put"] {
+            let denied = rpc(
+                &mut s,
+                "tools/call",
+                json!({ "name": tool, "arguments": {} }),
+            );
+            assert_eq!(denied["error"]["code"], -32602);
+        }
         assert!(names.contains(&"ogun_approvals_list".to_owned()));
         let r = rpc(
             &mut s,
@@ -1467,13 +1487,23 @@ mod tests {
             "initialize",
             json!({ "protocolVersion": "2025-06-18" }),
         );
-        assert_eq!(init["result"]["capabilities"]["resources"]["listChanged"], false);
-        assert_eq!(init["result"]["capabilities"]["prompts"]["listChanged"], false);
+        assert_eq!(
+            init["result"]["capabilities"]["resources"]["listChanged"],
+            false
+        );
+        assert_eq!(
+            init["result"]["capabilities"]["prompts"]["listChanged"],
+            false
+        );
 
         let res_list = rpc(&mut s, "resources/list", json!({}));
         let resources = res_list["result"]["resources"].as_array().unwrap();
         assert_eq!(resources.len(), 3);
-        assert!(resources.iter().any(|r| r["uri"] == "ogun://schema/workflow-ir"));
+        assert!(
+            resources
+                .iter()
+                .any(|r| r["uri"] == "ogun://schema/workflow-ir")
+        );
         assert!(resources.iter().any(|r| r["uri"] == "ogun://operators"));
         assert!(resources.iter().any(|r| r["uri"] == "ogun://workflows"));
 
@@ -1482,7 +1512,12 @@ mod tests {
             "resources/read",
             json!({ "uri": "ogun://schema/workflow-ir" }),
         );
-        assert!(res_read["result"]["contents"][0]["text"].as_str().unwrap().contains("workflow"));
+        assert!(
+            res_read["result"]["contents"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("workflow")
+        );
 
         let prompts_res = rpc(&mut s, "prompts/list", json!({}));
         let prompts = prompts_res["result"]["prompts"].as_array().unwrap();
@@ -1499,6 +1534,11 @@ mod tests {
                 "arguments": { "source_description": "weather data" }
             }),
         );
-        assert!(prompt_get["result"]["messages"][0]["content"]["text"].as_str().unwrap().contains("weather data"));
+        assert!(
+            prompt_get["result"]["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("weather data")
+        );
     }
 }

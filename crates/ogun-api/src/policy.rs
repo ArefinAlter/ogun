@@ -89,14 +89,14 @@ pub const METHODS: &[MethodPolicy] = &[
     row(name::DAEMON_STATUS, ALL, false),
     interactive_or_studio(name::DAEMON_SHUTDOWN),
     row(name::WORKFLOWS_VALIDATE, ALL, false),
-    row(name::WORKFLOWS_PUT, PEOPLE_AND_AGENTS, true),
+    row(name::WORKFLOWS_PUT, HUMAN_OR_BRIDGE, true),
     row(name::WORKFLOWS_LIST, ALL, false),
     row(name::WORKFLOWS_GET, ALL, false),
     row(name::WORKFLOWS_SET_ENABLED, HUMAN_OR_BRIDGE, true),
-    row(name::RUNS_START, PEOPLE_AND_AGENTS, true),
+    row(name::RUNS_START, HUMAN_OR_BRIDGE, true),
     row(name::RUNS_GET, ALL, false),
     row(name::RUNS_LIST, ALL, false),
-    row(name::RUNS_CANCEL, PEOPLE_AND_AGENTS, true),
+    row(name::RUNS_CANCEL, HUMAN_OR_BRIDGE, true),
     row(name::BACKFILLS_PLAN, PEOPLE_AND_AGENTS, false),
     row(name::PARTITIONS_STATUS, ALL, false),
     row(name::EVENTS_SINCE, ALL, false),
@@ -267,6 +267,14 @@ mod tests {
             ] {
                 assert!(!allowed.iter().any(|a| a == m), "{kind} may call {m}");
             }
+        }
+    }
+
+    #[test]
+    fn agent_credentials_cannot_start_cancel_or_store_workflows() {
+        let allowed = methods_for_surface(Agent, Surface::None);
+        for method in [name::WORKFLOWS_PUT, name::RUNS_START, name::RUNS_CANCEL] {
+            assert!(!allowed.iter().any(|item| item == method), "{method}");
         }
     }
 
