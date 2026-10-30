@@ -1191,7 +1191,12 @@ mod tests {
         use ogun_api::policy::lookup;
         for t in DAEMON_TOOLS {
             let row = lookup(t.method).expect("method in the policy table");
-            assert!(row.kinds.contains(&ClientKind::Agent), "{}", t.method);
+            assert_eq!(
+                row.kinds.contains(&ClientKind::Agent),
+                t.read_only,
+                "{}",
+                t.method
+            );
             assert!(!row.interactive, "{}", t.method);
             for forbidden in [
                 "approvals.decide",
