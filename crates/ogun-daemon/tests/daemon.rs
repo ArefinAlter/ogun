@@ -124,6 +124,11 @@ async fn workflow_run_and_policy() {
         .await
         .unwrap_err();
     assert_eq!(denied.code(), "api.permission_denied");
+    // Agent credentials cannot bypass the read-only MCP boundary through the daemon API.
+    for method in [name::WORKFLOWS_PUT, name::RUNS_START, name::RUNS_CANCEL] {
+        let denied = agent.call_value(method, json!({})).await.unwrap_err();
+        assert_eq!(denied.code(), "api.permission_denied", "{method}");
+    }
     // A human connection without a terminal cannot change trust.
     let denied = cli
         .call_value(name::CREDENTIALS_ADD, json!({"name": "x", "kind": "agent"}))

@@ -1,0 +1,28 @@
+name: Security regression
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mcp-boundary:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ogun
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: ogun
+      - uses: actions/checkout@v5
+        with:
+          repository: ArefinAlter/zeus-core
+          path: zeus-core
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ogun
+      - run: cargo test --locked -p ogun-api policy
+      - run: cargo test --locked -p ogun-cli mcp
+      - run: cargo test --locked -p ogun-server mcp
+      - run: cargo test --locked -p ogun-daemon --test daemon workflow_run_and_policy

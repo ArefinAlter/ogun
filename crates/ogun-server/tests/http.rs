@@ -302,6 +302,21 @@ async fn mcp_is_for_tokens_only_and_lists_no_deciding_tool() {
             .iter()
             .all(|t| !t["name"].as_str().unwrap().contains("decide"))
     );
+    assert!(
+        tools
+            .iter()
+            .all(|t| t["annotations"]["readOnlyHint"] == true)
+    );
+    let attempt = json!({ "jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": { "name": "ogun_run_start", "arguments": {"workflow": "w", "idempotency_key": "x"} } }).to_string();
+    let (_, _, denied) = send(
+        &f,
+        post("/mcp")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::from(attempt))
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(denied["error"]["code"], -32602);
     let note = json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string();
     let (status, _, _) = send(
         &f,

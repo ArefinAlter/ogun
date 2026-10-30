@@ -2,7 +2,7 @@
 //!
 //! Only API tokens (agents) reach it, never a cookie session. The server is stateless: no `Mcp-Session-Id`, no
 //! server-initiated stream (`GET` is 405), single JSON-RPC messages answered with `application/json`. The tools are
-//! read-mostly: list and get workflows, validate, start a run with an idempotency key, run status, partition status
+//! read-only: list and get workflows, validate, run status, partition status
 //! and a read-only list of approvals. No tool decides, approves or grants anything; a person decides approvals on
 //! the Ogun CLI or in Studio.
 
@@ -12,8 +12,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use ogun_api::methods::{
-    GetWorkflowParams, ListApprovalsParams, PartitionSelector, PartitionStatusParams, RunRef,
-    StartRunParams, WorkflowDocument, name,
+    GetWorkflowParams, ListApprovalsParams, PartitionStatusParams, RunRef, WorkflowDocument, name,
 };
 use serde_json::{Value, json};
 
@@ -56,19 +55,6 @@ fn tools() -> Value {
                 "workflow": { "description": "Workflow IR v0 as a JSON object or as JSON text." }
             }, "required": ["workflow"], "additionalProperties": false },
             "annotations": ro
-        },
-        {
-            "name": "ogun_run_start",
-            "title": "Start a run",
-            "description": "Start a run of a stored workflow version. A version whose approvals are not granted waits for a person; this tool cannot grant them. Repeat with the same idempotency_key to get the same run.",
-            "inputSchema": { "type": "object", "properties": {
-                "workflow": { "type": "string" },
-                "version": { "type": "integer", "minimum": 1 },
-                "workflow_hash": { "type": "string", "description": "When present, must equal the version's hash." },
-                "partitions": { "type": "object", "description": "{\"kind\":\"latest\"}, {\"kind\":\"keys\",\"keys\":[...]} or {\"kind\":\"range\",\"from\":...,\"to\":...}. Default latest." },
-                "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 128 }
-            }, "required": ["workflow", "idempotency_key"], "additionalProperties": false },
-            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
         },
         {
             "name": "ogun_run_status",
@@ -181,20 +167,6 @@ async fn call_tool(s: &AppState, a: &Access, tool: &str, args: &Value) -> Result
                 }
                 Err(e) => Err(e),
             }
-        }
-        "ogun_run_start" => {
-            let partitions: PartitionSelector = match args.get("partitions") {
-                None | Some(Value::Null) => PartitionSelector::Latest,
-                Some(v) => args_of(v)?,
-            };
-            let p = StartRunParams {
-                workflow: str_arg(args, "workflow")?,
-                version: opt_u64(args, "version")?,
-                workflow_hash: opt_str(args, "workflow_hash"),
-                partitions,
-                idempotency_key: str_arg(args, "idempotency_key")?,
-            };
-            relay(s, a, name::RUNS_START, Role::Editor, &p).await
         }
         "ogun_run_status" => {
             let run_id = str_arg(args, "run_id")?
@@ -386,10 +358,16 @@ async fn handle(s: &AppState, a: &Access, msg: &Value) -> Option<Value> {
         "prompts/list" => Ok(json!({ "prompts": server_prompts_list() })),
         "prompts/get" => {
             let name = params.get("name").and_then(Value::as_str).unwrap_or("");
-            let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+            let args = params
+                .get("arguments")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
             match name {
                 "draft_etl_pipeline" => {
-                    let desc = args.get("source_description").and_then(Value::as_str).unwrap_or("");
+                    let desc = args
+                        .get("source_description")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
                     Ok(json!({
                         "description": "Draft an Ogun ETL pipeline with source acquisition, parsing, deduplication, and export.",
                         "messages": [
@@ -436,7 +414,7 @@ async fn handle(s: &AppState, a: &Access, msg: &Value) -> Option<Value> {
                                 "content": {
                                     "type": "text",
                                     "text": format!(
-                                        "Plan a backfill for workflow `{}` from `{}` to `{}`:\n1. Call `ogun_partitions_status` for workflow \"{}\" from \"{}\" to \"{}\".\n2. Call `ogun_run_start` with an `idempotency_key`.",
+                                        "Plan a backfill for workflow `{}` from `{}` to `{}`:\n1. Call `ogun_partitions_status` for workflow \"{}\" from \"{}\" to \"{}\".\n2. Ask a person to start the run in Ogun CLI or Studio.",
                                         workflow, from, to, workflow, from, to
                                     )
                                 }
@@ -539,7 +517,7 @@ mod tests {
             .iter()
             .map(|t| t["name"].as_str().unwrap())
             .collect();
-        assert!(names.contains(&"ogun_run_start"));
+        assert!(!names.contains(&"ogun_run_start"));
         assert!(names.contains(&"ogun_approvals_list"));
     }
 }
